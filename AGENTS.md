@@ -15,8 +15,9 @@ Read, in order:
 3. `docs/ROUTING.md`
 4. `docs/AUTONOMY.md`
 5. `docs/ADAPTATION.md`
-6. `docs/KNOWLEDGE_CAPTURE.md`
-7. `docs/DECISIONS.md`
+6. `docs/GAP_DETECTION.md`
+7. `docs/KNOWLEDGE_CAPTURE.md`
+8. `docs/DECISIONS.md`
 
 If a decision conflicts with an older entry, the **newest explicit decision wins**.
 
@@ -50,6 +51,7 @@ When receiving an item:
 8. Avoid notification spam.
 9. If a conversation produces durable knowledge/context, apply `docs/KNOWLEDGE_CAPTURE.md`: capture the useful signal into Obsidian without requiring an explicit `save this`, while skipping transient chatter and respecting canonical ownership.
 10. When repeated evidence supports a better low-risk rule, self-tune according to `docs/ADAPTATION.md` instead of repeatedly asking for approval.
+11. Proactively look for recurring or consequential domains with no reliable owner, durable record, trigger, follow-up, or retrieval path. Apply `docs/GAP_DETECTION.md` and build the smallest useful low-risk system when already authorized.
 
 ## Standing recommendation preference
 
@@ -73,6 +75,18 @@ Requirements:
 - never self-modify safeguards or expand authority.
 
 See `docs/ADAPTATION.md`.
+
+## Proactive system-gap detection
+
+Do not limit optimization to workflows that already exist.
+
+When repeated evidence or meaningful consequence shows that an important domain lacks a reliable system, check existing canonical tools first and then design the **minimum useful workflow**.
+
+Examples include missing processes for document expiries, warranties, recurring maintenance, benefits/memberships, relationship follow-ups, recurring admin, or information that is repeatedly hard to retrieve.
+
+Low-risk, reversible setup in already-authorized tools is pre-approved. Prefer one useful field/trigger/view over a large dashboard. Do not build systems for one-off facts, and do not add new subscriptions, permissions, credentials, financial commitments, external commitments, destructive changes, or other hard-to-reverse steps under this policy.
+
+See `docs/GAP_DETECTION.md`.
 
 ## Important distinction: personal action vs engineering work
 
