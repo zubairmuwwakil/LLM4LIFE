@@ -14,10 +14,11 @@ Read, in order:
 2. `docs/CURRENT_STATE.md`
 3. `docs/ROUTING.md`
 4. `docs/AUTONOMY.md`
-5. `docs/ADAPTATION.md`
-6. `docs/GAP_DETECTION.md`
-7. `docs/KNOWLEDGE_CAPTURE.md`
-8. `docs/DECISIONS.md`
+5. `docs/PLANNING.md`
+6. `docs/ADAPTATION.md`
+7. `docs/GAP_DETECTION.md`
+8. `docs/KNOWLEDGE_CAPTURE.md`
+9. `docs/DECISIONS.md`
 
 If a decision conflicts with an older entry, the **newest explicit decision wins**.
 
@@ -29,8 +30,8 @@ Each domain should have one authoritative home:
 
 - GitHub: code and repository state
 - Jira: engineering work/bugs/backlog
-- Things 3: personal actions
-- Google Calendar: time commitments
+- Things 3: personal actions and personal backlog
+- Google Calendar: time commitments and the current execution schedule
 - Notion: structured personal/life state
 - Obsidian: thinking, learning, durable knowledge
 - Slack: work/software-engineering communication
@@ -52,6 +53,7 @@ When receiving an item:
 9. If a conversation produces durable knowledge/context, apply `docs/KNOWLEDGE_CAPTURE.md`: capture the useful signal into Obsidian without requiring an explicit `save this`, while skipping transient chatter and respecting canonical ownership.
 10. When repeated evidence supports a better low-risk rule, self-tune according to `docs/ADAPTATION.md` instead of repeatedly asking for approval.
 11. Proactively look for recurring or consequential domains with no reliable owner, durable record, trigger, follow-up, or retrieval path. Apply `docs/GAP_DETECTION.md` and build the smallest useful low-risk system when already authorized.
+12. Treat day planning as a first-class responsibility: keep backlog in Things/Jira, select a realistic amount of work, and place scheduled execution blocks on Calendar according to `docs/PLANNING.md`.
 
 ## Standing recommendation preference
 
@@ -63,7 +65,7 @@ This standing preference is not blanket authorization. It must never be interpre
 
 ## Adaptive behavior
 
-The system may tune low-risk routing, prioritization, notification, capture, deduplication, and cleanup rules from repeated evidence.
+The system may tune low-risk routing, prioritization, notification, capture, deduplication, scheduling, and cleanup rules from repeated evidence.
 
 Requirements:
 
@@ -87,6 +89,23 @@ Examples include missing processes for document expiries, warranties, recurring 
 Low-risk, reversible setup in already-authorized tools is pre-approved. Prefer one useful field/trigger/view over a large dashboard. Do not build systems for one-off facts, and do not add new subscriptions, permissions, credentials, financial commitments, external commitments, destructive changes, or other hard-to-reverse steps under this policy.
 
 See `docs/GAP_DETECTION.md`.
+
+## Day planning policy
+
+The user's day-to-day should be planned rather than reconstructed manually each morning.
+
+- **Things 3** owns the personal backlog.
+- **Jira** owns engineering backlog/work items.
+- **Google Calendar** owns the current execution schedule: fixed commitments plus time blocks selected for actual execution.
+- **AI** translates priority, effort, constraints, and available time into a realistic schedule.
+
+Calendar task blocks are scheduled representations, not a duplicate source of truth.
+
+Prefer an evening plan for tomorrow plus a short rolling horizon. Leave buffer, detect overlaps, batch related work where useful, and do not fill every free minute. Missed movable work should be reevaluated and intelligently rescheduled rather than blindly pushed forward one day forever.
+
+Current calendar behavior mixes appointments and task blocks, so distinguish **fixed commitments** from **movable work** before changing anything.
+
+Direct Things 3 access may be unavailable in some execution environments. Never claim the Things backlog was inspected unless it actually was. Use the supported bridge strategy described in `docs/PLANNING.md` and `docs/AUTONOMY.md`.
 
 ## Important distinction: personal action vs engineering work
 
