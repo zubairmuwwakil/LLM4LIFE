@@ -21,6 +21,8 @@ principles:
   - standing_yes_does_not_expand_authority
   - detect_missing_systems_not_just_optimize_existing_ones
   - minimum_useful_system_over_infrastructure_sprawl
+  - backlog_is_not_calendar
+  - plan_realistically_not_maximally
 
 systems:
   github:
@@ -40,11 +42,14 @@ systems:
       - personal_actions
       - personal_reminders
       - next_actions
+      - personal_backlog
   google_calendar:
     owns:
       - time_commitments
       - scheduled_events
       - deadlines_when_time_itself_matters
+      - current_execution_schedule
+      - selected_task_time_blocks
   notion:
     owns:
       - structured_personal_state
@@ -159,6 +164,7 @@ routing:
   code_change_or_repo_state: github
   personal_action: things3
   time_commitment: google_calendar
+  scheduled_execution_block: google_calendar
   structured_life_state: notion
   knowledge_or_thinking: obsidian
   contextual_personal_note: obsidian
@@ -190,6 +196,8 @@ ai_layer:
     standing_low_risk_recommendation_approval: true
     proactively_detect_missing_systems: true
     autonomously_build_low_risk_missing_workflows: true
+    autonomously_plan_day_to_day: true
+    maintain_rolling_schedule_horizon: true
 
 adaptation:
   enabled: true
@@ -203,6 +211,8 @@ adaptation:
     - obsidian_capture_and_placement_heuristics
     - classification_and_tagging_defaults
     - low_risk_cleanup_thresholds
+    - task_duration_estimates
+    - scheduling_and_batching_heuristics
   evidence:
     require_repeated_pattern_or_clear_override: true
     single_observation_not_permanent_rule: true
@@ -219,6 +229,8 @@ adaptation:
     - reopened_items
     - missed_urgency
     - notification_noise
+    - repeated_rescheduling
+    - task_duration_mismatch
   report_material_changes_in_digest: true
   may_not_self_modify:
     - weaken_safeguards
@@ -301,6 +313,79 @@ gap_detection:
       - generated_noise
       - better_canonical_owner_available
 
+planning:
+  enabled: true
+  policy_doc: docs/PLANNING.md
+  objective_priority:
+    - prevent_important_things_from_slipping
+    - save_time
+    - reduce_mental_load
+    - increase_output
+  ownership:
+    personal_backlog: things3
+    engineering_backlog: jira
+    execution_schedule: google_calendar
+    scheduler: ai_layer
+  calendar_semantics:
+    task_blocks_are_scheduled_representations_not_canonical_backlog: true
+    fixed_commitments_must_not_be_moved_for_optimization: true
+    movable_low_risk_work_may_be_autonomously_rescheduled: true
+  daily_loop:
+    evening_plan_next_day: true
+    morning_digest_sanity_check: true
+    rolling_horizon_days: 7
+  evening_plan_steps:
+    - read_fixed_calendar_commitments
+    - read_available_authoritative_backlogs_and_action_sources
+    - detect_overdue_urgent_high_impact_dependency_and_neglected_work
+    - estimate_reasonable_duration_when_missing
+    - select_realistic_tomorrow_workload
+    - schedule_into_open_windows
+    - leave_buffer
+    - detect_and_resolve_movable_overlaps
+    - defer_lower_priority_work_instead_of_colliding
+  scheduling_signals:
+    - hard_deadline
+    - consequence_of_delay
+    - dependency_value
+    - impact
+    - age_and_neglect
+    - effort
+    - available_window
+    - location_or_context_constraint
+    - batching_opportunity
+    - observed_completion_behavior
+    - repeated_deferral_or_override
+  horizon:
+    today_and_tomorrow: concrete_execution_blocks
+    next_7_days: high_confidence_important_work
+    beyond_7_days: keep_in_backlog_unless_deadline_or_lead_time_justifies_calendar
+  calendar_hygiene:
+    - prevent_overlapping_movable_tasks
+    - prevent_duplicate_task_blocks
+    - leave_buffer
+    - batch_related_admin_or_errands_when_useful
+    - remove_or_reschedule_stale_task_blocks_when_authorized
+    - avoid_full_day_max_utilization
+  missed_task_policy:
+    reassess_value_before_reschedule: true
+    do_not_blindly_push_one_day_forever: true
+    repeated_rescheduling_is_behavioral_evidence: true
+  things_bridge:
+    required_for_complete_personal_backlog_planning: true
+    if_unavailable_do_not_claim_backlog_was_inspected: true
+    preferred_supported_interfaces:
+      - apple_shortcuts
+      - things_url_scheme
+      - applescript_macos
+      - thin_deterministic_adapter
+  autonomous_not_allowed:
+    - move_or_cancel_external_meeting
+    - move_or_cancel_appointment
+    - alter_travel_commitment
+    - alter_legal_or_financial_commitment
+    - other_consequential_fixed_event
+
 safeguards:
   auto_allowed_examples:
     - create_low_risk_task
@@ -310,6 +395,8 @@ safeguards:
     - capture_durable_conversation_insight_to_obsidian
     - merge_or_rewrite_obsidian_knowledge_with_provenance
     - add_calendar_event
+    - schedule_or_reschedule_movable_low_risk_work
+    - resolve_movable_calendar_collision
     - classify_or_tag
     - low_risk_reversible_cleanup
     - self_tune_low_risk_reversible_rule
@@ -323,6 +410,7 @@ safeguards:
     - money_movement
     - production_change
     - security_or_credential_change
+    - move_or_cancel_fixed_external_commitment
     - hard_to_reverse_action
 
 notifications:
@@ -390,6 +478,7 @@ known_current_conclusions:
   adaptive_rules: autonomous_low_risk_self_tuning_with_evidence_and_rollback
   recommendation_default: standing_yes_for_low_risk_reversible_recommendations_only
   missing_systems: proactively_detect_and_build_minimum_low_risk_workflows
+  planning_model: things_and_jira_hold_backlog_ai_schedules_calendar_execution
   engineering_truth: github_plus_jira
   core_finance_truth: dedicated_finance_apps_not_notion
 
