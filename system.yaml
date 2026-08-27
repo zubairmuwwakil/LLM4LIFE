@@ -16,6 +16,7 @@ principles:
   - optimize_attention_not_notification_volume
   - learned_preferences_are_soft_preferences
   - architecture_is_open_to_change
+  - capture_durable_signal_not_conversational_exhaust
 
 systems:
   github:
@@ -71,6 +72,7 @@ systems:
       - contextual_research
     autonomous_writes:
       - create_contextual_notes
+      - capture_durable_conversation_insights
       - triage_inbox_into_para
       - organize_and_move_notes
       - update_frontmatter
@@ -79,6 +81,35 @@ systems:
       - rewrite_existing_notes_for_clarity_or_conflict_resolution
       - archive_reversible_stale_material
       - connect_to_canonical_external_records
+    conversation_capture:
+      enabled: true
+      explicit_save_phrase_required: false
+      policy_doc: docs/KNOWLEDGE_CAPTURE.md
+      capture:
+        - durable_insights
+        - decisions_with_rationale
+        - lessons_and_mistakes
+        - reusable_frameworks_and_processes
+        - research_conclusions
+        - meaningful_project_reasoning
+        - stable_workflow_preferences
+        - useful_personal_context_when_appropriate
+      skip:
+        - casual_chatter
+        - transient_answers
+        - one_off_logistics_owned_elsewhere
+        - duplicate_canonical_information
+        - raw_transcripts_by_default
+        - temporary_status
+        - receipts_and_notifications
+      sensitive_implicit_capture:
+        credentials_and_secrets: prohibited
+        high_risk_identifiers: prohibited
+        unusually_sensitive_personal_material: require_explicit_storage_intent
+      search_before_create: true
+      prefer_update_or_merge: true
+      preserve_provenance_when_useful: true
+      log_material_captures: true
     merge_rewrite_policy:
       enabled: true
       preserve_user_authored_reasoning: true
@@ -127,6 +158,7 @@ routing:
   structured_life_state: notion
   knowledge_or_thinking: obsidian
   contextual_personal_note: obsidian
+  durable_conversation_insight: obsidian
   work_communication: slack
   personal_communication: discord
 
@@ -149,6 +181,7 @@ ai_layer:
     send_receipt_after_write: true
     consolidate_multi_action_receipts: true
     log_meaningful_writes: true
+    proactively_capture_durable_conversation_knowledge: true
 
 safeguards:
   auto_allowed_examples:
@@ -156,6 +189,7 @@ safeguards:
     - create_or_update_jira_work_item
     - update_notion_structured_state
     - create_or_organize_obsidian_knowledge
+    - capture_durable_conversation_insight_to_obsidian
     - merge_or_rewrite_obsidian_knowledge_with_provenance
     - add_calendar_event
     - classify_or_tag
@@ -228,7 +262,7 @@ known_current_conclusions:
   notion_best_role: personal_operations_and_life_database
   notion_generic_project_manager: likely_redundant
   obsidian_best_role: personal_knowledge_and_context_layer
-  obsidian_access: autonomous_read_write_merge_and_rewrite_with_learning_guardrails
+  obsidian_access: autonomous_read_write_merge_rewrite_and_conversation_capture_with_learning_guardrails
   engineering_truth: github_plus_jira
   core_finance_truth: dedicated_finance_apps_not_notion
 
