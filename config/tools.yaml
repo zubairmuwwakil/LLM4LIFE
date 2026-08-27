@@ -1,0 +1,238 @@
+version: 1
+updated: 2026-08-27
+status_vocabulary:
+  connected: direct_runtime_path_verified
+  partial: useful_access_but_missing_desired_end_to_end_path
+  user_live: user_uses_tool_but_current_ai_direct_access_not_verified
+  optional_planned: use_only_when_it_removes_real_friction
+  auxiliary: available_but_not_canonical_domain_owner
+
+core_tools:
+  chatgpt:
+    status: connected
+    role: primary_ai_command_and_orchestration_layer
+    users:
+      - user
+      - scheduled_automations
+    owns:
+      - orchestration
+      - routing
+      - cross_system_planning
+    must_not_own:
+      - canonical_personal_backlog
+      - canonical_engineering_backlog
+      - canonical_knowledge_database
+      - canonical_structured_life_state
+
+  github:
+    status: connected
+    access:
+      read_verified: true
+      write_verified: true
+    users:
+      - user
+      - chatgpt
+      - claude
+      - repository_agents
+    owns:
+      - code
+      - repositories
+      - pull_requests
+      - commits
+      - releases
+      - repository_truth
+      - llm4life_policy_repo
+    related_repositories:
+      obsidian_backup: zubairmuwwakil/Obsidian
+
+  jira:
+    status: user_live
+    direct_chatgpt_connector_verified: false
+    users:
+      - user
+      - engineering_agents_when_connector_available
+    owns:
+      - engineering_bugs
+      - engineering_backlog
+      - technical_work_items
+    rule: verify_jira_or_atlassian_connector_before_claiming_live_access
+
+  things3:
+    status: user_live
+    direct_ai_bridge_verified: false
+    users:
+      - user
+      - ai_planner_when_bridge_exists
+    owns:
+      - personal_backlog
+      - personal_actions
+      - reminders
+      - next_actions
+    preferred_bridge_options:
+      - apple_shortcuts
+      - things_url_scheme
+      - applescript_macos
+      - thin_supported_adapter
+    prohibited_bridge_pattern: direct_private_database_or_cloud_credential_manipulation
+
+  google_calendar:
+    status: connected
+    access:
+      read_verified: true
+      write_verified: true
+    users:
+      - user
+      - ai_planner
+      - calendar_followup_automation
+      - daily_digest
+    owns:
+      - fixed_time_commitments
+      - current_execution_schedule
+      - selected_task_time_blocks
+    does_not_own:
+      - permanent_task_backlog
+
+  notion:
+    status: connected
+    access:
+      read_verified: true
+      write_verified: true
+    users:
+      - user
+      - chatgpt
+      - scheduled_automations
+    owns:
+      - structured_life_state
+      - personal_operations
+      - inventories
+      - administrative_metadata
+      - ai_activity_log
+    avoid:
+      - duplicate_jira_backlog
+      - duplicate_github_truth
+      - deep_knowledge_better_owned_by_obsidian
+      - core_financial_calculation_state
+
+  obsidian:
+    status: partial
+    users:
+      - user
+      - chatgpt
+      - claude
+      - knowledge_agents
+    owns:
+      - durable_personal_knowledge
+      - reasoning
+      - learning
+      - para_context
+      - long_form_notes
+      - retrieval_prompts
+      - mistake_logs
+    current_ai_path:
+      github_backup_repo_access: true
+      direct_live_local_vault_bridge_verified: false
+    policy:
+      autonomous_read_write_authorized: true
+      merge_rewrite_authorized: true
+      conversation_capture_authorized: true
+      learning_contract_overrides_frictionless_automation: true
+
+  slack:
+    status: connected
+    access:
+      read_verified: true
+      write_capability_exposed: true
+      write_verified_in_documentation_pass: false
+    users:
+      - user
+      - chatgpt
+      - work_agents
+    owns:
+      - work_communication
+      - engineering_communication
+      - work_notification_surface
+    does_not_own:
+      - durable_task_backlog
+
+  discord:
+    status: user_live
+    direct_chatgpt_connector_verified: false
+    users:
+      - user
+      - integration_agent_if_bridge_deployed
+    owns:
+      - personal_communication
+      - desired_personal_notification_surface
+    candidate_bridge:
+      - openclaw
+      - thin_custom_channel_bridge
+
+  gmail:
+    status: connected
+    access:
+      account_read_verified: true
+      connector_write_actions_exposed: true
+      all_write_actions_tested: false
+    users:
+      - user
+      - daily_digest
+      - ai_planner
+      - chatgpt
+    owns:
+      - email_intake
+      - source_context
+    rule: route_actions_and_structured_state_to_their_canonical_systems
+
+agents:
+  claude:
+    status: external_specialist
+    role: coding_heavy_agent
+    instructions: read_CLAUDE_md_then_AGENTS_md
+  github_copilot_or_codex_style_agents:
+    status: repository_agents
+    role: repository_local_assistance
+    instructions: follow_github_copilot_instructions_and_AGENTS_md
+  openclaw:
+    status: optional_planned
+    role: channel_and_custom_integration_plumbing
+    rule: not_a_database_and_not_a_second_policy_authority
+  chatgpt_automations:
+    status: connected
+    role: scheduled_and_conditional_orchestration
+    registry: config/automations.yaml
+
+auxiliary_capabilities:
+  google_drive:
+    status: auxiliary
+    role: connected_document_and_file_source_when_task_requires_it
+  google_contacts:
+    status: auxiliary
+    role: recipient_and_attendee_resolution
+  namecheap:
+    status: auxiliary
+    role: domain_utility
+  apple_music:
+    status: auxiliary
+    role: personal_media_utility
+
+canonical_routing:
+  personal_action: things3
+  personal_backlog: things3
+  engineering_bug: jira
+  engineering_backlog: jira
+  code_or_repository_truth: github
+  scheduled_execution: google_calendar
+  structured_life_state: notion
+  knowledge_or_reasoning: obsidian
+  work_communication: slack
+  personal_communication: discord
+  email_source_context: gmail
+  orchestration: chatgpt
+
+runtime_rules:
+  - authorized_by_policy_does_not_mean_connected_right_now
+  - verify_live_connector_before_claiming_access
+  - search_before_create
+  - link_instead_of_duplicate
+  - preserve_provenance
+  - public_repo_must_not_contain_sensitive_private_state
