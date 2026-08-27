@@ -56,11 +56,31 @@ systems:
       - deep_personal_knowledge
       - duplicate_core_financial_state
   obsidian:
+    repository: zubairmuwwakil/Obsidian
     owns:
+      - personal_knowledge_context
       - thinking
       - learning
       - durable_knowledge
       - long_form_notes
+      - daily_and_diary_context
+      - para_areas_projects_resources
+      - spaced_repetition_prompts
+      - mistake_logs
+      - contextual_research
+    avoid:
+      - routine_task_management
+      - structured_operational_state_when_notion_is_canonical
+      - duplicate_github_content
+      - duplicate_live_financial_state
+    principles:
+      - one_home_per_item
+      - link_instead_of_copy
+      - retrieval_first_for_learning
+    learning_contract:
+      agents_entrypoint: AGENTS.md
+      canonical_manual: "50 Resources/Software Engineering/_System/AI Operating Manual (READ ME).md"
+      prime_directive: ai_may_improve_output_but_must_not_replace_learning_thinking
   slack:
     owns:
       - work_communication
@@ -83,6 +103,7 @@ routing:
   time_commitment: google_calendar
   structured_life_state: notion
   knowledge_or_thinking: obsidian
+  contextual_personal_note: obsidian
   work_communication: slack
   personal_communication: discord
 
@@ -160,6 +181,12 @@ learning:
     - reopened
     - consistently_prioritized
   rule: learned_behavior_is_soft_preference_not_safety_override
+  software_engineering_mode:
+    source: obsidian_ai_operating_manual
+    default_assistance_level: 0
+    require_attempt_before_answer: true
+    escalate_one_rung_at_a_time: true
+    preserve_desirable_difficulty: true
 
 tool_roi:
   enabled: true
@@ -175,6 +202,7 @@ tool_roi:
 known_current_conclusions:
   notion_best_role: personal_operations_and_life_database
   notion_generic_project_manager: likely_redundant
+  obsidian_best_role: personal_knowledge_and_context_layer
   engineering_truth: github_plus_jira
   core_finance_truth: dedicated_finance_apps_not_notion
 
