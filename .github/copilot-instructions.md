@@ -1,14 +1,12 @@
 # Repository Instructions
 
-Before proposing or making workflow/architecture changes, read:
+Read [`AGENTS.md`](../AGENTS.md) before proposing or making workflow, integration, automation, or architecture changes.
 
-1. `AGENTS.md`
-2. `system.yaml`
-3. `docs/CURRENT_STATE.md`
-4. `docs/ROUTING.md`
-5. `docs/AUTONOMY.md`
-6. `docs/DECISIONS.md`
+Do not duplicate the operating system rules in this file. `AGENTS.md` defines the mandatory read order, including runtime status, tool registry, machine-readable configs, planning, automation, autonomy, security, and decision history.
 
-Do not duplicate policies in this file. The canonical guidance is `AGENTS.md` and `system.yaml`.
+Important:
 
-This repository is intentionally open to change. New explicit decisions may supersede older ones; record major changes in `docs/DECISIONS.md`.
+- Do not confuse canonical ownership with current connector availability.
+- Do not claim a tool is connected without verification.
+- Keep sensitive/private state out of this public repository.
+- Preserve the architecture's ability to evolve; newer explicit decisions may supersede older ones.
