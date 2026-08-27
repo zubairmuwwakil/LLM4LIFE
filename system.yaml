@@ -1,0 +1,186 @@
+version: 1
+status: evolving
+updated: 2026-08-27
+purpose: >-
+  Machine-readable description of the current AI-driven personal operating
+  system. Current choices are defaults, not permanent doctrine.
+
+principles:
+  - one_owner_per_responsibility
+  - ai_is_interface_and_router_not_database
+  - link_instead_of_duplicate
+  - autonomous_for_safe_reversible_actions
+  - consequential_actions_need_stronger_safeguards
+  - receipts_for_autonomous_writes
+  - event_driven_over_manual_polling
+  - optimize_attention_not_notification_volume
+  - learned_preferences_are_soft_preferences
+  - architecture_is_open_to_change
+
+systems:
+  github:
+    owns:
+      - code
+      - pull_requests
+      - commits
+      - releases
+      - repository_truth
+  jira:
+    owns:
+      - engineering_bugs
+      - engineering_backlog
+      - technical_work_items
+  things3:
+    owns:
+      - personal_actions
+      - personal_reminders
+      - next_actions
+  google_calendar:
+    owns:
+      - time_commitments
+      - scheduled_events
+      - deadlines_when_time_itself_matters
+  notion:
+    owns:
+      - structured_personal_state
+      - life_operations
+      - inventories
+      - subscriptions_and_membership_metadata
+      - renewals_and_expiries
+      - warranties_and_documents_metadata
+      - administrative_reference_data
+      - ai_activity_log
+    avoid:
+      - duplicate_jira_backlog
+      - duplicate_github_project_truth
+      - deep_personal_knowledge
+      - duplicate_core_financial_state
+  obsidian:
+    owns:
+      - thinking
+      - learning
+      - durable_knowledge
+      - long_form_notes
+  slack:
+    owns:
+      - work_communication
+      - software_engineering_communication
+      - work_notification_surface
+  discord:
+    owns:
+      - personal_communication
+      - personal_notification_surface
+  gmail:
+    owns:
+      - email_source_context
+      - email_intake
+
+routing:
+  engineering_bug: jira
+  engineering_backlog_item: jira
+  code_change_or_repo_state: github
+  personal_action: things3
+  time_commitment: google_calendar
+  structured_life_state: notion
+  knowledge_or_thinking: obsidian
+  work_communication: slack
+  personal_communication: discord
+
+ai_layer:
+  desired_entry_points:
+    - chatgpt
+    - slack
+    - discord
+    - iphone_shortcuts_or_share_sheet
+    - email
+    - browser_capture
+  candidate_components:
+    chatgpt: primary_interface_and_native_plugins
+    claude: coding_heavy_agent
+    openclaw: integration_and_channel_plumbing_where_needed
+  behavior:
+    autonomous: true
+    deduplicate_before_write: true
+    source_provenance: true
+    send_receipt_after_write: true
+    consolidate_multi_action_receipts: true
+    log_meaningful_writes: true
+
+safeguards:
+  auto_allowed_examples:
+    - create_low_risk_task
+    - create_or_update_jira_work_item
+    - update_notion_structured_state
+    - add_calendar_event
+    - classify_or_tag
+    - low_risk_reversible_cleanup
+  stronger_review_examples:
+    - destructive_delete
+    - externally_consequential_message
+    - purchase_or_new_subscription
+    - cancel_subscription
+    - production_change
+    - hard_to_reverse_action
+
+notifications:
+  work_default: slack
+  personal_default: discord
+  philosophy: exceptions_and_high_value_signals_only
+
+daily_digest:
+  enabled: true
+  approximate_time: "08:00 America/Toronto"
+  sections:
+    - top_3_priorities
+    - needs_attention_today
+    - work_engineering
+    - personal_admin
+    - upcoming_deadlines
+    - neglected_but_important
+    - what_can_be_ignored_today
+    - cleanup_performed
+    - learned_preferences
+    - tool_roi_opportunities
+    - automated_actions_taken
+  priority_factors:
+    - urgency
+    - impact
+    - dependencies
+    - time_sensitivity
+    - observed_behavior
+  stale_resurface_window_days: "7-14+"
+
+learning:
+  enabled: true
+  observe:
+    - repeatedly_ignored
+    - repeatedly_deferred
+    - completed_quickly
+    - manually_overridden
+    - reopened
+    - consistently_prioritized
+  rule: learned_behavior_is_soft_preference_not_safety_override
+
+tool_roi:
+  enabled: true
+  recommend:
+    - cancel
+    - downgrade
+    - consolidate
+    - replace
+    - new_tool_or_integration
+  constraint: prefer_existing_capabilities_before_new_subscription
+  avoid: novelty_driven_tool_sprawl
+
+known_current_conclusions:
+  notion_best_role: personal_operations_and_life_database
+  notion_generic_project_manager: likely_redundant
+  engineering_truth: github_plus_jira
+  core_finance_truth: dedicated_finance_apps_not_notion
+
+change_management:
+  on_major_change:
+    - update_system_yaml
+    - update_current_state_docs
+    - append_decision_log
+  precedence: newest_explicit_decision_wins
