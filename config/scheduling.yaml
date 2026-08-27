@@ -1,0 +1,29 @@
+version: 1
+updated: 2026-08-27
+timezone: America/Toronto
+
+movable_task_window:
+  start: "13:00"
+  end: "21:00"
+  applies_to:
+    - personal_tasks
+    - errands
+    - study_blocks
+    - routine_admin
+    - movable_deep_work
+  outside_window_policy: do_not_schedule_by_default
+  fixed_commitments_outside_window: preserve
+
+planning_preferences:
+  leave_buffer: true
+  avoid_edge_to_edge_scheduling: true
+  prioritize:
+    - prevent_important_things_from_slipping
+    - save_time
+    - reduce_mental_load
+    - increase_output
+
+notes:
+  - This is the default scheduling window, not a prohibition on fixed commitments outside it.
+  - A newer explicit instruction for a specific task or day may override this window.
+  - Repeated behavior may tune this preference under docs/ADAPTATION.md, but agents should not silently expand the window from a single observation.
