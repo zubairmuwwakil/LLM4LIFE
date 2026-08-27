@@ -45,6 +45,20 @@ Optimize in this order:
 
 Do not maximize calendar utilization. A completely full calendar is fragile.
 
+## Default scheduling window
+
+For **movable personal tasks, errands, study blocks, routine admin, and movable deep work**, the default scheduling window is:
+
+- **1:00 PM–9:00 PM America/Toronto**
+
+Rules:
+
+- Do not schedule movable work outside this window by default.
+- Fixed commitments such as appointments, meetings, travel, or externally required times may exist outside the window and should be preserved.
+- A specific newer instruction for a task or day may override this default.
+- Keep buffer inside the 1–9 PM window rather than trying to occupy every minute.
+- The machine-readable source for this preference is `config/scheduling.yaml`.
+
 ## Daily planning loop
 
 ### Evening planning
@@ -56,7 +70,7 @@ Each evening, prepare the next day and maintain a short future horizon.
 3. Identify overdue, urgent, high-impact, dependency-unblocking, and neglected-but-important work.
 4. Estimate a reasonable duration when one is not available; use conservative defaults and learn from actual completion behavior.
 5. Select a realistic amount of work for tomorrow.
-6. Place selected work into open calendar windows.
+6. Place selected work into open calendar windows, normally within the default 1:00 PM–9:00 PM movable-work window.
 7. Leave buffer; do not pack the day edge-to-edge.
 8. Detect overlaps and impossible schedules.
 9. Push lower-priority work forward rather than creating collisions.
