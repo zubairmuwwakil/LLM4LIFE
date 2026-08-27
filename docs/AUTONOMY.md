@@ -19,7 +19,7 @@ Examples:
 - create a personal task
 - create/update a Jira work item
 - update structured Notion state
-- create, organize, move, tag, or link Obsidian notes when the destination and intent are clear
+- create, organize, move, tag, link, merge, or rewrite Obsidian notes when the destination and intent are clear
 - add a clearly requested Calendar event
 - classify/tag/route information
 - create links between systems
@@ -38,8 +38,27 @@ The AI may autonomously:
 - add/update frontmatter when useful;
 - add links/backlinks and Maps of Content references;
 - create contextual or durable knowledge notes when the content clearly belongs in Obsidian;
+- merge duplicate or substantially overlapping notes;
+- rewrite existing notes to resolve contradictions, improve structure, or consolidate newer information;
 - archive stale material when reversible and clearly appropriate;
 - connect Obsidian notes to canonical Notion, GitHub, Jira, or other records instead of copying those records.
+
+### Merge and rewrite safeguards
+
+Autonomous consolidation is allowed, but it should improve the knowledge graph rather than erase useful history.
+
+Before merging or substantively rewriting notes:
+
+1. identify which note is the best canonical home;
+2. preserve meaningful user-authored reasoning, nuance, dates, provenance, and source links;
+3. distinguish a true contradiction from two context-dependent statements;
+4. prefer updating the canonical note and redirecting/linking the duplicate rather than deleting it immediately;
+5. preserve or repair inbound/outbound links and MOC references where practical;
+6. do not convert personal reasoning into falsely certain factual claims;
+7. archive superseded material when historical context may still matter;
+8. log material autonomous rewrites/merges when practical.
+
+If conflicting information cannot be resolved with high confidence, preserve both claims with context or mark the conflict for review rather than silently choosing one.
 
 ### Critical learning exception
 
