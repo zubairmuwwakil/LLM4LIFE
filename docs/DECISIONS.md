@@ -247,3 +247,15 @@ The digest currently includes:
 **Critical exception:** This does not override the Obsidian software-engineering learning contract. For learning exercises, the vault's retrieval-first Assistance Ladder remains authoritative; autonomous writes must not silently perform the thinking or generate the exercise solution on the user's behalf.
 
 **Boundary:** Obsidian autonomy concerns knowledge/context. It should still link to—not duplicate—canonical structured operational state in Notion, engineering work in Jira, or code/repository truth in GitHub.
+
+---
+
+## 2026-08-27 — Obsidian may autonomously merge and rewrite existing notes
+
+**Decision:** AI may autonomously merge duplicate/overlapping Obsidian notes and substantively rewrite existing notes when doing so improves the canonical knowledge record or resolves stale/conflicting information.
+
+**Reason:** A self-maintaining knowledge layer must be able to reduce entropy, not only add new material. Requiring approval for every safe consolidation would allow duplication and contradictions to accumulate.
+
+**Safeguards:** Preserve meaningful user-authored reasoning, provenance, dates, source links, and useful historical context. Preserve or repair links where practical. Prefer merge + archive over destructive deletion. If a conflict cannot be resolved confidently, keep both contextualized claims or flag it instead of silently choosing one.
+
+**Learning exception:** The software-engineering learning contract remains authoritative. Rewrites must not erase retrieval prompts, mistake evidence, authored reasoning, or otherwise turn the learning system into polished AI-generated reference material.
