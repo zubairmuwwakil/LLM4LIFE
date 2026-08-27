@@ -2,33 +2,113 @@
 
 _Last updated: 2026-08-27_
 
-This file describes the current operating model. It is descriptive, not sacred.
+This file is the narrative description of the current operating model. It is descriptive, not sacred.
+
+For exact runtime/connectivity status, use `docs/STATUS.md`. For the complete tool matrix, use `docs/TOOL_REGISTRY.md`.
+
+## Current operating model
+
+```text
+User expresses intent anywhere practical
+             |
+             v
+        AI router/planner
+             |
+   +---------+---------+----------------+
+   |         |         |                |
+ action   engineering knowledge       structure
+   |         |         |                |
+ Things    Jira     Obsidian          Notion
+   \         /                           |
+    \       /                            |
+     AI selects execution work           |
+             |                            |
+             v                            |
+       Google Calendar <-----------------+
+        execution schedule
+```
+
+Communication/source surfaces:
+
+- Slack -> work/software-engineering communication
+- Discord -> personal/life communication
+- Gmail -> email intake/source context
+- GitHub -> code/repository truth
 
 ## Tool ownership
 
 | Tool | Current responsibility | Explicit non-goals |
 |---|---|---|
-| GitHub | Code, PRs, commits, releases, repository truth | Personal task management, life database |
+| GitHub | Code, PRs, commits, releases, repository truth, LLM4LIFE policy | Personal task management, life database |
 | Jira | Engineering bugs, backlog, technical work items | Personal reminders, general notes |
-| Things 3 | Personal actions, reminders, next actions | Knowledge base, engineering backlog, structured databases |
-| Google Calendar | Time commitments and scheduled events | General task backlog |
-| Obsidian | Personal knowledge/context layer: thinking, learning, durable notes, daily/diary context, PARA Areas/Projects/Resources, spaced repetition, mistake logs | Routine task management, structured operational state better owned by Notion, duplicate GitHub content |
-| Notion | Structured life state and personal operations | Duplicate Jira/GitHub state, deep notes, duplicate finance app state |
-| Slack | Work/software-engineering communication and work notification surface | Long-term task source of truth |
-| Discord | Personal communication and personal notification surface | Long-term task source of truth |
-| Gmail | Email intake and source context | Final home for actions that belong elsewhere |
+| Things 3 | Personal backlog, actions, reminders, next actions | Knowledge base, engineering backlog, structured life database |
+| Google Calendar | Fixed time commitments and the current execution schedule | Permanent general task backlog |
+| Obsidian | Personal knowledge/context: reasoning, learning, durable notes, PARA context, daily/diary, research, retrieval prompts, mistake logs | Routine task management, structured operational state better owned by Notion, duplicate GitHub content |
+| Notion | Structured life state, personal operations, inventories/admin metadata, AI Activity Log | Duplicate Jira/GitHub state, deep knowledge, duplicate finance-engine state |
+| Slack | Work/software-engineering communication and desired work notification surface | Long-term task source of truth |
+| Discord | Personal/life communication and desired personal notification surface | Long-term task source of truth |
+| Gmail | Email intake and source context | Final home for actions/state that belong elsewhere |
+| AI layer | Routing, planning, orchestration, attention management | Becoming another canonical database |
+
+## Day planning is now first-class
+
+The largest day-to-day workflow is:
+
+```text
+Things 3 personal backlog       Jira engineering backlog
+             \                        /
+              \                      /
+                AI planner/scheduler
+                       |
+                       v
+                Google Calendar
+                 execution plan
+```
+
+Current default:
+
+- movable personal/admin/study/deep-work blocks: **1:00 PM–9:00 PM America/Toronto**;
+- leave buffer;
+- plan tomorrow in the evening;
+- sanity-check the plan in the morning;
+- use a short 7-day high-confidence horizon;
+- keep the long tail in the real backlog;
+- treat missed work as evidence and reassess it instead of blindly pushing it one day forever.
+
+The biggest limitation is direct Things access: Things is canonical, but the current AI runtime does not yet have a verified Things bridge.
+
+See `docs/PLANNING.md`, `docs/AUTOMATIONS.md`, and `config/scheduling.yaml`.
 
 ## AI layer
 
-The user wants an AI/LLM with access to as much of the system as practical so they can interact through a low-friction conversational interface.
-
 Current conceptual roles:
 
-- **ChatGPT** — primary command interface and native connected-tool surface where useful.
-- **Claude** — strong coding-focused agent, especially for code work.
-- **OpenClaw** — candidate integration/channel plumbing where native integrations are insufficient, particularly for reaching the AI from multiple surfaces.
+- **ChatGPT** — primary command/planning/orchestration layer and native connected-tool surface.
+- **Claude / Claude Code** — coding-heavy specialist.
+- **OpenClaw** — optional channel/custom-integration plumbing when a native path is missing.
+- **Repository agents (Copilot/Codex-style)** — code/repo-local assistance governed by this repo.
 
-These roles are not exclusive and should be revisited as capabilities change.
+These are roles, not competing sources of truth.
+
+## Runtime reality
+
+Currently verified useful direct paths in the ChatGPT environment include:
+
+- GitHub read/write;
+- Notion read/write;
+- Google Calendar read/write;
+- Gmail connection with read verified and supported write actions exposed;
+- Slack connection with read verified and supported write actions exposed;
+- scheduled/conditional automations.
+
+Important partial/missing paths:
+
+- Things 3 direct bridge;
+- direct live local Obsidian vault bridge (GitHub backup is accessible);
+- direct Jira connector should be verified before claims of access;
+- direct Discord connection is not assumed.
+
+See `docs/STATUS.md` for the operational snapshot.
 
 ## Anywhere capture
 
@@ -38,115 +118,104 @@ Desired entry points include:
 - Slack
 - Discord
 - iPhone Shortcuts / Share Sheet
-- email forwarding/intake
+- email
 - browser capture
 
-The user should not need to decide which destination app to open before expressing intent. The AI/router should classify and send the item to the correct system.
+The user should not need to choose a destination app before expressing intent. The AI/router should classify and route to the canonical owner.
 
-## Obsidian reality check
+## Obsidian
 
-The private `zubairmuwwakil/Obsidian` repository is the backed-up Obsidian vault and should be consulted when deeper personal knowledge/context is needed.
+The `zubairmuwwakil/Obsidian` GitHub repository is a backup/source for the Obsidian vault and can be consulted when deeper personal knowledge/context is needed.
 
-The vault is a PARA-style personal knowledge base with roughly 1,090 notes. Its current lifecycle is:
+The vault is PARA-style:
 
 `00 Inbox -> 10 Daily -> 20 Areas / 30 Projects / 50 Resources -> 90 Archive`
 
-It also contains derived dashboards, Maps of Content, templates, software-engineering learning material, spaced-repetition prompts, and a formal AI learning contract.
+Key rules:
 
-Important vault rules that align with LLM4LIFE:
+- **One home per item; link instead of copying.**
+- GitHub owns code/project artifacts; Obsidian owns remembering/reasoning.
+- Obsidian may link to Notion/GitHub/Jira rather than duplicate canonical operational state.
+- AI is authorized for autonomous knowledge maintenance, including create/link/merge/rewrite/capture, subject to provenance/privacy safeguards.
+- For software-engineering learning, the vault's retrieval-first learning contract remains authoritative and intentionally introduces desirable difficulty.
 
-- **One home per item. Link instead of copying.**
-- Obsidian may link to GitHub or Notion when those systems are canonical.
-- GitHub owns doing/showing (code, project artifacts, public TILs); Obsidian owns remembering/reasoning (concept notes, learning prompts, mistake logs).
-- For software-engineering learning work, agents must follow the vault's own `AGENTS.md` and canonical `AI Operating Manual (READ ME).md`.
-- The learning contract is intentionally less frictionless than the general life-automation layer: AI should promote retrieval/generation rather than simply provide finished answers when the goal is learning.
+Technical caveat: access to the GitHub backup is not the same as a verified live local-vault editing bridge.
 
-### Obsidian access mode
+## Notion
 
-Obsidian is **autonomous read/write**, not read-only.
+Current conclusion:
 
-When intent and destination are clear, AI may create, organize, move, tag, link, archive, and update notes without asking for routine confirmation. It may also triage captures from `00 Inbox`, maintain frontmatter, and connect Obsidian notes to canonical records in GitHub, Jira, Notion, or other systems.
+> **Notion's highest-value role is Personal Operations / Life Database.**
 
-For cleanup, prefer `90 Archive` over deletion so links and historical context survive.
+Strong fits:
 
-This general autonomy has one important override: **learning-mode guardrails still apply**. Autonomous write access must not bypass the vault's retrieval-first Assistance Ladder or silently solve learning exercises on the user's behalf.
-
-The presence of an Area, Project, subscription note, or finance note in Obsidian does **not automatically make Obsidian the operational source of truth** for that object. Obsidian is allowed to hold context, reasoning, narrative, and links while structured live state remains in the appropriate system.
-
-An older imported note in the vault used the shorthand `Discord for attention; Notion for record; Things for work`. Treat that as historical context, not current global policy when it conflicts with newer LLM4LIFE decisions.
-
-## Notion conclusion
-
-After inspecting the Notion workspace, active code repositories, and the Obsidian vault, the current conclusion remains:
-
-> Notion's highest-value role is Personal Operations / Life Database.
-
-Why:
-
-1. Engineering repositories already keep substantial implementation plans, research, compliance material, architectural decisions, tests, and source truth next to code.
-2. Jira already owns engineering work tracking.
-3. Dedicated finance applications own transaction/state/calculation logic.
-4. Obsidian already provides the deep personal knowledge/context layer.
-5. Notion is strongest where durable structured personal/admin state benefits from databases, relations, views, and AI retrieval.
-
-Good Notion examples:
-
-- personal-care and household inventory
+- personal-care/household inventory
 - shopping thresholds
-- subscriptions and memberships
-- benefits and cancellation instructions
-- important documents and expiration dates
+- subscriptions/membership metadata
+- benefits/cancellation instructions
+- important document metadata and expiries
 - warranties
-- property/vehicle/insurance metadata
+- property/vehicle/insurance administrative metadata
 - loyalty programs
 - administrative contacts/vendors
-- AI activity log
+- AI Activity Log
 
-### Existing evidence
+Weak fits:
 
-The existing personal-care system is a good example of useful Notion design: product records, counts, shopping needs, and usage events form structured state that can generate actions elsewhere.
-
-The generic Projects Hub appears lower-value because engineering projects already have stronger authoritative systems and the Notion project database is sparsely used.
+- duplicate engineering project manager
+- duplicate Jira backlog
+- deep personal knowledge archive
+- duplicate finance engine
 
 ## Finance boundary
 
-Dedicated financial applications should own:
+Dedicated financial applications own live financial state/calculation, such as:
 
 - transactions
-- balances
-- net worth
-- cashflow calculations
+- balances/net worth
+- cash-flow calculations/forecasting
 - credit-card recommendation logic
-- financial forecasting
+- other application-specific financial logic
 
-Notion can still hold administrative metadata such as:
-
-- membership/subscription notes
-- cancellation instructions
-- benefits/reference information
-- non-calculated administrative records
-
-Obsidian may hold financial reasoning, research, or contextual notes, but it should link to the canonical operational/financial record rather than duplicate live state.
+Notion may hold administrative reference metadata. Obsidian may hold financial reasoning/research. Neither should duplicate the live finance engine by default.
 
 ## Communication boundary
 
 - Slack = work/software-engineering communication.
 - Discord = personal/life communication.
 
-Messages may create actions, but the conversation itself should not become the long-term task manager.
-
-When a message implies work:
+Messages may create objects elsewhere:
 
 - engineering work -> Jira
-- personal action -> Things 3
-- time commitment -> Calendar when appropriate
-- durable knowledge/context -> Obsidian
+- personal action -> Things
+- scheduled execution/time -> Calendar
+- durable knowledge -> Obsidian
 - structured state -> Notion
 
-## Current audit log
+Slack/Discord remain communication surfaces, not task databases.
 
-A Notion database named **AI Activity Log** has been created under the existing Tooling Workflow area.
+## Automation layer
 
-It is intended to record meaningful autonomous writes/actions with fields for source, destination, action type, status, timestamp, links, details, errors, and reversibility.
+Active automation includes:
 
-It should be machine-maintained rather than manually curated.
+- evening `Plan Tomorrow`;
+- morning `Daily Systems Digest`;
+- hourly conditional `Calendar Task Follow-Up`;
+- weekly personal-care heartbeat;
+- weekly personal-care restock digest.
+
+See `docs/AUTOMATIONS.md` for exact responsibilities and interaction rules.
+
+## Audit layer
+
+A Notion database named **AI Activity Log** records meaningful autonomous actions when practical.
+
+It should store only enough metadata to understand/debug the action: source, destination, type, status, timestamp, links, details/error, and reversibility.
+
+It must not become a repository for private chain-of-thought or unnecessary sensitive content.
+
+## Public repo boundary
+
+`LLM4LIFE` is public. Architecture and policy belong here; private life state does not.
+
+Read `docs/SECURITY.md` before adding real-world examples or runtime details.
