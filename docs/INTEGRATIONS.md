@@ -2,34 +2,16 @@
 
 _Last updated: 2026-08-27_
 
-## Desired topology
+## Principle
 
-```text
-                       AI command layer
-                    /         |         \
-              ChatGPT      Claude     OpenClaw
-                  |            |          |
-           native plugins    coding    channel/custom
-                  |                       plumbing
-                  +------------+------------+
-                               |
-             +-----------------+------------------+
-             |                 |                  |
-           Jira             Notion             GitHub
-           Things 3         Calendar           Gmail
-           Slack            Discord            Obsidian
-```
+Prefer the shortest reliable path that preserves one canonical owner per responsibility.
 
-This is a conceptual topology, not a requirement that every vendor be used for every operation.
+Order of preference:
 
-## Integration rule
-
-Prefer the shortest reliable path:
-
-1. native integration/plugin when it fully satisfies the need;
+1. native supported connector/plugin;
 2. supported app automation surface;
-3. thin custom integration;
-4. broader automation middleware only if the first three are insufficient.
+3. thin deterministic custom bridge;
+4. broader middleware only when the first three are insufficient.
 
 Avoid creating a mesh of app-to-app synchronization.
 
@@ -45,74 +27,204 @@ over:
 Things <-> Notion <-> Jira <-> Obsidian <-> Slack
 ```
 
-## ChatGPT
+## Desired topology
 
-Current intended role: primary conversational command center where connected tools provide sufficient read/write access.
+```text
+                           AI command layer
+                    /            |            \
+               ChatGPT        Claude        OpenClaw
+                 |            coding          optional
+          native connectors    specialist      plumbing
+                 |
+       +---------+---------+---------+---------+
+       |         |         |         |         |
+    GitHub     Notion   Calendar   Gmail     Slack
+       |
+       +---- bridges/gaps ----> Things / Jira / Discord / live Obsidian
+```
 
-Use native connected capabilities when practical rather than rebuilding them externally.
+This is conceptual. Always verify current runtime access in `docs/STATUS.md` before claiming a connection exists.
 
-## Claude
+## Current verified direct paths
 
-Current intended role: coding-heavy work/agent usage.
+As of 2026-08-27 in the current ChatGPT runtime:
 
-Claude should still respect the same ownership/routing rules in this repo rather than inventing a separate productivity architecture.
+- **GitHub:** read/write verified.
+- **Notion:** read/write verified.
+- **Google Calendar:** read/write verified.
+- **Gmail:** account/read path verified; connector exposes supported write actions.
+- **Slack:** account/read path verified; connector exposes supported write actions.
+- **ChatGPT Automations:** live and managing planning/digest/follow-up/inventory jobs.
 
-## OpenClaw
+See `config/tools.yaml` for machine-readable status.
 
-Current intended role: optional integration/channel infrastructure, especially where reaching the AI from arbitrary surfaces or custom plumbing is valuable.
+## Current integration gaps
 
-Do not make OpenClaw a second competing system of record or duplicate AI policy unnecessarily.
+### Things 3
 
-## Things 3 bridge
+Canonical responsibility: personal backlog/actions.
 
-Things 3 remains the personal action system.
+Current situation: user-live, but no verified direct AI bridge.
 
-Preferred supported bridges:
+Preferred bridges:
 
 - Apple Shortcuts
 - Things URL scheme
 - AppleScript on macOS
-- Mail to Things when appropriate
+- thin deterministic adapter using supported Things interfaces
 
-Avoid unsupported direct database/cloud credential manipulation.
+Avoid unsupported direct database/cloud-credential manipulation.
 
-## Slack and Discord
+This is the highest-value integration gap because the planner cannot fully schedule the personal backlog without reading Things.
 
-Slack and Discord serve both as communication contexts and potential AI entry/notification surfaces.
+### Jira
 
-- Slack defaults to work context.
-- Discord defaults to personal context.
+Canonical responsibility: engineering bugs/backlog.
 
-A command issued in one channel may route to a different underlying system while returning its receipt to the origin.
+Current situation: Jira remains authoritative, but direct Jira/Atlassian access should be verified at runtime before claiming reads/writes.
 
-## Notion
+Desired behavior once connected:
 
-Notion is both:
+- read eligible engineering backlog;
+- update/create work items when authorized;
+- link scheduled execution blocks back to Jira;
+- never mirror the Jira database into Things/Notion.
 
-1. a structured personal/life-state store; and
-2. the current location of the AI Activity Log.
+### Obsidian live vault
 
-Notion should not become the integration hub merely because it can link to many services. The AI/router layer owns orchestration.
+Canonical responsibility: durable knowledge/context.
 
-## Obsidian
+Current situation: the backed-up GitHub vault can be read/maintained, but a direct live local-vault bridge is not verified.
 
-Obsidian is intentionally treated as a knowledge/thinking system rather than a workflow database.
+Desired end state:
 
-Integrations should preserve local/durable note ownership and avoid copying all structured Notion data into the vault.
+```text
+AI -> safe local bridge -> live Obsidian vault -> normal sync/backup
+```
+
+Do not confuse authorization to autonomously maintain notes with technical proof that the live vault is writable from the current runtime.
+
+### Discord
+
+Canonical responsibility: personal/life communication and desired personal notification surface.
+
+Current situation: user-live, no direct ChatGPT Discord connector assumed.
+
+Candidate path:
+
+- OpenClaw if already deployed and useful;
+- otherwise a thin channel bridge.
+
+Avoid building a large integration platform just to send one type of notification.
+
+## ChatGPT
+
+Current role: primary conversational command/planning/orchestration center.
+
+Use native connected capabilities when they satisfy the need. Do not rebuild a working native connector externally without a measurable reason.
+
+## Claude / Claude Code
+
+Current role: coding-heavy specialist.
+
+Claude should read `CLAUDE.md` and `AGENTS.md` and follow the same ownership model rather than inventing a separate life/project architecture.
+
+## OpenClaw
+
+Current role: optional integration/channel plumbing where native capabilities are insufficient.
+
+OpenClaw is not:
+
+- a canonical database;
+- a second policy authority;
+- automatically required for every integration.
+
+Verify deployment/config before depending on it.
+
+## Slack
+
+Slack is the work communication I/O surface.
+
+Potential uses:
+
+- receive work-context commands;
+- search work context;
+- deliver high-value work notifications/receipts;
+- interact with engineering discussions.
+
+Do not use Slack Later/pins/reminders as a competing task system when the action belongs in Jira/Things.
+
+Externally consequential messages still follow `docs/AUTONOMY.md` safeguards.
+
+## Discord
+
+Discord is the personal communication I/O surface.
+
+Personal messages may create Things tasks, Calendar commitments, Obsidian context, or Notion structured records through the AI router once a real bridge exists.
+
+Discord itself should not become the permanent storage layer for those objects.
 
 ## Gmail
 
-Email is an intake/source system. When an email implies an action or state change, route the resulting object to its authoritative destination while preserving a link/reference to the source email when possible.
+Gmail is an intake/source system.
 
-## Future integration decisions
+Examples:
 
-When evaluating a new connector or platform, ask:
+- bill/refund/deadline email -> detect actionable implication;
+- route action to Things/Calendar as appropriate;
+- route structured state to Notion if it belongs there;
+- preserve source email link/provenance when useful.
 
-1. What friction does it remove?
-2. Which current capability does it replace or improve?
+Do not leave all obligations buried in email simply because email was the source.
+
+## Google Calendar
+
+Calendar is both:
+
+- the canonical store for actual time commitments; and
+- the execution surface for selected movable work.
+
+It is **not** the permanent backlog.
+
+The AI planner should convert eligible backlog into realistic Calendar blocks while preserving the original canonical task in Things/Jira.
+
+Default movable-work window: **1 PM–9 PM America/Toronto**.
+
+## Notion
+
+Notion is a structured state store and the current audit location.
+
+It should not become the integration hub merely because it can link to many services. Orchestration belongs in the AI layer.
+
+## GitHub
+
+GitHub owns code/repository truth and hosts this public policy repo.
+
+It is also the current AI-accessible path to the Obsidian backup repository, but should not automatically become the permanent live-note editor.
+
+## Integration evaluation checklist
+
+Before adopting a new connector/platform, ask:
+
+1. What recurring friction does it remove?
+2. Which capability does it replace/improve?
 3. Does it create another source of truth?
-4. Can an existing paid/installed capability already do the job?
-5. Is the integration reversible and maintainable?
-6. Will an AI agent be able to understand and debug it later?
+4. Is there already a paid/installed capability that can do this?
+5. Does it preserve the canonical owner?
+6. Is it reversible and maintainable?
+7. Can an AI agent understand/debug it later?
+8. What permissions/credentials does it require?
+9. Can we solve the same problem with a thinner bridge?
+10. Does the current runtime actually support it, or are we only assuming it does?
 
-Add a decision-log entry before making a new integration a core architectural dependency.
+New credentials/permissions are not covered by the standing low-risk approval policy.
+
+## Documentation requirements
+
+When a bridge is actually deployed or removed:
+
+- update `docs/STATUS.md`;
+- update `docs/TOOL_REGISTRY.md`;
+- update `config/tools.yaml`;
+- update this file if topology changed;
+- record a dated decision if it becomes a core dependency.
