@@ -57,6 +57,7 @@ systems:
       - duplicate_core_financial_state
   obsidian:
     repository: zubairmuwwakil/Obsidian
+    access_mode: autonomous_read_write
     owns:
       - personal_knowledge_context
       - thinking
@@ -68,19 +69,30 @@ systems:
       - spaced_repetition_prompts
       - mistake_logs
       - contextual_research
+    autonomous_writes:
+      - create_contextual_notes
+      - triage_inbox_into_para
+      - organize_and_move_notes
+      - update_frontmatter
+      - add_links_and_moc_references
+      - archive_reversible_stale_material
+      - connect_to_canonical_external_records
     avoid:
       - routine_task_management
       - structured_operational_state_when_notion_is_canonical
       - duplicate_github_content
       - duplicate_live_financial_state
+      - bypass_learning_contract_with_answer_generation
     principles:
       - one_home_per_item
       - link_instead_of_copy
       - retrieval_first_for_learning
+      - prefer_archive_over_delete
     learning_contract:
       agents_entrypoint: AGENTS.md
       canonical_manual: "50 Resources/Software Engineering/_System/AI Operating Manual (READ ME).md"
       prime_directive: ai_may_improve_output_but_must_not_replace_learning_thinking
+      overrides_general_frictionless_automation_when_learning: true
   slack:
     owns:
       - work_communication
@@ -132,6 +144,7 @@ safeguards:
     - create_low_risk_task
     - create_or_update_jira_work_item
     - update_notion_structured_state
+    - create_or_organize_obsidian_knowledge
     - add_calendar_event
     - classify_or_tag
     - low_risk_reversible_cleanup
@@ -203,6 +216,7 @@ known_current_conclusions:
   notion_best_role: personal_operations_and_life_database
   notion_generic_project_manager: likely_redundant
   obsidian_best_role: personal_knowledge_and_context_layer
+  obsidian_access: autonomous_read_write_with_learning_guardrails
   engineering_truth: github_plus_jira
   core_finance_truth: dedicated_finance_apps_not_notion
 
