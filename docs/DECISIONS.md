@@ -259,3 +259,23 @@ The digest currently includes:
 **Safeguards:** Preserve meaningful user-authored reasoning, provenance, dates, source links, and useful historical context. Preserve or repair links where practical. Prefer merge + archive over destructive deletion. If a conflict cannot be resolved confidently, keep both contextualized claims or flag it instead of silently choosing one.
 
 **Learning exception:** The software-engineering learning contract remains authoritative. Rewrites must not erase retrieval prompts, mistake evidence, authored reasoning, or otherwise turn the learning system into polished AI-generated reference material.
+
+---
+
+## 2026-08-27 — Capture durable conversation knowledge into Obsidian automatically
+
+**Decision:** AI may autonomously extract durable insights, decisions, lessons, frameworks, research conclusions, meaningful reasoning, and useful context from conversations into Obsidian without requiring the user to explicitly say `save this`.
+
+**Reason:** A conversational AI command layer sees useful context at the moment it is created. Requiring a separate manual save step causes high-value knowledge to disappear into chat history and adds unnecessary friction.
+
+**Anti-goal:** Do not archive conversations or save every mentioned fact. The system should capture durable signal, not conversational exhaust.
+
+**Default process:** identify durable signal -> check the canonical home -> search Obsidian for an existing note -> update/merge when possible -> otherwise create the note in the correct PARA location -> link/provenance as useful -> log material autonomous writes.
+
+**Noise filter:** Skip casual chatter, transient answers, receipts, temporary status, one-off logistics owned by Things/Calendar, and live structured state owned by another system.
+
+**Privacy safeguard:** Implicit capture is not blanket permission to persist secrets, credentials, authentication material, high-risk identifiers, or unusually sensitive personal material. Such material requires stricter handling and, where appropriate, explicit storage intent.
+
+**Learning exception:** Software-engineering learning remains retrieval-first. Conversation capture may preserve user-generated reasoning, mistakes, prompts, and already-understood material, but must not turn learning sessions into passive AI-authored reference notes.
+
+**Policy:** See `docs/KNOWLEDGE_CAPTURE.md`.
