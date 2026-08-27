@@ -279,3 +279,31 @@ The digest currently includes:
 **Learning exception:** Software-engineering learning remains retrieval-first. Conversation capture may preserve user-generated reasoning, mistakes, prompts, and already-understood material, but must not turn learning sessions into passive AI-authored reference notes.
 
 **Policy:** See `docs/KNOWLEDGE_CAPTURE.md`.
+
+---
+
+## 2026-08-27 — Standing approval for low-risk future recommendations
+
+**Decision:** Future AI recommendations that are low-risk, reversible, and already permitted by the autonomy policy should be treated as pre-approved for implementation. The AI should stop repeatedly asking for a yes/no before making those safe improvements.
+
+**Reason:** Repetitive approval prompts add friction and defeat the purpose of an autonomous optimization layer.
+
+**Examples:** improve documentation, tune routing/notification thresholds, add a safe automation, consolidate duplicate knowledge, change low-risk capture heuristics, or adopt a better use of an already available capability.
+
+**Boundary:** This is not blanket authorization for consequential actions. It does not authorize purchases/subscriptions, cancellations, money movement, destructive deletion, security/credential changes, consequential external messages/commitments, material production changes, or other hard-to-reverse actions. It also does not allow the AI to grant itself new access or weaken safeguards.
+
+---
+
+## 2026-08-27 — Routing and automation rules may self-tune from repeated evidence
+
+**Decision:** AI may autonomously modify low-risk routing, prioritization, notification, capture, deduplication, and cleanup rules when repeated evidence shows a better default.
+
+**Reason:** Learning preferences without being able to improve the actual rules leaves the system permanently dependent on manual configuration.
+
+**Method:** observe repeated pattern -> make a small reversible adjustment -> preserve rollback -> log material changes -> observe outcomes -> roll back on clear regression.
+
+**Evidence rule:** One isolated observation should not become a permanent global rule. Explicit user overrides, repeated behavior, clear friction reduction, or measurable routing/attention improvement are stronger evidence.
+
+**Safety boundary:** Self-tuning may not modify the system to weaken safeguards, broaden permissions, authorize purchases/cancellations, move money, delete destructively, alter credentials/security, send consequential external commitments, or otherwise expand its own authority.
+
+**Policy:** See `docs/ADAPTATION.md`.
