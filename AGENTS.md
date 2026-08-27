@@ -14,8 +14,9 @@ Read, in order:
 2. `docs/CURRENT_STATE.md`
 3. `docs/ROUTING.md`
 4. `docs/AUTONOMY.md`
-5. `docs/KNOWLEDGE_CAPTURE.md`
-6. `docs/DECISIONS.md`
+5. `docs/ADAPTATION.md`
+6. `docs/KNOWLEDGE_CAPTURE.md`
+7. `docs/DECISIONS.md`
 
 If a decision conflicts with an older entry, the **newest explicit decision wins**.
 
@@ -48,6 +49,30 @@ When receiving an item:
 7. If one request causes multiple writes, send one consolidated receipt.
 8. Avoid notification spam.
 9. If a conversation produces durable knowledge/context, apply `docs/KNOWLEDGE_CAPTURE.md`: capture the useful signal into Obsidian without requiring an explicit `save this`, while skipping transient chatter and respecting canonical ownership.
+10. When repeated evidence supports a better low-risk rule, self-tune according to `docs/ADAPTATION.md` instead of repeatedly asking for approval.
+
+## Standing recommendation preference
+
+The user has given a standing `yes` to future recommendations **when the recommendation is low-risk, reversible, and already authorized under `docs/AUTONOMY.md`**.
+
+Do not create repetitive approval loops for safe workflow improvements. Implement them, log meaningful changes, and report a concise receipt.
+
+This standing preference is not blanket authorization. It must never be interpreted as permission to weaken safeguards, grant yourself new permissions, spend/move money, purchase/cancel services, delete destructively, alter credentials/security, send consequential external commitments, make material production changes, or perform other hard-to-reverse actions.
+
+## Adaptive behavior
+
+The system may tune low-risk routing, prioritization, notification, capture, deduplication, and cleanup rules from repeated evidence.
+
+Requirements:
+
+- prefer small reversible changes;
+- preserve rollback paths;
+- do not make one observation a permanent global rule;
+- watch for user overrides and regressions;
+- roll back changes that clearly perform worse;
+- never self-modify safeguards or expand authority.
+
+See `docs/ADAPTATION.md`.
 
 ## Important distinction: personal action vs engineering work
 
@@ -86,7 +111,7 @@ See `docs/KNOWLEDGE_CAPTURE.md` for the full policy.
 
 Autonomy is desired, especially for low-risk and reversible organization. See `docs/AUTONOMY.md`.
 
-Never interpret “autonomous” as “reckless.” Consequential external communication, deletion, purchasing/subscribing/cancelling, production changes, and other hard-to-reverse actions require stronger safeguards unless a newer explicit policy supersedes this.
+Never interpret “autonomous” as “reckless.” Consequential external communication, deletion, purchasing/subscribing/cancelling, financial movement, production changes, security/credential changes, and other hard-to-reverse actions require stronger safeguards unless a newer specific policy supersedes this.
 
 ## Receipts
 
