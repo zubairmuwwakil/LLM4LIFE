@@ -19,6 +19,8 @@ principles:
   - capture_durable_signal_not_conversational_exhaust
   - self_tune_with_evidence_and_rollback
   - standing_yes_does_not_expand_authority
+  - detect_missing_systems_not_just_optimize_existing_ones
+  - minimum_useful_system_over_infrastructure_sprawl
 
 systems:
   github:
@@ -186,6 +188,8 @@ ai_layer:
     proactively_capture_durable_conversation_knowledge: true
     self_tune_low_risk_rules: true
     standing_low_risk_recommendation_approval: true
+    proactively_detect_missing_systems: true
+    autonomously_build_low_risk_missing_workflows: true
 
 adaptation:
   enabled: true
@@ -244,6 +248,59 @@ standing_recommendation_policy:
     - weakening_autonomy_safeguards
     - granting_ai_new_access_or_permissions
 
+gap_detection:
+  enabled: true
+  policy_doc: docs/GAP_DETECTION.md
+  objective: detect_recurring_or_consequential_unmanaged_domains_and_build_minimum_useful_workflow
+  signals:
+    - repeated_manual_recreation
+    - repeatedly_hard_to_retrieve_information
+    - deadlines_depending_on_memory
+    - recurring_maintenance_without_owner
+    - fragmented_state_without_canonical_home
+    - repeated_workflow_failure_due_to_missing_trigger_or_followup
+    - ai_repeatedly_missing_durable_context
+    - meaningful_domain_existing_only_in_transient_messages
+  before_building:
+    - verify_recurrence_or_consequence
+    - search_existing_canonical_systems
+    - choose_single_owner
+    - reuse_existing_capability_before_new_tool
+    - design_minimum_viable_workflow
+    - confirm_within_existing_authority
+  autonomous_build_allowed:
+    - add_low_risk_notion_database_property_or_view
+    - create_safe_routing_rule
+    - create_recurring_reminder_or_calendar_event_when_cadence_is_clear
+    - create_obsidian_moc_or_template
+    - add_low_risk_followup_or_dedup_rule
+    - add_documentation_and_cross_links
+  autonomous_build_not_allowed:
+    - purchase_or_subscription
+    - new_credentials_or_permissions
+    - financial_action
+    - consequential_external_commitment
+    - destructive_change
+    - material_production_change
+    - hard_to_reverse_action
+  anti_goals:
+    - life_as_erp
+    - database_for_every_category
+    - dashboard_without_demonstrated_value
+    - infrastructure_for_one_off_fact
+    - new_tool_for_novelty
+  lifecycle:
+    provisional_by_default: true
+    simplify_or_remove_if_maintenance_exceeds_value: true
+    monitor:
+      - manual_work_remaining
+      - duplicate_records
+      - ignored_reminders
+      - low_usage
+      - user_overrides
+      - generated_noise
+      - better_canonical_owner_available
+
 safeguards:
   auto_allowed_examples:
     - create_low_risk_task
@@ -257,6 +314,7 @@ safeguards:
     - low_risk_reversible_cleanup
     - self_tune_low_risk_reversible_rule
     - implement_low_risk_workflow_recommendation
+    - build_minimum_low_risk_missing_system
   stronger_review_examples:
     - destructive_delete
     - externally_consequential_message
@@ -285,6 +343,7 @@ daily_digest:
     - what_can_be_ignored_today
     - cleanup_performed
     - learned_preferences
+    - system_gaps
     - tool_roi_opportunities
     - automated_actions_taken
   priority_factors:
@@ -330,6 +389,7 @@ known_current_conclusions:
   obsidian_access: autonomous_read_write_merge_rewrite_and_conversation_capture_with_learning_guardrails
   adaptive_rules: autonomous_low_risk_self_tuning_with_evidence_and_rollback
   recommendation_default: standing_yes_for_low_risk_reversible_recommendations_only
+  missing_systems: proactively_detect_and_build_minimum_low_risk_workflows
   engineering_truth: github_plus_jira
   core_finance_truth: dedicated_finance_apps_not_notion
 
