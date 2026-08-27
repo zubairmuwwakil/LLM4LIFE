@@ -19,12 +19,42 @@ Examples:
 - create a personal task
 - create/update a Jira work item
 - update structured Notion state
+- create, organize, move, tag, or link Obsidian notes when the destination and intent are clear
 - add a clearly requested Calendar event
 - classify/tag/route information
 - create links between systems
 - archive clearly stale low-value material when reversible
 - deduplicate routine records
 - resurface neglected important items
+
+## Obsidian autonomous-write policy
+
+Obsidian is an **autonomous write-capable destination**, not read-only context.
+
+The AI may autonomously:
+
+- create notes in the correct PARA location;
+- triage `00 Inbox` captures into the appropriate Area, Project, Resource, Daily, or Archive location;
+- add/update frontmatter when useful;
+- add links/backlinks and Maps of Content references;
+- create contextual or durable knowledge notes when the content clearly belongs in Obsidian;
+- archive stale material when reversible and clearly appropriate;
+- connect Obsidian notes to canonical Notion, GitHub, Jira, or other records instead of copying those records.
+
+### Critical learning exception
+
+Autonomous write access does **not** override the vault's software-engineering learning contract.
+
+For study/learning work, agents must follow the Obsidian repo's `AGENTS.md` and canonical `50 Resources/Software Engineering/_System/AI Operating Manual (READ ME).md`.
+
+That means the AI may autonomously improve structure, retrieval prompts, links, correctness checks, study scaffolding, and organization, but it must not use autonomy as an excuse to do the learning or exercise thinking on the user's behalf.
+
+Examples:
+
+- Safe: organize a completed concept note, add links, create retrieval prompts from already-understood material, log a mistake, create a study scaffold.
+- Not safe by default: silently write the answer/code that the user is supposed to retrieve or generate during a learning exercise.
+
+When the goal is learning, the vault-specific assistance ladder takes precedence over the general frictionless-automation preference.
 
 ## Stronger safeguards
 
@@ -55,6 +85,8 @@ Before cleanup:
 4. record the action in the audit log when practical.
 
 Never equate age with irrelevance.
+
+For Obsidian specifically, prefer moving material to `90 Archive` over deletion so links/history survive.
 
 ## Behavioral learning
 
