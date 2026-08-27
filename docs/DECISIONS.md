@@ -233,3 +233,17 @@ The digest currently includes:
 4. explicitly supersede conflicting older rules instead of silently layering exceptions.
 
 **Goal:** Preserve reasoning and clarity, not historical architecture for its own sake.
+
+---
+
+## 2026-08-27 — Obsidian is an autonomous read/write destination
+
+**Decision:** AI may autonomously create, organize, move, tag, link, archive, and update Obsidian notes when intent and destination are clear.
+
+**Reason:** Obsidian is a real operational knowledge/context layer in the AI-driven system. Requiring confirmation for every routine knowledge write would create unnecessary friction and undermine the universal-router model.
+
+**Preferred behavior:** triage inbox captures, maintain PARA placement/frontmatter, add links/MOC references, create contextual notes, and prefer `90 Archive` over deletion.
+
+**Critical exception:** This does not override the Obsidian software-engineering learning contract. For learning exercises, the vault's retrieval-first Assistance Ladder remains authoritative; autonomous writes must not silently perform the thinking or generate the exercise solution on the user's behalf.
+
+**Boundary:** Obsidian autonomy concerns knowledge/context. It should still link to—not duplicate—canonical structured operational state in Notion, engineering work in Jira, or code/repository truth in GitHub.
