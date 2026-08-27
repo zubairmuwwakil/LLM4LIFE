@@ -1,0 +1,149 @@
+# Documentation Index
+
+LLM4LIFE has multiple documentation layers because **architecture, runtime connectivity, policy, automation configuration, and historical decisions are different kinds of truth**.
+
+Do not copy the same information into every file. Update the narrowest authoritative document and link to it elsewhere.
+
+## What to read for what
+
+| Question | Authoritative file(s) |
+|---|---|
+| What is connected/live right now? | `STATUS.md`, `../config/tools.yaml` |
+| What does each tool own and who uses it? | `TOOL_REGISTRY.md`, `../config/tools.yaml` |
+| What is the high-level architecture? | `../system.yaml`, `CURRENT_STATE.md` |
+| Where should an item be routed? | `ROUTING.md` |
+| How should backlog become a day plan? | `PLANNING.md`, `../config/scheduling.yaml` |
+| What automations are active and how do they interact? | `AUTOMATIONS.md`, `../config/automations.yaml` |
+| What should the morning digest do? | `DIGEST.md` |
+| What may AI do autonomously? | `AUTONOMY.md` |
+| How may AI learn/change low-risk rules? | `ADAPTATION.md` |
+| How should missing workflows be detected/built? | `GAP_DETECTION.md` |
+| What gets captured from conversations into Obsidian? | `KNOWLEDGE_CAPTURE.md` |
+| How should connectors/bridges be designed? | `INTEGRATIONS.md` |
+| What can be public / what must remain private? | `SECURITY.md` |
+| Why was a choice made? | `DECISIONS.md`, `decisions/` |
+| What should an AI agent do first? | `../AGENTS.md` |
+
+## Truth categories
+
+### Runtime truth
+
+Examples:
+
+- connector exists today;
+- write path is verified;
+- automation is enabled;
+- current scheduling window.
+
+Use `STATUS.md` and machine-readable config.
+
+Runtime truth can change without changing the architecture.
+
+### Architectural truth
+
+Examples:
+
+- Things owns the personal backlog;
+- Notion owns structured life state;
+- AI is the scheduler/router;
+- Calendar is execution, not backlog.
+
+Use `system.yaml`, `CURRENT_STATE.md`, and domain policy docs.
+
+### Authorization/policy truth
+
+Examples:
+
+- AI may autonomously merge Obsidian notes;
+- purchases are not pre-approved;
+- low-risk scheduling changes are pre-approved.
+
+Use `AUTONOMY.md`, `ADAPTATION.md`, `KNOWLEDGE_CAPTURE.md`, `SECURITY.md`.
+
+### Historical truth
+
+Examples:
+
+- why Notion was narrowed to personal operations;
+- why monthly tool audits were rejected;
+- why the planner uses a 1–9 PM default.
+
+Use decision records.
+
+Historical decisions explain the path; they do not automatically override a newer explicit current policy.
+
+## Precedence
+
+When documentation appears to conflict:
+
+1. newest explicit user decision/instruction;
+2. current safety/security constraints;
+3. verified runtime truth for questions of technical access;
+4. newest explicit decision record;
+5. current policy/config docs;
+6. older narrative/historical notes.
+
+A runtime limitation does not change canonical ownership. Example: lack of a Things connector does not make Calendar the personal backlog.
+
+## Documentation update rule
+
+When something changes, update only the necessary layers.
+
+### Connector becomes available
+
+Update:
+
+- `STATUS.md`
+- `TOOL_REGISTRY.md`
+- `../config/tools.yaml`
+- `INTEGRATIONS.md` if topology changed
+- decision record if it becomes a core dependency
+
+### Automation changes
+
+Update:
+
+- `AUTOMATIONS.md`
+- `../config/automations.yaml`
+- relevant policy (`PLANNING.md`, `DIGEST.md`, etc.)
+- `STATUS.md` when operationally material
+
+### Ownership/routing changes
+
+Update:
+
+- `../system.yaml`
+- `CURRENT_STATE.md`
+- `TOOL_REGISTRY.md`
+- `ROUTING.md`
+- dated decision record
+
+### Scheduling preference changes
+
+Update:
+
+- `../config/scheduling.yaml`
+- `PLANNING.md`
+- active planning automations
+- decision record if material
+
+## Public-repo discipline
+
+This documentation repository is public.
+
+Do not improve documentation completeness by copying private state into it.
+
+Good documentation explains **classes of data, flows, permissions, roles, limitations, and behavior**. It does not need the user's private message bodies, account numbers, private contact profiles, or diary/health contents.
+
+See `SECURITY.md`.
+
+## Anti-drift rule for AI agents
+
+Before adding a new markdown file, ask:
+
+1. Does an existing authoritative file already cover this topic?
+2. Can I improve that file instead?
+3. Is this a distinct truth category or just duplicate prose?
+4. Will another agent know which copy to trust six months from now?
+
+Prefer fewer canonical files with clear boundaries over documentation sprawl.
