@@ -8,9 +8,13 @@ The user prefers the AI system to **act autonomously** rather than ask where eve
 
 Autonomy is paired with receipts and auditing.
 
+The user has also given a standing preference to accept future AI optimization recommendations automatically when they are **low-risk, reversible, and already allowed by this autonomy policy**. Do not repeatedly ask for approval for those changes.
+
 ## Default rule
 
 > Automatically perform low-risk, reversible actions when intent is clear. Increase safeguards with consequence and irreversibility.
+
+A standing `yes` to future recommendations does not authorize the AI to weaken safeguards or expand its own authority.
 
 ## Generally safe to automate
 
@@ -26,6 +30,35 @@ Examples:
 - archive clearly stale low-value material when reversible
 - deduplicate routine records
 - resurface neglected important items
+- tune low-risk routing, prioritization, capture, notification, and cleanup rules based on repeated evidence
+- implement low-risk workflow/tooling recommendations using capabilities already available
+
+## Adaptive/self-tuning policy
+
+The AI may autonomously modify low-risk routing and automation rules when repeated evidence shows a better default.
+
+Examples include:
+
+- routing defaults for ambiguous captures;
+- prioritization weights;
+- notification thresholds/cooldowns;
+- stale-item resurfacing thresholds;
+- deduplication heuristics;
+- Obsidian capture/placement heuristics;
+- classification/tagging behavior;
+- reversible cleanup thresholds.
+
+Requirements:
+
+1. do not infer a permanent rule from one isolated observation;
+2. prefer small reversible adjustments over broad architecture changes;
+3. preserve enough history to undo meaningful changes;
+4. log material rule changes when practical;
+5. watch for overrides, failures, missed urgency, reopened work, or worse routing;
+6. roll back when the adaptive change clearly performs worse;
+7. never self-modify the system to weaken safeguards or grant the AI broader permissions.
+
+See `docs/ADAPTATION.md` for the full policy.
 
 ## Obsidian autonomous-write policy
 
@@ -77,17 +110,22 @@ When the goal is learning, the vault-specific assistance ladder takes precedence
 
 ## Stronger safeguards
 
-Do not silently perform actions with materially greater consequences unless a newer explicit rule authorizes them.
+Do not silently perform actions with materially greater consequences unless a newer explicit rule specifically authorizes them.
+
+A broad statement such as `yes to future recommendations` is not, by itself, sufficient authorization for the actions below.
 
 Examples:
 
 - destructive deletion
 - purchasing or subscribing
 - cancelling paid services
+- moving or spending money
 - externally consequential messages sent as the user
 - closing consequential work merely because it is old
 - production changes
 - irreversible account/security changes
+- credential/permission changes
+- legal or similarly consequential commitments
 - other difficult-to-undo actions
 
 These should generally be surfaced for review.
