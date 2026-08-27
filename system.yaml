@@ -75,8 +75,19 @@ systems:
       - organize_and_move_notes
       - update_frontmatter
       - add_links_and_moc_references
+      - merge_duplicate_or_overlapping_notes
+      - rewrite_existing_notes_for_clarity_or_conflict_resolution
       - archive_reversible_stale_material
       - connect_to_canonical_external_records
+    merge_rewrite_policy:
+      enabled: true
+      preserve_user_authored_reasoning: true
+      preserve_provenance_and_dates: true
+      preserve_or_repair_links: true
+      prefer_merge_or_archive_over_delete: true
+      unresolved_conflicts: preserve_with_context_or_flag_for_review
+      avoid_false_certainty: true
+      log_material_changes: true
     avoid:
       - routine_task_management
       - structured_operational_state_when_notion_is_canonical
@@ -145,6 +156,7 @@ safeguards:
     - create_or_update_jira_work_item
     - update_notion_structured_state
     - create_or_organize_obsidian_knowledge
+    - merge_or_rewrite_obsidian_knowledge_with_provenance
     - add_calendar_event
     - classify_or_tag
     - low_risk_reversible_cleanup
@@ -216,7 +228,7 @@ known_current_conclusions:
   notion_best_role: personal_operations_and_life_database
   notion_generic_project_manager: likely_redundant
   obsidian_best_role: personal_knowledge_and_context_layer
-  obsidian_access: autonomous_read_write_with_learning_guardrails
+  obsidian_access: autonomous_read_write_merge_and_rewrite_with_learning_guardrails
   engineering_truth: github_plus_jira
   core_finance_truth: dedicated_finance_apps_not_notion
 
