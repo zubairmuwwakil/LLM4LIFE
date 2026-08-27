@@ -14,7 +14,8 @@ Read, in order:
 2. `docs/CURRENT_STATE.md`
 3. `docs/ROUTING.md`
 4. `docs/AUTONOMY.md`
-5. `docs/DECISIONS.md`
+5. `docs/KNOWLEDGE_CAPTURE.md`
+6. `docs/DECISIONS.md`
 
 If a decision conflicts with an older entry, the **newest explicit decision wins**.
 
@@ -46,6 +47,7 @@ When receiving an item:
 6. Log meaningful autonomous writes/actions when the audit system is available.
 7. If one request causes multiple writes, send one consolidated receipt.
 8. Avoid notification spam.
+9. If a conversation produces durable knowledge/context, apply `docs/KNOWLEDGE_CAPTURE.md`: capture the useful signal into Obsidian without requiring an explicit `save this`, while skipping transient chatter and respecting canonical ownership.
 
 ## Important distinction: personal action vs engineering work
 
@@ -67,6 +69,18 @@ Do not rebuild:
 - core financial calculations/state already owned by dedicated finance software
 
 Good Notion data is structured, durable, queryable personal/admin state.
+
+## Obsidian knowledge-capture policy
+
+Obsidian is the durable knowledge/context layer and may be maintained autonomously.
+
+The AI may extract durable insights, decisions, lessons, frameworks, research conclusions, and useful context from conversations without waiting for an explicit save instruction.
+
+Do **not** turn the vault into a transcript archive. Search before creating, merge/update canonical notes where possible, preserve provenance, and skip transient or duplicate material.
+
+Sensitive credentials/identifiers should not be implicitly persisted. The software-engineering learning contract remains higher priority when the goal is learning.
+
+See `docs/KNOWLEDGE_CAPTURE.md` for the full policy.
 
 ## Autonomy policy
 
