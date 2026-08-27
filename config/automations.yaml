@@ -1,0 +1,109 @@
+version: 1
+updated: 2026-08-27
+timezone: America/Toronto
+
+active:
+  plan_tomorrow:
+    title: Plan Tomorrow
+    enabled: true
+    schedule: daily_around_19_00
+    timing_mode: flexible
+    purpose: prepare_next_day_and_maintain_short_rolling_schedule
+    systems:
+      - google_calendar
+      - things3_when_bridge_available
+      - jira_when_connector_available
+      - gmail
+      - notion
+      - github
+      - other_verified_sources
+    policies:
+      movable_work_window: "13:00-21:00"
+      rolling_horizon_days: 7
+      leave_buffer: true
+      resolve_movable_collisions: true
+      fixed_commitments_are_immovable_for_optimization: true
+      never_claim_unavailable_backlog_was_inspected: true
+
+  daily_systems_digest:
+    title: Daily Systems Digest
+    enabled: true
+    schedule: daily_around_08_00
+    timing_mode: flexible
+    purpose: morning_attention_brief_and_schedule_sanity_check
+    sections:
+      - top_3_priorities
+      - schedule_health
+      - needs_attention_today
+      - work_engineering
+      - personal_admin
+      - upcoming_deadlines
+      - neglected_but_important
+      - what_can_be_ignored_today
+      - cleanup_performed
+      - learned_preferences
+      - system_gaps
+      - tool_roi_opportunities
+      - automated_actions_taken
+    policies:
+      movable_work_window: "13:00-21:00"
+      may_fix_low_risk_movable_schedule_conflicts: true
+      may_not_move_fixed_external_commitments: true
+      self_tune_low_risk_rules_with_evidence_and_rollback: true
+
+  calendar_task_followup:
+    title: Calendar Task Follow-Up
+    enabled: true
+    schedule: hourly_condition_watch
+    timing_mode: condition_watch
+    purpose: follow_up_on_recently_ended_task_style_calendar_blocks
+    systems:
+      - google_calendar
+    policies:
+      exclude_fixed_external_events: true
+      completed_action: mark_original_completed
+      unfinished_action: reassess_then_schedule_next_realistic_slot_if_still_valuable
+      default_reschedule_window: "13:00-21:00"
+      reschedule_horizon_days: 7
+      avoid_blind_daily_push_forward: true
+      repeated_misses_are_behavioral_evidence: true
+
+  personal_care_heartbeat:
+    title: Personal Care Heartbeat
+    enabled: true
+    schedule: tuesday_around_19_00
+    timing_mode: flexible
+    purpose: concise_weekly_personal_care_inventory_health
+    systems:
+      - notion
+    write_policy: read_only
+
+  personal_care_restock:
+    title: Personal Care Restock
+    enabled: true
+    schedule: friday_around_19_00
+    timing_mode: flexible
+    purpose: practical_full_personal_care_restock_digest
+    systems:
+      - notion
+    write_policy: read_only
+
+retired_or_inactive:
+  stale_duplicate_discord_warning_reminders:
+    title: Fix Discord channel ID warning
+    status: disabled_2026_08_27
+    reason: duplicate_one_time_reminders_had_already_fired_in_january_2026
+  gemini_plan_reset:
+    title: Gemini Plan Reset
+    status: completed_inactive
+    reason: one_time_reminder_not_part_of_active_operating_system
+
+design_rules:
+  - one_automation_one_clear_responsibility
+  - no_shadow_task_database
+  - planner_owns_movable_calendar_placement
+  - deduplicate_before_write
+  - log_meaningful_autonomous_writes_when_practical
+  - return_exception_oriented_outputs
+  - do_not_expand_permissions_automatically
+  - consequential_actions_remain_outside_standing_low_risk_approval
