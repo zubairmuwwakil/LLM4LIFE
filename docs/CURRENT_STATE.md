@@ -61,6 +61,16 @@ Important vault rules that align with LLM4LIFE:
 - For software-engineering learning work, agents must follow the vault's own `AGENTS.md` and canonical `AI Operating Manual (READ ME).md`.
 - The learning contract is intentionally less frictionless than the general life-automation layer: AI should promote retrieval/generation rather than simply provide finished answers when the goal is learning.
 
+### Obsidian access mode
+
+Obsidian is **autonomous read/write**, not read-only.
+
+When intent and destination are clear, AI may create, organize, move, tag, link, archive, and update notes without asking for routine confirmation. It may also triage captures from `00 Inbox`, maintain frontmatter, and connect Obsidian notes to canonical records in GitHub, Jira, Notion, or other systems.
+
+For cleanup, prefer `90 Archive` over deletion so links and historical context survive.
+
+This general autonomy has one important override: **learning-mode guardrails still apply**. Autonomous write access must not bypass the vault's retrieval-first Assistance Ladder or silently solve learning exercises on the user's behalf.
+
 The presence of an Area, Project, subscription note, or finance note in Obsidian does **not automatically make Obsidian the operational source of truth** for that object. Obsidian is allowed to hold context, reasoning, narrative, and links while structured live state remains in the appropriate system.
 
 An older imported note in the vault used the shorthand `Discord for attention; Notion for record; Things for work`. Treat that as historical context, not current global policy when it conflicts with newer LLM4LIFE decisions.
