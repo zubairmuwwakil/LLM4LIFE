@@ -17,6 +17,8 @@ principles:
   - learned_preferences_are_soft_preferences
   - architecture_is_open_to_change
   - capture_durable_signal_not_conversational_exhaust
+  - self_tune_with_evidence_and_rollback
+  - standing_yes_does_not_expand_authority
 
 systems:
   github:
@@ -182,6 +184,65 @@ ai_layer:
     consolidate_multi_action_receipts: true
     log_meaningful_writes: true
     proactively_capture_durable_conversation_knowledge: true
+    self_tune_low_risk_rules: true
+    standing_low_risk_recommendation_approval: true
+
+adaptation:
+  enabled: true
+  policy_doc: docs/ADAPTATION.md
+  may_self_modify:
+    - ambiguous_capture_routing_defaults
+    - prioritization_weights
+    - stale_resurface_thresholds
+    - notification_thresholds_and_cooldowns
+    - deduplication_heuristics
+    - obsidian_capture_and_placement_heuristics
+    - classification_and_tagging_defaults
+    - low_risk_cleanup_thresholds
+  evidence:
+    require_repeated_pattern_or_clear_override: true
+    single_observation_not_permanent_rule: true
+    prefer_measurable_friction_reduction: true
+  change_style:
+    prefer_small_reversible_changes: true
+    meaningful_changes_use_bounded_experiment_when_practical: true
+    preserve_previous_rule_for_rollback: true
+    rollback_on_clear_regression: true
+  monitor:
+    - user_overrides
+    - routing_failures
+    - duplicate_creation
+    - reopened_items
+    - missed_urgency
+    - notification_noise
+  report_material_changes_in_digest: true
+  may_not_self_modify:
+    - weaken_safeguards
+    - expand_permissions_or_credentials
+    - authorize_purchases_or_subscriptions
+    - authorize_cancellations
+    - authorize_money_movement
+    - authorize_destructive_deletion
+    - authorize_security_or_account_changes
+    - authorize_externally_consequential_messages
+    - authorize_production_changes
+    - authorize_irreversible_actions
+
+standing_recommendation_policy:
+  default: auto_accept_and_execute_if_low_risk_reversible_and_already_authorized
+  avoid_repetitive_yes_no_loops: true
+  does_not_authorize:
+    - purchase_or_new_subscription
+    - cancel_subscription_or_financial_product
+    - money_movement
+    - destructive_delete
+    - account_security_or_credential_change
+    - externally_consequential_message_or_commitment
+    - production_change_with_material_impact
+    - legal_or_other_high_consequence_commitment
+    - hard_to_reverse_action
+    - weakening_autonomy_safeguards
+    - granting_ai_new_access_or_permissions
 
 safeguards:
   auto_allowed_examples:
@@ -194,12 +255,16 @@ safeguards:
     - add_calendar_event
     - classify_or_tag
     - low_risk_reversible_cleanup
+    - self_tune_low_risk_reversible_rule
+    - implement_low_risk_workflow_recommendation
   stronger_review_examples:
     - destructive_delete
     - externally_consequential_message
     - purchase_or_new_subscription
     - cancel_subscription
+    - money_movement
     - production_change
+    - security_or_credential_change
     - hard_to_reverse_action
 
 notifications:
@@ -263,6 +328,8 @@ known_current_conclusions:
   notion_generic_project_manager: likely_redundant
   obsidian_best_role: personal_knowledge_and_context_layer
   obsidian_access: autonomous_read_write_merge_rewrite_and_conversation_capture_with_learning_guardrails
+  adaptive_rules: autonomous_low_risk_self_tuning_with_evidence_and_rollback
+  recommendation_default: standing_yes_for_low_risk_reversible_recommendations_only
   engineering_truth: github_plus_jira
   core_finance_truth: dedicated_finance_apps_not_notion
 
