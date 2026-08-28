@@ -76,3 +76,37 @@ def test_duplicate_calendar_binding_does_not_duplicate_followup(client: TestClie
     assert first.status_code == 201
     assert second.status_code == 201
     assert first.json()["id"] == second.json()["id"]
+
+
+def test_completed_task_cannot_receive_another_calendar_binding(client: TestClient) -> None:
+    task = client.post("/v1/tasks/sync", json=task_payload("completed-no-rebind")).json()
+    start = datetime.now(UTC) - timedelta(hours=2)
+    first = client.post(
+        f"/v1/tasks/{task['id']}/calendar-bindings",
+        json={
+            "provider": "google_calendar",
+            "calendar_id": "primary",
+            "event_id": "event-completed-first",
+            "scheduled_start": start.isoformat(),
+            "scheduled_end": (start + timedelta(minutes=30)).isoformat(),
+        },
+    )
+    assert first.status_code == 201
+    completed = client.post(
+        f"/v1/followups/{first.json()['id']}/resolve",
+        json={"result": "completed"},
+    )
+    assert completed.status_code == 200
+
+    future = datetime.now(UTC) + timedelta(hours=2)
+    rebind = client.post(
+        f"/v1/tasks/{task['id']}/calendar-bindings",
+        json={
+            "provider": "google_calendar",
+            "calendar_id": "primary",
+            "event_id": "event-completed-second",
+            "scheduled_start": future.isoformat(),
+            "scheduled_end": (future + timedelta(minutes=30)).isoformat(),
+        },
+    )
+    assert rebind.status_code == 409
