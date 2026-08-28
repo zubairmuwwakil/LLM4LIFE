@@ -94,6 +94,8 @@ class TaskService:
 
     def bind_calendar(self, task_id: str, data: CalendarBindingCreate) -> CalendarBinding:
         task = self.get_task(task_id)
+        if task.status in {TaskStatus.COMPLETED.value, TaskStatus.CANCELLED.value}:
+            raise ConflictError("Completed or cancelled tasks cannot receive new Calendar bindings")
         existing = self.session.scalar(
             select(CalendarBinding).where(
                 CalendarBinding.provider == data.provider,
@@ -135,9 +137,11 @@ class TaskService:
         now = now or datetime.now(UTC)
         stmt = (
             select(CalendarBinding)
+            .join(Task, Task.id == CalendarBinding.task_id)
             .where(
                 CalendarBinding.followup_status == FollowupStatus.PENDING.value,
                 CalendarBinding.followup_due_at <= now,
+                Task.status.notin_([TaskStatus.COMPLETED.value, TaskStatus.CANCELLED.value]),
             )
             .order_by(CalendarBinding.followup_due_at.asc())
             .limit(limit)
