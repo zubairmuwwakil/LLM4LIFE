@@ -48,6 +48,14 @@ The repository describes the architecture; it should not become a dump of privat
 | **Apple Reminders** | Previous reminders/task system | Migrating away as canonical task system |
 | **ORC (`agent-orchestrator`)** | AI coding control plane: routes coding work across model/effort pools, manages quota-aware escalation, independently verifies work, and performs cross-vendor review | Keep as the coding-specific orchestration layer. LLM4LIFE should integrate with ORC rather than duplicate its coding-agent routing logic |
 | **Claude Code / Codex / Gemini / Copilot and other coding agents** | Coding workers/specialists used underneath the development workflow | Prefer access through ORC where practical instead of treating each as an independent workflow/source of truth |
+| **Gmail** | Email communication and intake for receipts, bills, subscriptions, account/admin messages, and actionable context | Keep as a primary communication/intake source; route durable actions/state elsewhere |
+| **Slack** | Work communication plus the user's own workspace for personal automation and repository/project automation | Keep as an automation/control and notification surface, not a canonical database |
+| **Discord** | Personal/community communication and historically the preferred conversational surface for OpenClaw | Keep as an optional conversational/automation channel if it remains useful; not a source of truth |
+| **WhatsApp** | Personal messaging and historically an OpenClaw-accessible communication source | Treat as a communication source/surface only; do not depend on it as canonical state |
+| **iMessage / Messages** | Personal messaging and historically an OpenClaw-accessible communication source | Keep as communication only; integration is valuable, but canonical data should live elsewhere |
+| **OpenClaw** | Historical/potential integration bridge giving the AI conversational access through Discord/WhatsApp and access to messaging sources such as iMessage/WhatsApp | Re-evaluate after full inventory. Preserve the useful channel/message-access pattern, but compare against a more production-grade LLM4LIFE integration layer before committing to OpenClaw as core infrastructure |
+| **Apple Shortcuts / Share Sheet** | Low-friction iPhone capture and automation entry point | Keep as a high-value edge/capture layer feeding LLM4LIFE |
+| **Apple Notes** | Still actively used for notes/capture, but role is not yet cleanly defined | Keep temporarily; evaluate whether it should remain a fast scratchpad/capture UI or be consolidated into Obsidian/another capture pipeline |
 
 ## Important boundaries
 
@@ -121,6 +129,54 @@ Google Calendar  Google Tasks     Jira
 ```
 
 This diagram is **directional, not final**. The inventory may reveal better boundaries or systems.
+
+## Communication and capture inventory
+
+### Current usage
+
+- **Gmail** is both communication and a high-value intake source for receipts, bills, subscriptions, account/admin messages, and other actionable context.
+- **Slack** has two real roles: work/software communication, and the user's own workspace for personal/repository automation.
+- **Discord** is used for both communities and personal communication, and was the user's preferred conversational interface when using OpenClaw.
+- **OpenClaw** previously provided conversational access through Discord and WhatsApp and could access iMessage and WhatsApp message context. The user valued this cross-channel visibility.
+- **WhatsApp** and **iMessage** are therefore important message sources even if they should not own durable state.
+- **Apple Notes** remains actively used, but the user is open to replacing or narrowing its role.
+- **Voice capture** is not currently a meaningful workflow.
+- **Apple Shortcuts / Share Sheet** remain useful low-friction capture/automation surfaces.
+
+### Provisional production-grade direction
+
+Communication applications should be treated as **edge channels and event sources**, not canonical databases.
+
+```text
+Gmail / Slack / Discord / WhatsApp / iMessage
+Apple Notes / Shortcuts / Share Sheet
+                    |
+                    v
+             LLM4LIFE ingress/router
+                    |
+          normalize intent / event
+                    |
+      +-------------+--------------+----------------+
+      |             |              |                |
+ personal task   engineering    knowledge       structured state
+      |             |              |                |
+ Google Tasks      Jira         Obsidian      Notion / Postgres
+      |
+ scheduled execution -> Google Calendar
+
+ software execution -> ORC -> GitHub
+```
+
+Long-term, the valuable capability from the OpenClaw setup is **not necessarily OpenClaw itself**; it is the ability to ingest and act across multiple communication channels while preserving a single routing policy and canonical ownership model. During implementation, compare OpenClaw against native connectors, webhooks, messaging bridges, and a dedicated LLM4LIFE ingress/event layer. Prefer the option that provides the strongest reliability, observability, authentication, least-privilege access, and low vendor lock-in.
+
+### Apple Notes decision remains open
+
+Do not migrate Apple Notes merely for architectural neatness. During implementation, inspect actual usage and choose one of two likely roles:
+
+1. **Fast scratch/capture client** whose durable content is routed into Obsidian or structured systems; or
+2. **Retire/consolidate** if Shortcuts/Share Sheet plus Obsidian provide equally low-friction capture.
+
+Avoid maintaining durable notes in both Apple Notes and Obsidian without a clear ownership rule.
 
 ## Architecture review rule for the remainder of the inventory
 
