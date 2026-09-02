@@ -11,6 +11,16 @@ This inventory session is intentionally **discovery first, implementation second
 
 **As soon as the current session finishes reviewing the full software/app stack, begin implementing the long-term architecture.** Do not leave the recommendations as documentation-only future work. The inventory exists to avoid prematurely building around an incomplete picture of the user's life systems.
 
+## Cost constraint
+
+Prefer **free / no-new-subscription** solutions whenever they are production-grade enough for the user's needs. A paid tool should only be recommended when:
+
+1. a free or already-paid-for option cannot meet the requirement reliably;
+2. the paid option provides a material advantage in scalability, reliability, security, interoperability, or user experience; and
+3. the additional recurring cost is clearly justified.
+
+Existing paid products may continue to be used when they already provide value, but the architecture should avoid accumulating unnecessary subscriptions.
+
 ## Current architectural direction
 
 ### LLM4LIFE
@@ -189,5 +199,6 @@ For every app/service discovered during this audit, record:
 5. **Would keeping it be production-grade and scalable?**
 6. **If not, what should eventually replace or reposition it?**
 7. **What needs to be implemented immediately after the inventory session?**
+8. **Can the requirement be met with a free or already-paid-for tool before adding another subscription?**
 
 Do not preserve a tool merely because it is already in use. Do not replace a tool merely for architectural purity when its UX or specialized capability provides real value.
