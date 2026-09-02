@@ -131,6 +131,72 @@ Only if future requirements justify it:
 Obsidian metadata -> LLM4LIFE event/projection layer -> Neon
 ```
 
+## Automation goal
+
+**The user should be able to tell the AI information naturally without manually maintaining the relationship database.**
+
+Examples:
+
+- “Tara is studying for another certification.”
+- “I met Alex at a conference today.”
+- “Remind me to check in with Jordan in three weeks.”
+- “Kayla really likes this restaurant.”
+- “I spoke with Sam today about changing jobs.”
+
+LLM4LIFE should classify the information and route it to the correct owner rather than blindly appending everything to one note.
+
+### Automated capture pipeline
+
+```text
+ChatGPT / messaging / manual capture / calendar context
+                       |
+                       v
+                LLM4LIFE ingress
+                       |
+             classify + resolve person
+                       |
+        +--------------+----------------+
+        |              |                |
+        v              v                v
+  contact identity  relationship     interaction/
+      change          memory          observation
+        |              |                |
+ Google Contacts    Obsidian       Obsidian interaction
+                                         |
+                                         v
+                                derive operational state
+                                    /          \
+                                   v            v
+                             Google Tasks   Google Calendar
+```
+
+### Capture rules
+
+1. **Durable personal fact/context** -> update the person's canonical Obsidian note.
+2. **Meaningful interaction or event** -> create/link an interaction or diary note; do not duplicate the full event inside the person profile.
+3. **Phone/email/address/birthday identity data** -> Google Contacts, with Obsidian storing only a provider reference where useful.
+4. **Actionable promise/follow-up** -> record the relationship context in Obsidian and create a Google Task as the execution item.
+5. **Actual scheduled meeting/date** -> Google Calendar.
+6. **Temporary, uncertain, trivial, or conversational information** -> do not automatically persist it as durable relationship memory.
+7. **Sensitive inferred claims** -> do not infer or persist them merely from message content; prefer explicit user-provided facts and observations.
+
+## How Obsidian should be written automatically
+
+The **local Obsidian vault remains the authoritative working copy**. Its private GitHub repository is backup/version history, not the preferred application API.
+
+Long-term automation should therefore use a trusted local LLM4LIFE bridge/worker on the user's Mac to:
+
+1. resolve the canonical person note;
+2. make an atomic Markdown/frontmatter update locally;
+3. preserve existing prose and links;
+4. create an interaction note when appropriate;
+5. validate frontmatter/schema;
+6. let the existing Obsidian Git workflow version and push the resulting file changes.
+
+Avoid routinely having cloud agents independently edit the remote Obsidian GitHub repository while the local vault is also changing; that creates avoidable merge/conflict risk.
+
+Until the local bridge exists, relationship capture can remain conversational/manual and implementation work should focus on standardizing the schema first.
+
 ## Suggested canonical person metadata
 
 The exact private template can evolve, but the architecture should support fields such as:
@@ -157,6 +223,7 @@ Interaction notes can remain narrative while gaining lightweight frontmatter:
 
 ```yaml
 type: interaction
+interaction_id: <stable-private-id>
 date: YYYY-MM-DD
 people: []
 interaction_type: <in_person|call|text|event|other>
@@ -165,6 +232,17 @@ follow_up_date: null
 ```
 
 This allows Dataview or an automation layer to derive `last_interaction`, recent interactions and pending follow-ups instead of requiring manual dashboard maintenance.
+
+## Derived state vs authored state
+
+Prefer deriving operational fields from source events whenever reliable:
+
+- `last_interaction` should eventually be derivable from interaction notes rather than manually maintained in multiple places;
+- dashboard `Recent interactions` should be a query;
+- `Open loops` should be derived from structured follow-up/open-loop metadata;
+- follow-up tasks can be projected into Google Tasks without making Google Tasks the relationship source of truth.
+
+This keeps the system resilient to missed manual updates.
 
 ## Questions the system should answer
 
@@ -186,9 +264,11 @@ This allows Dataview or an automation layer to derive `last_interaction`, recent
 6. Convert the Relationships Dashboard from manually maintained lists toward derived Dataview/Bases views where practical.
 7. Inventory and deduplicate Apple Contacts vs Google Contacts.
 8. If Google Contacts is confirmed as canonical, sync it to Apple devices and stop independently editing both stores.
-9. Generate Google Tasks for due follow-ups rather than duplicating relationship state in Tasks.
-10. Use Google Calendar only when an interaction is actually scheduled or date-specific.
-11. Re-evaluate Neon only after the improved Obsidian system reveals a concrete limitation.
+9. Build a trusted local relationship-write adapter for LLM4LIFE so conversational capture can safely update the vault.
+10. Add person-resolution logic so names/aliases/contact IDs map to one stable private `person_id`.
+11. Generate Google Tasks for due follow-ups rather than duplicating relationship state in Tasks.
+12. Use Google Calendar only when an interaction is actually scheduled or date-specific.
+13. Re-evaluate Neon only after the improved Obsidian system reveals a concrete limitation.
 
 ## Privacy boundaries
 
@@ -197,6 +277,7 @@ This allows Dataview or an automation layer to derive `last_interaction`, recent
 - Actual provider contact IDs and person IDs are private data and should not be committed to LLM4LIFE.
 - Do not ingest or retain complete personal conversations by default merely because an integration technically allows it.
 - Prefer least-privilege access and explicit source references.
+- Automation must distinguish explicit user-provided information from model inference; inferred sensitive facts should not silently become durable person records.
 
 ## Free-first constraint
 
