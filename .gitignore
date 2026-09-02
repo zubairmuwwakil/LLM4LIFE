@@ -1,0 +1,12 @@
+# Local environment / secrets / private identity values
+.env
+.env.*
+!.env.example
+
+# OS/editor noise
+.DS_Store
+.vscode/
+.idea/
+
+# Local runtime state
+*.log
