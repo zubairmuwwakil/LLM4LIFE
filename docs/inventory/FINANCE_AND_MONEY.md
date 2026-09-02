@@ -8,63 +8,63 @@
 | System | Current role | Provisional long-term direction |
 |---|---|---|
 | **Wealthsimple** | Investment/financial account platform and usual tax filing software | Keep as an external financial institution/service; do not treat it as LLM4LIFE's canonical cross-system data model |
-| **Bank apps** | Institution-specific banking access and transactions | Keep as external execution/source systems; LLM4LIFE/InUnity should aggregate/reference rather than attempt to replace regulated bank systems |
-| **Credit-card issuer apps** | Card account access, transactions, statements, rewards/account servicing | Keep as issuer-specific execution/source systems; normalize useful metadata into the user's own applications where appropriate |
+| **Bank apps** | Institution-specific banking access and transactions | Keep as external execution/source systems; InUnity should aggregate/reference rather than attempt to replace regulated bank systems |
+| **Credit-card issuer apps** | Card account access, transactions, statements, rewards/account servicing | Keep as issuer-specific execution/source systems; normalize useful metadata into InUnity where appropriate |
 | **Apple Wallet** | Payment/card wallet and transaction/capture surface | Keep as a high-value mobile/payments surface; integrate through supported Shortcuts/intents rather than treating Wallet itself as canonical analytics state |
-| **InUnity** | Emerging user-built financial/life unifier; intended to handle banking/credit-card views, budgeting, receipt scanning and broader money operations | Strong candidate to become the primary user-facing finance application, but exact boundary with MoneyTalks and Looply must be settled before implementation |
-| **MoneyTalks** | Existing/planned budgeting and financial unifier capabilities | Re-evaluate whether it remains a distinct product, is renamed/absorbed into InUnity, or becomes a module/service beneath it |
-| **PickMe** | Credit-card recommendation / Card Copilot for best-card selection, purchase capture and card optimization | Keep as the specialized card-decision subsystem unless its responsibilities are intentionally folded into InUnity; avoid duplicating card recommendation logic in multiple apps |
-| **Looply** | Existing receipts/bills/subscriptions workflow | Re-evaluate against InUnity's intended receipt-scanning/bill/subscription scope; likely consolidation candidate if responsibilities overlap |
-| **MarketLens / marketdata** | Market-data service intended to feed financial applications | Keep as a specialized data service if still useful; downstream apps should consume it rather than duplicate market-data acquisition |
+| **InUnity** | Main user-built financial platform and unifier. MoneyTalks is the same product/name lineage rather than a separate competing system. InUnity is intended to own the consolidated financial experience and state needed by the user's own finance stack | Treat as the primary user-owned finance system and main destination for data from specialized subsystems |
+| **MoneyTalks** | Earlier/current naming for what is now InUnity, not a separate source of truth | Do not model MoneyTalks as a competing application. Treat references to MoneyTalks as InUnity unless a future explicit split is introduced |
+| **PickMe** | Specialized credit-card recommendation / Card Copilot for best-card selection, purchase capture and card optimization | Keep specialized. PickMe sends relevant purchase/card data into InUnity; InUnity is the main consolidated destination/source for the broader finance experience |
+| **MarketLens / marketdata** | Specialized market-data service used by InUnity | Keep as a provider/service feeding InUnity. Do not duplicate market-data acquisition logic inside InUnity unless intentionally replacing MarketLens |
+| **Looply** | Receipts/bills/subscriptions workflow | Relationship to InUnity still needs explicit review. Avoid duplicate canonical receipt/bill/subscription state if both remain active |
 | **Crypto.com** | Crypto exchange/account application | Keep as an external crypto institution/source system; do not store exchange credentials or keys in LLM4LIFE |
 | **MetaMask / Phantom** | Self-custody wallet browser extensions | Keep isolated from general automation/browser trust boundaries; LLM4LIFE should never hold seed phrases/private keys |
 | **Rakuten** | Cashback/rewards source | Keep for now; long term expose cashback opportunities through PickMe/InUnity/LLM4LIFE when reliable data access exists |
 
-## Core architecture principle
+## Corrected product architecture
 
-External financial institutions remain authoritative for regulated account execution and official balances/transactions. The user's own applications should provide the **normalized intelligence and experience layer**.
+The user's finance stack is **not** a set of peer applications competing for ownership.
+
+The intended shape is:
 
 ```text
+External financial systems
 Banks / card issuers / Wealthsimple / Crypto.com / Apple Wallet
                          |
                          v
-               ingestion / normalization
+                ingestion / normalization
                          |
-                  shared financial model
-                         |
-          +--------------+---------------+
-          |                              |
-       InUnity                         PickMe
- broad money/life UI            card-decision specialist
-          |
- budgeting / receipts / bills / subscriptions
-
- MarketLens -> market data consumed where needed
+                         v
+                     InUnity
+          main user-owned finance platform
+                 /                 \
+                /                   \
+               v                     v
+           PickMe                MarketLens
+     card-decision specialist   market-data service
+          |                         |
+          +------ data/events ------+
+                    into InUnity
 ```
 
-This is directional, not final.
+### Ownership rule
 
-## Major consolidation decision to resolve after inventory
-
-The current product family contains overlapping or potentially overlapping responsibilities:
-
-- **InUnity** — intended broad financial/life unifier, budgeting and receipt scanning;
-- **MoneyTalks** — financial unifier/budgeting capabilities;
-- **Looply** — receipts/bills/subscriptions;
-- **PickMe** — card optimization and transaction-related workflows.
-
-Before implementation, explicitly decide whether:
-
-1. **InUnity becomes the umbrella product** and MoneyTalks/Looply are absorbed as modules/services;
-2. MoneyTalks remains the finance engine while InUnity is a broader presentation/orchestration layer;
-3. Looply remains a dedicated ingestion/subscription service feeding InUnity;
-4. PickMe remains a separately deployable specialist but exposes APIs/events into the shared financial model.
-
-Do not allow multiple products to independently maintain the same canonical transaction, subscription, receipt, budget, or card metadata.
+- **InUnity is the main source for the user's consolidated finance system.**
+- **MoneyTalks = InUnity**, not a separate product that needs independent ownership.
+- **PickMe is specialized and feeds InUnity.** It should not become the broader finance source of truth.
+- **MarketLens is specialized infrastructure used by InUnity.** It provides market data rather than owning the user's financial state.
+- External banks, card issuers, exchanges and other regulated providers remain authoritative for their own official account records and execution.
 
 ## Production-grade direction
 
-Prefer a shared normalized domain model and event contracts over point-to-point duplication. Examples of canonical objects may include:
+This is a strong architectural pattern and should be preserved unless later evidence suggests a better boundary:
+
+```text
+specialized producers/services -> stable contracts/events -> InUnity
+```
+
+Prefer explicit APIs/event contracts between PickMe, MarketLens and InUnity rather than shared-database coupling or duplicated tables across products.
+
+Potential shared/canonical objects inside the InUnity domain may include:
 
 - account
 - card
@@ -74,9 +74,20 @@ Prefer a shared normalized domain model and event contracts over point-to-point 
 - bill/subscription
 - reward/cashback opportunity
 - budget/category
-- market instrument/quote
+- portfolio/holding references
 
-Exact schema ownership should be designed after the full inventory is complete.
+Market quotes and provider-specific raw data can remain owned by MarketLens where appropriate while InUnity consumes the normalized outputs it needs.
+
+## Remaining finance architecture question
+
+The main unresolved product boundary is **Looply**.
+
+During implementation, determine whether Looply:
+
+1. remains a specialized receipt/bill/subscription ingestion service feeding InUnity; or
+2. is absorbed into InUnity if maintaining it separately provides no meaningful operational or architectural advantage.
+
+Do not maintain the same canonical receipt, bill, subscription, or transaction state independently in both systems.
 
 ## Security boundaries
 
@@ -87,7 +98,9 @@ Exact schema ownership should be designed after the full inventory is complete.
 
 ## Immediate implementation follow-up after inventory
 
-- Resolve the InUnity vs MoneyTalks vs Looply ownership/consolidation model.
-- Define the canonical financial data model and system-of-record matrix.
-- Define ingestion adapters/events for Apple Wallet, email receipts, issuer/bank exports/APIs, Rakuten-like rewards data, and market data.
-- Keep PickMe's recommendation engine specialized unless there is a compelling reason to merge it.
+- Treat InUnity as the central user-owned finance system when creating the system-of-record matrix.
+- Document MoneyTalks as the same product/name lineage rather than a separate system.
+- Define stable PickMe -> InUnity event/API contracts.
+- Define stable MarketLens -> InUnity data contracts.
+- Resolve Looply's role and eliminate any duplicate canonical finance state.
+- Define ingestion adapters/events for Apple Wallet, email receipts, issuer/bank exports/APIs, Rakuten-like rewards data, and other external sources.
