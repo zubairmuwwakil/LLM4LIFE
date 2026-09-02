@@ -12,20 +12,57 @@ The user's people/contact information is currently fragmented across:
 - calendar entries / important dates
 - **Obsidian, which is currently the main place relationship context is being stored**
 
-The Obsidian relationship system is still early-stage and should not be treated as a permanently fixed architecture merely because it exists today.
+The Obsidian relationship system is still early-stage and should not be treated as permanently fixed merely because it exists today.
 
 ## Current ownership
 
 | Layer | Current owner / surface | Status |
 |---|---|---|
 | Contact identity | Apple Contacts + Google Contacts | Fragmented / needs consolidation |
-| Relationship context | **Obsidian** | Current source for relationship notes/context; early-stage and provisional |
+| Relationship context | **Obsidian** | Current source for relationship notes/context; early-stage but already structurally useful |
 | Follow-up state | Scattered / ad hoc | No dedicated canonical system yet |
-| Fixed dates / meetings | Calendar | Useful execution surface, not relationship database |
+| Fixed dates / meetings | Google Calendar direction | Execution surface, not relationship database |
+
+## Obsidian audit — 2026-09-02
+
+The existing vault was inspected before recommending a replacement.
+
+### What is already strong
+
+The current vault follows a good knowledge-architecture principle: **link, do not copy**.
+
+The People system has:
+
+- a `20 Areas/People/` domain with person-specific folders;
+- a canonical person-note convention using `00 <Name>.md`;
+- `type: person` and `aliases:` frontmatter for identity/link resolution;
+- a `Person Template` for consistent human-readable profiles;
+- an `Interaction Template` for meaningful interactions;
+- diary entries that link to people rather than restating the same event in multiple places;
+- per-person `Mentions — <Name>` notes using Dataview/backlinks to surface linked diary and other notes;
+- a People MOC and a Relationships Dashboard as navigation/projection layers.
+
+This means the core concept is already good enough to preserve: **Obsidian can remain the narrative relationship-memory system.**
+
+### What needs improvement
+
+The current People area also contains migration/import residue and inconsistent generations of the system: some person folders contain older files, imported journal material, interaction folders, and duplicate-looking profile/summary files alongside the newer canonical-note convention.
+
+The relationship dashboard is currently mostly manually curated and its `Recent interactions`, `Open loops`, and `Things to remember` sections are not yet driven by structured metadata.
+
+The Person Template contains useful fields such as current status, connection level, last interaction and next step, but those values are currently body text rather than normalized frontmatter. That makes reliable querying and automation harder.
+
+The Interaction Template is also primarily narrative. It has a follow-up section, but no normalized machine-readable date/person/type/follow-up state.
+
+### Decision after audit
+
+**Do not migrate relationship notes out of Obsidian.**
+
+Instead, improve the existing private Obsidian system first. Add a thin structured metadata layer to canonical person and interaction notes so Dataview/automation can answer operational questions while narrative context remains readable Markdown.
+
+Neon/PostgreSQL should not become the relationship source of truth yet. Introduce backend relationship tables only when a real cross-system automation requirement cannot be satisfied cleanly by Obsidian metadata plus Google integrations.
 
 ## Recommended production-grade model
-
-Do not treat an address book as a complete relationship-management system.
 
 Use three logical layers:
 
@@ -38,19 +75,20 @@ Use three logical layers:
    - birthday where appropriate
 
 2. **Private relationship context**
-   - relationship type
    - how/where the person is known
    - important context worth remembering
    - interests/preferences when intentionally recorded
-   - last meaningful interaction
-   - relationship-specific notes
+   - reflections and narrative notes
+   - linked diary/history
 
-3. **Follow-up / action state**
+3. **Operational relationship metadata**
+   - relationship/category
+   - status
+   - last meaningful interaction
    - next follow-up date
-   - recurring check-in cadence if intentionally set
-   - promises / commitments
-   - tasks arising from conversations
-   - important upcoming dates
+   - optional check-in cadence
+   - open-loop state
+   - references to address-book identity
 
 These layers may integrate, but they should not be forced into one vendor's contact-note field.
 
@@ -58,80 +96,108 @@ These layers may integrate, but they should not be forced into one vendor's cont
 
 | Layer | Provisional direction | Notes |
 |---|---|---|
-| **Canonical address book** | **Google Contacts** | Strong fit with Gmail / Google Calendar / Google Tasks and has a documented People API; verify during migration before finalizing |
+| **Canonical address book** | **Google Contacts** | Strong fit with Gmail / Google Calendar / Google Tasks; verify/deduplicate before finalizing migration |
 | **Apple Contacts** | Synced Apple-device client | Prefer consuming the canonical contact set instead of maintaining a separate manually edited address book |
-| **Relationship context** | **Obsidian for now** | Keep as current source while the workflow is still developing; do not migrate merely for architectural neatness |
-| **Structured relationship metadata** | Possible future private LLM4LIFE backend (Neon/PostgreSQL) | Add only if structured querying, reminders, integrations, or automation justify it |
-| **Follow-up tasks** | Google Tasks | Use for concrete actions generated from relationship state |
-| **Scheduled meetings / fixed dates** | Google Calendar | Use for real commitments and important dates, not as a relationship-history database |
+| **Relationship context** | **Obsidian** | Keep as primary private narrative relationship-memory system |
+| **Structured relationship metadata** | **Obsidian frontmatter first** | Use machine-readable fields in canonical person/interaction notes before introducing another database |
+| **Future backend relationship projection** | Optional private LLM4LIFE/Neon layer | Add only when cross-system querying, event processing, scale, or automation justifies it |
+| **Follow-up tasks** | Google Tasks | Generate concrete actions from relationship metadata; tasks are execution, not relationship truth |
+| **Scheduled meetings / fixed dates** | Google Calendar | Use for real commitments and date-specific interactions |
 
-## Target direction under evaluation
+## Target architecture
 
 ```text
-                  Google Contacts
-              canonical contact identity
-                       |
-                       v
-                 relationship layer
-             currently: Obsidian notes
-                       |
-             +---------+----------+
-             |                    |
-             v                    v
-        Google Tasks        Google Calendar
-         follow-ups          fixed dates/events
+                   Google Contacts
+               canonical contact identity
+                        |
+                        | contact reference
+                        v
+             +------------------------+
+             |        Obsidian        |
+             | canonical person note  |
+             | narrative context      |
+             | linked diary/history   |
+             | structured frontmatter |
+             +-----------+------------+
+                         |
+              due/open operational state
+                +--------+--------+
+                |                 |
+                v                 v
+          Google Tasks      Google Calendar
+           follow-ups       scheduled events
 
-Future only if justified:
-Obsidian relationship context <-> private structured metadata in Neon
-
-Apple Contacts = synced Apple-device client for the canonical address book
+Only if future requirements justify it:
+Obsidian metadata -> LLM4LIFE event/projection layer -> Neon
 ```
 
-## Obsidian's current role
+## Suggested canonical person metadata
 
-Obsidian is presently the most important relationship-context system because it already stores personal notes and linked context about people.
+The exact private template can evolve, but the architecture should support fields such as:
 
-Do not prematurely replace it.
+```yaml
+type: person
+person_id: <stable-private-id>
+aliases: []
+contact_provider: google
+contact_ref: <provider-resource-id>
+relationship_type: <family|friend|partner|professional|other>
+status: <active|occasional|dormant|archived>
+last_interaction: YYYY-MM-DD
+next_follow_up: YYYY-MM-DD
+follow_up_cadence_days: null
+open_loops: 0
+```
 
-The main question for implementation is whether Obsidian alone remains sufficient or whether a small structured private backend should complement it.
+Do not duplicate phone numbers, email addresses, or canonical birthdays in this metadata if Google Contacts owns those values. Store references rather than redundant copies where possible.
 
-A likely production-grade split, if needed, would be:
+## Suggested interaction metadata
 
-- **Obsidian:** narrative context, relationship notes, reflections, human-readable memory;
-- **structured backend:** person IDs, contact mappings, last-contact date, next-follow-up date, cadence, status and integration references;
-- **Google Contacts:** phone/email/address-book identity;
-- **Google Tasks:** actionable follow-ups;
-- **Google Calendar:** actual scheduled interactions and fixed dates.
+Interaction notes can remain narrative while gaining lightweight frontmatter:
 
-This avoids copying narrative notes into a database merely because a database exists.
+```yaml
+type: interaction
+date: YYYY-MM-DD
+people: []
+interaction_type: <in_person|call|text|event|other>
+follow_up_needed: false
+follow_up_date: null
+```
 
-## Questions the eventual system should answer
+This allows Dataview or an automation layer to derive `last_interaction`, recent interactions and pending follow-ups instead of requiring manual dashboard maintenance.
+
+## Questions the system should answer
 
 - Who have I not spoken to in a while?
 - What context do I have about this person?
 - Who did I say I would follow up with?
+- What follow-ups are overdue?
 - What birthdays or important dates are coming up?
 - Who should I reconnect with this month?
+- What was my most recent meaningful interaction with this person?
 
-## Migration approach
+## Migration / cleanup approach
 
-During implementation:
-
-1. inventory and deduplicate Apple Contacts vs Google Contacts;
-2. verify whether Google Contacts should become canonical;
-3. preserve the current Obsidian relationship notes and links;
-4. inspect how the existing Obsidian people system is structured before changing it;
-5. only create private structured relationship tables if a concrete automation/querying need cannot be handled cleanly by Obsidian metadata plus integrations;
-6. generate Google Tasks for actionable follow-ups rather than creating calendar clutter;
-7. use Google Calendar only when an interaction is actually scheduled or date-specific.
+1. Keep all existing relationship content intact during cleanup.
+2. Establish exactly one canonical person note per person.
+3. Identify legacy/imported duplicate-looking files and either link, merge intentionally, or archive them; never delete merely because names overlap.
+4. Standardize the Person Template frontmatter.
+5. Standardize the Interaction Template frontmatter.
+6. Convert the Relationships Dashboard from manually maintained lists toward derived Dataview/Bases views where practical.
+7. Inventory and deduplicate Apple Contacts vs Google Contacts.
+8. If Google Contacts is confirmed as canonical, sync it to Apple devices and stop independently editing both stores.
+9. Generate Google Tasks for due follow-ups rather than duplicating relationship state in Tasks.
+10. Use Google Calendar only when an interaction is actually scheduled or date-specific.
+11. Re-evaluate Neon only after the improved Obsidian system reveals a concrete limitation.
 
 ## Privacy boundaries
 
-- The public LLM4LIFE repository should contain architecture, schemas and placeholders only — never actual private contact data or relationship notes.
-- Relationship context belongs in private systems such as the user's Obsidian vault and, if later justified, private backend storage.
+- The public LLM4LIFE repository contains architecture, schemas and placeholders only — never actual contact data or relationship notes.
+- Relationship context remains in private systems.
+- Actual provider contact IDs and person IDs are private data and should not be committed to LLM4LIFE.
 - Do not ingest or retain complete personal conversations by default merely because an integration technically allows it.
 - Prefer least-privilege access and explicit source references.
 
 ## Free-first constraint
 
-Prefer free or already-paid-for components. Do not introduce a paid personal CRM unless it provides a clear advantage that cannot reasonably be achieved with the existing stack.
+Prefer free or already-paid-for components. The current stack can provide a capable personal relationship-management system without adding a paid personal CRM.
