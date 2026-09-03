@@ -6,7 +6,7 @@ This file describes **what is actually live now**. Target ownership is defined b
 
 ## Headline
 
-The v2 Neon backend is live, personal action/planning state is canonical in Neon, and the Google Tasks projection/client is now **production-live** through a Cloudflare Worker.
+The v2 Neon backend is live, personal action/planning state is canonical in Neon, and the Google Tasks projection/client is **production-live on Worker v0.2.0** through Cloudflare.
 
 Implemented and verified:
 
@@ -21,7 +21,8 @@ Implemented and verified:
 - live Daily Planning Loop, Calendar Task Follow-Up, and Weekly Systems Review prompts cut over to Neon canonical task state;
 - Google Tasks OAuth completed and Cloudflare Worker deployed;
 - first Google Tasks bulk projection completed successfully after one safe retry;
-- 15-minute Cloudflare cron verified succeeding;
+- Google Tasks Worker v0.2.0 deployed and manually verified;
+- v0.2.0 15-minute Cloudflare cron independently verified succeeding;
 - InUnity ChatGPT MCP integration completed and recently read-verified.
 
 ## Canonical planning runtime
@@ -32,7 +33,7 @@ Implemented and verified:
                            |
 Neon/PostgreSQL actions ---+
         |                  |
-        |                  +<-- Cloudflare Worker
+        |                  +<-- Cloudflare Worker v0.2.0
         |                       15-minute sync
         |
         +--> ChatGPT planner --> Google Calendar
@@ -56,20 +57,22 @@ Neon/PostgreSQL actions ---+
 
 The live Worker is deployed as `llm4life-google-tasks-sync` with a `*/15 * * * *` Cron Trigger.
 
-Verified production state after cutover:
+Verified production state:
 
+- Worker health reports `version: 0.2.0`;
 - 17 Neon actions total;
 - 14 Google Tasks projection bindings in `external_refs`;
 - both `google_tasks_tasklist` and `google_tasks_projection` checkpoints present;
 - `google-tasks-sync` job enabled;
-- manual retry succeeded after the initial bulk run;
-- following scheduled cron succeeded with zero changes.
+- v0.2.0 manual sync succeeded with zero conflicts or duplicate writes;
+- a subsequent v0.2.0 scheduled cron also succeeded;
+- latest `job_runs.metadata` and the projection checkpoint record `worker_version: 0.2.0`.
 
-The first bulk projection exceeded Cloudflare Workers Free's 50 external-subrequest limit after partially completing safely. The retry completed the remaining work because existing projection bindings prevented duplication.
+The first v0.1 bulk projection exceeded Cloudflare Workers Free's 50 external-subrequest limit after partially completing safely. The retry completed the remaining work because stable external references made the process idempotent.
 
-### v0.2 hardening
+### v0.2 hardening — production-live
 
-Worker v0.2 is committed and awaiting redeployment. It addresses the first-run scaling issue by:
+Worker v0.2.0 addresses the first-run scaling issue by:
 
 - grouping Neon SQL with `sql.transaction(...)` so many statements share one database HTTP fetch;
 - batching Google Tasks create/patch/delete mutations through the Google Tasks multipart batch endpoint, up to 50 mutations per Google batch request;
@@ -79,7 +82,7 @@ Worker v0.2 is committed and awaiting redeployment. It addresses the first-run s
 - handling cancelled/archived projection deletion directly in the core worker;
 - retaining idempotent run keys, external refs, checkpoints, and action receipts.
 
-No database schema migration is required for v0.2.
+No database schema migration was required for v0.2.
 
 ## Active planning automations
 
@@ -115,8 +118,8 @@ If Neon is unavailable, automations are instructed **not** to silently fall back
 | GitHub | Connected, read/write verified | Architecture/config/code repository operations |
 | Neon | **Connected / canonical personal action backend** | Production schema and action state live; read/write verified |
 | ChatGPT Automations | Connected/live | Planner/follow-up/review use Neon canonical task state |
-| Google Tasks | **Production-live** | Human action client/projection; Neon remains canonical |
-| Cloudflare | **Production-live Worker runtime** | Runs Google Tasks sync every 15 minutes; ChatGPT app is enabled but this session does not expose its namespace |
+| Google Tasks | **Production-live v0.2.0** | Human action client/projection; Neon remains canonical |
+| Cloudflare | **Production-live Worker runtime** | v0.2.0 sync every 15 minutes; ChatGPT app enabled but this session does not expose its namespace |
 | Google Calendar | Connected | Execution schedule and commitments |
 | Notion | Transitional / rollback for planning | Planning snapshot retained; Shopping Needs still live until migrated |
 | InUnity | **MCP integration complete / recently read-verified** | Consolidated finance system; re-check namespace before a live call when needed |
@@ -130,16 +133,6 @@ If Neon is unavailable, automations are instructed **not** to silently fall back
 | Discord / WhatsApp / iMessage | User-live channels | Cross-channel AI access still requires verified bridge/native integration |
 
 ## Next implementation priorities
-
-### P0 — Redeploy Google Tasks Worker v0.2
-
-The current production Worker is healthy. Redeploy the committed v0.2 hardening, then verify:
-
-1. `/health` reports version `0.2.0`;
-2. one manual sync succeeds;
-3. the following cron succeeds;
-4. `job_runs.metadata` / checkpoint metadata records `worker_version: 0.2.0`;
-5. no duplicate Google Tasks or `external_refs` are created.
 
 ### P1 — Migrate remaining Notion operational state
 
