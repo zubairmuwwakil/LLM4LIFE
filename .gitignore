@@ -2,6 +2,15 @@
 .env
 .env.*
 !.env.example
+.dev.vars
+.dev.vars.*
+client_secret*.json
+credentials*.json
+token*.json
+
+# JavaScript / Worker local state
+node_modules/
+.wrangler/
 
 # OS/editor noise
 .DS_Store
