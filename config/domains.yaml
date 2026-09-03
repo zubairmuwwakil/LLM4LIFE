@@ -89,20 +89,21 @@ domains:
     scheduled_output: google_calendar
 
   personal_care_inventory:
-    owner_after_cutover: product_tracker
+    owner: product_tracker
     canonical_database: neon_product_tracker
-    current_control_surface: notion_until_runtime_cutover
-    target_runtime:
+    canonical_runtime:
       api: cloudflare_worker
       async_processing: cloudflare_queue
       reconciliation: cloudflare_scheduled_handler_for_pending_delivery_ledger_only
-      optional_future_workflows: cloudflare_workflows_when_multi_step_durability_is_justified
+      database_connectivity: cloudflare_hyperdrive
       processing_model: event_driven_with_reconciliation_safety_net
     interfaces:
       - chatgpt
-      - notion_projection_after_cutover
+      - notion_projection_and_rollback
       - future_mobile_capture
-    migration_state: mirror_verified_cloudflare_runtime_implementation_in_progress
+    notion_role: projection_reference_and_rollback_only
+    notion_inbound_mutations_enabled: false
+    migration_state: canonical_cutover_complete_post_cutover_observation_active
     rule: do_not_flatten_into_generic_shopping_items
 
   grocery_and_general_shopping_list:
