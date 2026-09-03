@@ -1,7 +1,8 @@
 version: 2
 status: migration_in_progress
-updated: 2026-09-02
+updated: 2026-09-03
 superseding_decision: docs/decisions/2026-09-02-production-architecture-v2.md
+long_term_roadmap: docs/LONG_TERM_ROADMAP.md
 purpose: >-
   Machine-readable architecture for the user's AI-driven personal operating
   system. LLM4LIFE is the control/orchestration layer; canonical data stays in
@@ -11,6 +12,7 @@ purpose: >-
 
 principles:
   - one_owner_per_object
+  - nothing_is_grandfathered_every_component_must_justify_its_current_role
   - ai_is_interface_router_and_orchestrator_not_chat_database
   - neon_for_llm4life_machine_state
   - obsidian_for_narrative_knowledge_and_context
@@ -24,6 +26,7 @@ principles:
   - capture_durable_signal_not_conversational_exhaust
   - free_or_already_paid_first
   - architecture_is_open_to_change
+  - replacement_requires_material_improvement_not_novelty
 
 architecture:
   control_plane: llm4life
@@ -71,7 +74,7 @@ systems:
       - durable_system_state_only_in_chat_history
 
   neon_postgresql:
-    role: durable_llm4life_machine_state
+    role: durable_llm4life_machine_state_and_host_for_user_owned_domain_databases
     owns:
       - system_registry
       - external_references
@@ -83,7 +86,9 @@ systems:
       - adaptive_rules
       - household_assets_and_maintenance
       - vehicle_maintenance
-      - grocery_and_shopping_state
+      - general_grocery_and_shopping_state_when_justified
+    hosts_specialized_domain_databases:
+      - product_tracker
     avoid:
       - narrative_relationship_notes
       - full_message_history_by_default
@@ -153,19 +158,46 @@ systems:
     role: transitional_structured_workspace_and_optional_projection
     direction: no_longer_default_canonical_backend
     current_live_dependencies_may_include:
-      - task_planning_automation
-      - task_execution_telemetry
-      - personal_care_views
-      - ai_activity_log
+      - personal_care_inventory_control_until_product_tracker_runtime_cutover
     migration_rule: keep_until_replacement_verified_then_reposition_or_retire_per_domain
     good_future_uses:
       - human_friendly_dashboards
       - optional_views
       - ad_hoc_collaboration
     avoid:
-      - new_core_state_that_belongs_in_neon
+      - new_core_state_that_belongs_in_neon_or_a_domain_service
       - duplicate_jira_or_github_truth
       - duplicate_obsidian_knowledge
+
+  product_tracker:
+    repository: zubairmuwwakil/Product_Tracker
+    role: specialized_personal_care_inventory_domain_service
+    canonical_database: neon_product_tracker_after_runtime_cutover
+    current_state:
+      neon_mirror_verified: true
+      notion_control_surface_still_live: true
+      runtime_cutover_complete: false
+    target_runtime:
+      api: vercel_functions
+      async_processing: vercel_queue_or_workflow_primitive
+      canonical_state: neon_product_tracker_database
+      normal_processing: event_driven
+      frequent_cron_polling: prohibited_as_target_architecture
+    decision: docs/decisions/2026-09-03-product-tracker-runtime.md
+    rules:
+      - inventory_changes_are_events
+      - stable_keys_beat_titles
+      - external_writes_are_idempotent
+      - preserve_transactional_outbox_or_equivalent_atomicity
+      - notion_becomes_projection_after_verified_cutover
+
+  vercel:
+    role: preferred_existing_serverless_runtime_for_product_tracker_and_appropriate_web_workloads
+    boundary: runtime_not_canonical_data_owner
+    adoption_rule: use_when_workload_fits_serverless_event_driven_model
+    avoid:
+      - preserving_infinite_polling_loops_as_architectural_requirement
+      - frequent_hobby_cron_as_worker_emulation
 
   things3:
     role: legacy_or_optional_task_ux
@@ -281,7 +313,8 @@ routing:
   contact_identity: google_contacts_after_migration
   household_maintenance_state: neon_postgresql
   vehicle_maintenance_state: neon_postgresql
-  grocery_or_shopping_state: neon_postgresql
+  personal_care_inventory: product_tracker
+  general_grocery_or_shopping_state: neon_postgresql
   consolidated_finance_state: inunity
   official_financial_record: respective_financial_provider
   email_source_context: gmail
@@ -310,7 +343,7 @@ personal_actions:
 planning:
   enabled: true
   scheduler: ai_layer
-  personal_backlog: neon_postgresql_after_migration
+  personal_backlog: neon_postgresql
   engineering_backlog: jira
   execution_schedule: google_calendar
   adaptive_rules: neon_postgresql
@@ -334,8 +367,10 @@ jobs:
   public_design_registry: config/automations.yaml
   execution_may_use:
     - chatgpt_automations
-    - cron
-    - dedicated_worker
+    - cloudflare_workers
+    - vercel_functions_queues_or_workflows
+    - cron_when_frequency_and_platform_fit
+    - dedicated_worker_when_justified
     - github_actions_for_repository_ci_only
   required_properties:
     - stable_job_identity
@@ -353,7 +388,8 @@ household:
   provider_apps: execution_or_source_only
 
 grocery_and_shopping:
-  state: neon_postgresql
+  personal_care_inventory: product_tracker
+  general_state: neon_postgresql_when_structured_automation_is_justified
   provider_choice: optimize_total_value_without_vendor_loyalty
   no_new_paid_list_app_by_default: true
 
@@ -393,8 +429,29 @@ free_first:
     - paid_only_when_incremental_value_is_material
   production_grade_does_not_mean_more_subscriptions: true
 
+component_review_policy:
+  rule: nothing_is_permanent_because_it_is_currently_used
+  classifications:
+    - keep
+    - reposition
+    - consolidate
+    - replace
+    - retire
+  evaluate:
+    - real_job_performed
+    - canonical_ownership
+    - overlap
+    - reliability
+    - scalability
+    - integration_quality
+    - security_and_least_privilege
+    - maintainability
+    - portability_and_lock_in
+    - ongoing_cost
+  replacement_gate: materially_better_total_system_not_change_for_novelty
+
 migration:
-  phase: v2_foundation
+  phase: v2_foundation_and_domain_cutovers
   rules:
     - migrate_one_domain_at_a_time
     - do_not_destroy_working_legacy_state_before_verification
@@ -404,15 +461,17 @@ migration:
     - update_runtime_docs_when_live_cutover_occurs
   current_transitional_runtime:
     note: >-
-      Existing ChatGPT planning automations may still depend on Notion Tasks,
-      Task Execution Log, Scheduling Model, Shopping Needs, or AI Activity Log.
-      Those live dependencies remain valid until migrated and verified; target
-      architecture must not be confused with completed runtime cutover.
+      Personal planning has cut over to Neon with Google Tasks as the live
+      action client. Notion planning data is rollback/reference. Personal-care
+      inventory has a parity-verified Product Tracker mirror in Neon, but
+      Notion remains its live control surface until the Vercel/event-driven
+      Product Tracker runtime is deployed and verified.
 
 change_management:
   on_major_change:
     - add_or_update_decision_record
     - update_system_yaml
     - update_config_domains
+    - update_long_term_roadmap_when_target_changes
     - update_runtime_docs_when_cutover_is_real
   precedence: newest_explicit_decision_wins
