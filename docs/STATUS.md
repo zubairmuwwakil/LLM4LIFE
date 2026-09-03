@@ -21,9 +21,17 @@ Already implemented in the public LLM4LIFE repo:
 - grocery/shopping-list schema;
 - v2 agent instructions and environment-variable placeholders.
 
+Neon validation status:
+
+- the intended `llm4life` Neon project is now visible to the connector;
+- its primary `production` branch was verified to contain no tables before migration;
+- the full v2 schema was applied successfully to a disposable validation branch;
+- smoke tests passed for personal actions/execution telemetry, household/vehicle maintenance, shopping state, foreign-key relationships, and update triggers;
+- **production remains unchanged** until explicit approval to apply the validated schema.
+
 Not yet completed:
 
-- applying the schema to the intended LLM4LIFE Neon database;
+- applying the validated schema to the LLM4LIFE Neon production branch;
 - migrating live Notion Tasks / Task Execution Log / Scheduling Model / AI Activity Log state;
 - Google Tasks synchronization/projection adapter;
 - live local Obsidian write bridge;
@@ -55,7 +63,7 @@ Those dependencies remain runtime truth until their Neon-backed replacements are
 | Notion | Transitional live dependency | Existing task/planning/inventory/audit workflows may still use it; no longer the v2 target backend |
 | Gmail | Connected capability | Email/source context and actions through supported connector paths |
 | Slack | Connected capability | Work communication/context |
-| Neon | **Partial** | Neon organization discovery now works, but the only currently visible project is the existing market-data project. It does not match the intended LLM4LIFE database, so no schema was applied by guess. |
+| Neon | **Validated / not yet cut over** | Intended LLM4LIFE project is visible; production was verified empty; schema + smoke tests passed on a disposable branch. Production schema is not yet applied. |
 | Google Tasks | User-live / target client | Preferred v2 personal-action UI; direct ChatGPT task connector not currently verified |
 | Google Contacts | Connector available; migration not done | Preferred canonical address book after Apple/Google dedup |
 | Apple Contacts | User-live | Still contains part of contact identity; intended to become a synced client after migration |
@@ -84,16 +92,14 @@ See `config/domains.yaml` for the full domain matrix.
 
 ## Current highest-priority implementation gaps
 
-### P0 — Resolve the intended LLM4LIFE Neon project and apply schema
+### P0 — Apply validated Neon schema to production
 
 The schema exists in:
 
 - `db/migrations/001_core.sql`
 - `db/migrations/002_actions_and_adaptation.sql`
 
-The Neon organization can now be enumerated, but its visible project list currently exposes only the existing market-data project. That project must **not** receive LLM4LIFE tables merely because it is reachable.
-
-Next step is to make the intended LLM4LIFE Neon project visible to the connector (or explicitly identify the correct project), then validate migrations on a disposable branch before applying them to its primary branch.
+Validation has passed on a disposable branch. The next production step is to apply the same validated schema to the primary branch after explicit approval, then immediately verify table presence and basic reads/writes.
 
 ### P0 — Migrate planning state without breaking current automations
 
@@ -148,7 +154,7 @@ Never commit actual database URLs, credentials, private contact/relationship inf
 
 Update it after an actual runtime cutover or connection change, especially when:
 
-- intended LLM4LIFE Neon project is visible and schema is applied;
+- the validated Neon schema is applied to production;
 - task data is migrated;
 - Google Tasks sync becomes live;
 - a local Obsidian bridge is deployed;
