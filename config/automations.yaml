@@ -1,12 +1,14 @@
 version: 2
 updated: 2026-09-02
 timezone: America/Toronto
-status: live_transitional_backend
+status: live_neon_backend
 
 runtime_backend:
-  current: notion_transitional
-  target: neon_postgresql
-  rule: migrate_state_and_verify_parity_before_changing_live_prompts
+  canonical_personal_action_state: neon_postgresql
+  execution_calendar: google_calendar
+  legacy_planning_source: notion_rollback_reference
+  google_tasks_projection: pending_oauth_adapter
+  cutover_verified: true
 
 active:
   daily_planning_loop:
@@ -19,17 +21,19 @@ active:
       frequency: daily
     timing_mode: exact
     purpose: morning_execution_sanity_check_and_evening_next_day_planning
-    current_state_sources:
+    state_sources:
+      - neon_actions
+      - neon_external_refs
+      - neon_adaptive_rules
+      - neon_action_receipts
+      - google_calendar
+      - other_verified_sources_when_relevant
+    transitional_sources:
+      - notion_shopping_needs_for_personal_care_only
+    prohibited_canonical_fallback:
       - notion_tasks
       - notion_scheduling_model
-      - google_calendar
-      - other_verified_sources_when_relevant
-    target_state_sources:
-      - neon_actions
-      - neon_adaptive_rules
-      - google_calendar
-      - jira
-      - other_verified_sources_when_relevant
+      - notion_ai_activity_log
     policies:
       protected_sleep: "23:00-07:00"
       weekday_work_soft_busy: "09:00-13:00"
@@ -38,7 +42,8 @@ active:
       leave_buffer: true
       fixed_commitments_are_immovable_for_optimization: true
       waiting_work_does_not_consume_execution_time: true
-      do_not_claim_unavailable_source_was_inspected: true
+      date_only_deadlines_do_not_get_invented_times: true
+      if_neon_unavailable_do_not_write_notion_fallback: true
 
   calendar_task_followup:
     title: Calendar Task Follow-Up
@@ -46,16 +51,16 @@ active:
     schedule: hourly
     timing_mode: condition_watch
     purpose: capture_outcomes_for_recent_user_owned_task_style_calendar_blocks
-    current_state_sources:
-      - google_calendar
-      - notion_tasks
-      - notion_task_execution_log
-      - notion_scheduling_model
-    target_state_sources:
+    state_sources:
       - google_calendar
       - neon_actions
+      - neon_external_refs
       - neon_action_executions
       - neon_adaptive_rules
+      - neon_action_receipts
+    legacy_resolution:
+      notion_task_url_marker: supported_as_identifier_only
+      notion_is_canonical: false
     policies:
       recurring_event_edits_apply_to_instance_only: true
       waiting_is_not_a_miss: true
@@ -63,6 +68,8 @@ active:
       reassess_before_rescheduling: true
       avoid_blind_daily_push_forward: true
       deduplicate_overlapping_check_window: true
+      execution_keys_are_idempotent: true
+      if_neon_unavailable_do_not_write_notion_fallback: true
 
   weekly_systems_review:
     title: Weekly Systems Review
@@ -72,21 +79,17 @@ active:
       local_time: "17:00"
     timing_mode: flexible
     purpose: weekly_reconciliation_planning_learning_and_personal_care_restock_review
-    current_state_sources:
-      - notion_tasks
-      - notion_task_execution_log
-      - notion_scheduling_model
-      - notion_shopping_needs
-      - google_calendar
-      - other_verified_sources_when_relevant
-    target_state_sources:
+    state_sources:
       - neon_actions
       - neon_action_executions
       - neon_adaptive_rules
-      - neon_shopping_state
+      - neon_external_refs
+      - neon_action_receipts
       - google_calendar
-      - jira
+      - jira_when_available
       - other_verified_sources_when_relevant
+    transitional_sources:
+      - notion_shopping_needs
     learning_thresholds:
       collect_only_below: 5
       tentative_from: 5
@@ -95,6 +98,8 @@ active:
       explicit_user_instruction_overrides_learning: true
       learned_rules_are_soft_preferences: true
       friday_restock_is_part_of_weekly_review: true
+      no_fake_learned_overrides: true
+      if_neon_unavailable_do_not_write_notion_fallback: true
 
 inactive_or_superseded:
   plan_tomorrow:
@@ -113,11 +118,13 @@ inactive_or_superseded:
 design_rules:
   - one_automation_one_clear_responsibility
   - chat_thread_is_not_durable_job_state
-  - target_jobs_must_have_stable_identity_and_execution_receipts
+  - planner_uses_neon_as_canonical_personal_action_state
+  - notion_planning_databases_are_rollback_reference_only
   - planner_owns_movable_calendar_placement
   - calendar_is_execution_not_backlog
   - deduplicate_before_write
   - use_idempotency_for_retries_and_overlapping_windows
+  - preserve_date_only_semantics
   - do_not_expand_permissions_automatically
-  - do_not_disable_working_transitional_backend_until_replacement_is_verified
+  - google_tasks_is_projection_not_canonical_backend
   - github_actions_are_for_repository_ci_cd_not_general_personal_scheduling
