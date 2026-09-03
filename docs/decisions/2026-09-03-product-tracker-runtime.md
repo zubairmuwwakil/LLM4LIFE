@@ -1,16 +1,14 @@
-# 2026-09-03 — Product Tracker Runtime: Vercel + Neon + Event-Driven Async Work
+# 2026-09-03 — Product Tracker Runtime: Cloudflare Workers + Queues + Neon
 
-**Status:** Adopted target architecture. The Neon mirror is live; the runtime cutover is not yet complete.
+**Status:** Adopted target architecture. The Neon mirror is live; Cloudflare runtime implementation is in progress and write cutover is not yet complete.
 
 ## Context
 
-Product Tracker's existing implementation was designed as a conventional Node/Fastify API plus a continuously running PostgreSQL-backed inbox/outbox polling worker.
+Product Tracker began as a conventional Node/Fastify API plus a continuously running PostgreSQL-backed inbox/outbox polling worker.
 
-A temporary free-hosting design proposed putting the API and polling loop into one Render web-service process. That would accommodate the existing implementation, but it optimizes hosting around an implementation detail rather than choosing the best long-term architecture.
+Render was considered because it naturally accommodates that process model. Vercel was then considered as a more serverless/event-driven runtime. After reviewing the broader LLM4LIFE infrastructure direction, Cloudflare is the better long-term target because it already runs the production Google Tasks integration and now provides the required compute, queueing, retry and workflow primitives on the same platform.
 
-The user already uses Vercel and wants free/already-paid, scalable, production-grade infrastructure with minimal service sprawl.
-
-Current Vercel supports Fastify deployments through Vercel Functions and provides durable asynchronous primitives such as Vercel Queues / Workflows. Vercel Hobby Cron is not appropriate for frequent polling, so the system should become event-driven rather than replace an always-on worker with frequent scheduled polls.
+The goal is not to preserve a particular hosting provider or process model. It is to minimize infrastructure sprawl while keeping Neon as the user-owned durable state layer.
 
 ## Decision
 
@@ -20,91 +18,88 @@ Use this as the Product Tracker target runtime:
 ChatGPT / clients / Notion webhook
               |
               v
-        Product Tracker API
-          Vercel Functions
+      Cloudflare Worker
+    HTTP/API/webhook ingress
               |
               v
              Neon
  canonical inventory/event state
+ outbox + webhook receipt ledger
               |
               v
- durable asynchronous processing
- Vercel Queue/Workflow primitive
+      Cloudflare Queue
+ async projection / retries
               |
               v
- Notion projection / notifications / future clients
+ Notion projection / future effects
 ```
 
-### Neon remains canonical
+Cloudflare Workflows may be added later if a genuinely multi-step durable process benefits from workflow semantics. Do not introduce Workflows merely because the product exists.
 
-Product Tracker inventory state, inventory events, balances, idempotency records, webhook receipts, and reconciliation metadata remain in the dedicated `product_tracker` database inside the existing LLM4LIFE Neon project.
+## Ownership
 
-Vercel is a runtime, not the canonical inventory database.
+- **Neon** owns Product Tracker's durable inventory state, balances, inventory events, idempotency records, webhook receipts and outbox/reconciliation state.
+- **Cloudflare** owns runtime execution, ingress, queue delivery, retries and observability.
+- **Notion** remains a transitional human control surface until cutover, then becomes projection/rollback UI.
+- Cloudflare is replaceable infrastructure, not canonical inventory truth.
 
-### Fastify remains acceptable
+## Reliability model
 
-Do not rewrite the API merely to adopt Vercel. Fastify can be hosted through Vercel Functions. Domain logic should stay independent of the hosting adapter.
+The PostgreSQL transaction remains the durable boundary:
 
-### Replace infinite polling with event-driven work
+1. validate/authenticate an API command or webhook;
+2. commit inventory state/event changes and durable delivery intent to Neon;
+3. publish the resulting work to Cloudflare Queue;
+4. Queue consumers perform external side effects idempotently;
+5. persist processed/failure state back to Neon;
+6. use a low-frequency Cloudflare scheduled handler to republish durable pending rows that were committed but never successfully queued or became stale.
 
-The existing `while` polling worker is transitional implementation debt.
+The scheduled handler is a reconciliation safety net. It does not poll Notion and is not a recreation of the old infinite worker loop.
 
-Target behavior:
+## Why Cloudflare over Vercel for this domain
 
-1. inbound API or webhook request validates/authenticates;
-2. canonical database transaction records the domain change and any required durable work intent;
-3. asynchronous work is dispatched to a durable Vercel queue/workflow primitive;
-4. consumers perform projection/side effects idempotently;
-5. failures retry without duplicating the canonical inventory event;
-6. reconciliation remains available for drift detection and recovery.
+Vercel remains a valid application host, but Product Tracker benefits from standardizing backend infrastructure with the Cloudflare runtime already used by LLM4LIFE. Cloudflare currently provides:
 
-Do not introduce a frequent Vercel Hobby Cron simply to emulate the old worker loop.
+- Workers for HTTP/API execution;
+- Queues for durable asynchronous work, batching and retries;
+- scheduled handlers for reconciliation;
+- Workflows for future durable multi-step processes when justified;
+- PostgreSQL connectivity to Neon, with Hyperdrive available as a later connection optimization.
 
-### Transactional correctness remains mandatory
+This reduces the number of core backend platforms LLM4LIFE must operate without changing the source-of-truth model.
 
-Moving to an event-driven host must not weaken the existing design guarantees:
+## Rules
 
-- stable canonical product/need keys;
-- inventory changes represented as events;
-- no direct uncontrolled balance mutation;
-- idempotency keys on external writes;
-- durable webhook receipt/deduplication;
-- retry-safe Notion projection;
-- observable failed work;
-- reconciliation path for missed external events.
-
-If Vercel's native delivery primitive cannot provide an atomic publish with the Neon transaction, retain a database outbox/dispatch record and use a safe dispatcher pattern rather than accepting a dual-write race.
-
-## Why not Render as the target
-
-Render is not rejected as a platform generally. It is rejected as the Product Tracker **target** because the proposed free design was primarily preserving a long-running polling process.
-
-That would:
-
-- add another hosting platform to the stack;
-- preserve an unnecessary always-running worker abstraction;
-- expose the free web-service sleep/wake behavior to an operational workflow;
-- make the hosting choice harder to replace later.
-
-The event-driven Vercel design better matches the user's existing stack and reduces service sprawl.
+- Preserve Product Tracker's event-based inventory model.
+- Preserve idempotency and stable canonical keys.
+- Queue delivery is at-least-once; all canonical writes and external side effects must be retry-safe.
+- Keep Neon outbox/receipt records even when Cloudflare Queue is the normal delivery path.
+- Do not make a remote queue publish part of the assumed database atomic boundary.
+- Do not recreate continuous database polling inside Workers.
+- Reconciliation may inspect Product Tracker's own durable pending-delivery ledger at a low frequency.
+- Keep domain logic separate from Cloudflare-specific ingress/delivery code where practical.
+- Notion remains live for personal-care edits until the hosted Cloudflare path passes the full cutover gate.
+- Hyperdrive is a later optimization after functional runtime verification, not a prerequisite for first deployment.
 
 ## Migration sequence
 
 1. Keep the verified Neon mirror unchanged.
-2. Remove Render-specific deployment configuration from Product Tracker.
-3. Make the Fastify API Vercel-compatible without moving domain logic into platform-specific handlers.
-4. Refactor the polling worker into durable event/queue/workflow consumers.
-5. Preserve/rework the database outbox where needed for atomicity and reconciliation.
-6. Deploy on Vercel.
-7. Verify `/health` and authenticated `/v1/needs` against the Neon mirror.
-8. Verify one API inventory mutation is exactly-once at the domain-event level under retries.
-9. Verify Notion webhook ingestion and deduplication.
-10. Verify asynchronous projection and retry behavior.
-11. Verify drift reconciliation.
-12. Only then make Product Tracker/Neon authoritative and demote Notion to projection/rollback.
+2. Add the Cloudflare Worker HTTP entrypoint.
+3. Refactor worker processing into exact-by-ID operations usable by Queue consumers and the legacy Node worker.
+4. Add Queue + DLQ bindings and queue retries.
+5. Publish normal webhook/outbox work immediately after durable Neon commit.
+6. Add low-frequency reconciliation of missed queue publishes/stale claims.
+7. Enforce Wrangler dry-run bundling in CI.
+8. Provision Cloudflare queues and secrets.
+9. Deploy the Worker.
+10. Verify `/health` and authenticated `/v1/needs` against the Neon mirror.
+11. Verify duplicate/retried API mutations create only one canonical inventory event.
+12. Verify Notion webhook signature validation, deduplication and Queue consumption.
+13. Verify outbound Notion projection, retry and reconciliation behavior.
+14. Verify DLQ/observability.
+15. Only then make Product Tracker/Neon authoritative and demote Notion to projection/rollback.
+16. Evaluate Hyperdrive after the runtime is proven.
 
-## Superseded runtime direction
+## Superseded directions
 
-Any earlier Product Tracker documentation describing a free Render web service with `RUN_WORKER_IN_PROCESS=true` as the target hosted runtime is superseded by this decision.
-
-The reusable worker-loop refactor may remain temporarily if it is useful during migration, but it is not the desired end-state runtime architecture.
+The earlier Render single-service target and subsequent Vercel Functions/Queue target are superseded by this decision. They remain historical context for why the architecture moved away from hosting around a permanent polling process and toward a consolidated event-driven runtime.
