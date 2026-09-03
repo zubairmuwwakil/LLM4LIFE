@@ -36,9 +36,10 @@ core_tools:
     status: partial
     role: v2_durable_llm4life_machine_state
     runtime_note: >-
-      Neon connector is available, but project listing currently requires an
-      organization ID that was not resolved during the initial v2 foundation
-      pass. Schema is committed under db/migrations and has not yet been applied.
+      Neon organization discovery works, but the only project currently visible
+      to the connector is the existing market-data project. It does not match
+      the intended LLM4LIFE database, so the LLM4LIFE migrations have not been
+      applied by guess. Schema is committed under db/migrations.
     target_owns:
       - actions
       - jobs_and_runs
