@@ -2,109 +2,112 @@
 
 _Last updated: 2026-09-02_
 
-This file describes **what is actually live now** while LLM4LIFE migrates to the v2 architecture.
-
-Target ownership is defined by `config/domains.yaml` and `system.yaml`. A target being documented does not mean all live data has been migrated.
+This file describes **what is actually live now**. Target ownership is defined by `config/domains.yaml` and `system.yaml`.
 
 ## Headline
 
-The full software/life-system inventory is complete and **the v2 Neon foundation is now live in production**.
+The v2 Neon backend is live and **personal action/planning state has been cut over from Notion to Neon**.
 
-Already implemented in the public LLM4LIFE repo:
+Implemented and verified:
 
-- v2 production architecture decision;
-- machine-readable v2 domain ownership registry;
-- v2 `system.yaml`;
-- PostgreSQL migrations for core orchestration state;
-- PostgreSQL actions + execution telemetry + adaptive-rules schema;
-- household/vehicle maintenance schema;
-- grocery/shopping-list schema;
-- v2 agent instructions and environment-variable placeholders.
+- dedicated `llm4life` Neon project and production schema;
+- 15 production `llm4life` tables from the v2 migrations;
+- date-only deadline/follow-up semantics (`db/migrations/003_date_only_action_semantics.sql`);
+- snapshot migration of all 15 Notion Tasks rows;
+- migration of both existing Task Execution Log rows;
+- stable Notion and Google Calendar external references;
+- migration checkpoints and audit receipts;
+- source/destination parity verification;
+- live Daily Planning Loop, Calendar Task Follow-Up, and Weekly Systems Review prompts cut over to Neon canonical task state.
 
-Neon production status:
+Parity at cutover:
 
-- the dedicated `llm4life` Neon project is connected;
-- its primary `production` branch was verified empty before initial migration;
-- the full v2 schema was first applied and smoke-tested successfully on a disposable validation branch;
-- after explicit user approval, the same validated schema was applied to the production branch;
-- production catalog verification confirms all **15 expected `llm4life` tables** are present;
-- the production schema is now available for durable LLM4LIFE machine state;
-- live personal/task/planning data migration is still pending, so transitional Notion dependencies remain active for now.
+- 15 Notion task rows -> 15 Neon actions;
+- 2 Notion execution rows -> 2 Neon action executions;
+- status distribution matched exactly: 1 Done, 1 legacy status-less item, 1 Next, 10 Scheduled, 2 Waiting;
+- the legacy status-less item was preserved as `inbox` with migration metadata rather than inventing meaning;
+- 15 Notion action references were preserved;
+- 13 Google Calendar action bindings were preserved;
+- Scheduling Model contained **no learned overrides**, so zero artificial `adaptive_rules` were created.
 
-Not yet completed:
+## Canonical planning runtime
 
-- migrating live Notion Tasks / Task Execution Log / Scheduling Model / AI Activity Log state;
-- Google Tasks synchronization/projection adapter;
-- live local Obsidian write bridge;
-- Apple Contacts -> Google Contacts dedup/canonical migration;
-- migration of household/shopping workflows into the backend;
-- production event/worker runtime.
+```text
+Neon/PostgreSQL
+  llm4life.actions
+  llm4life.action_executions
+  llm4life.adaptive_rules
+  llm4life.external_refs
+  llm4life.action_receipts
+          |
+          v
+  ChatGPT planning automations
+          |
+          v
+   Google Calendar
+    execution/time
+```
 
-## Important transitional rule
+### Current ownership
 
-Existing working automations are **not being disabled during the foundation pass**.
+- **Neon `llm4life.actions`** -> canonical personal action/backlog state.
+- **Google Calendar** -> execution schedule and fixed time commitments.
+- **Neon `action_executions`** -> scheduling/execution telemetry.
+- **Neon `adaptive_rules`** -> learned scheduling overrides; currently empty until evidence justifies a rule.
+- **Neon `action_receipts`** -> meaningful autonomous-action audit metadata.
+- **Notion Tasks / Task Execution Log / Scheduling Model / AI Activity Log** -> rollback/reference only for migrated planning state; live planning automations must not write them as canonical state.
+- **Notion Shopping Needs** -> still transitional for personal-care inventory until that domain is migrated.
 
-Current planning automations may still depend on transitional Notion databases such as:
+## Active planning automations
 
-- Tasks;
-- Task Execution Log;
-- Scheduling Model;
-- Shopping Needs;
-- AI Activity Log.
+The following live automations now use Neon canonical action state:
 
-Those dependencies remain runtime truth until their Neon-backed replacements are reconciled and verified.
+1. **Daily Planning Loop** — 7:30 AM + 7:30 PM.
+2. **Calendar Task Follow-Up** — hourly condition watch.
+3. **Weekly Systems Review** — Friday around 5 PM.
+
+Legacy Calendar events remain compatible:
+
+- new blocks use `[LLM4LIFE:ACTION_ID=<uuid>]` where possible;
+- existing `[LLM4LIFE:TASK_URL] <notion-url>` markers may still resolve through `external_refs`;
+- the Notion record is an identifier/rollback source, not canonical task state.
+
+If Neon is unavailable, automations are instructed **not** to silently fall back to Notion writes.
 
 ## Runtime paths
 
 | System | Runtime status | Current role / limitation |
 |---|---|---|
 | GitHub | Connected, read/write verified | Architecture/config/code repository operations |
-| ChatGPT Automations | Connected/live | Current scheduled/conditional execution surface; some prompts still reference transitional Notion state |
-| Google Calendar | Connected in current operating system | Execution schedule and commitments |
-| Notion | Transitional live dependency | Existing task/planning/inventory/audit workflows may still use it; no longer the v2 target backend |
-| Gmail | Connected capability | Email/source context and actions through supported connector paths |
+| Neon | **Connected / canonical personal action backend** | Production schema and migrated action state are live; read/write path verified |
+| ChatGPT Automations | Connected/live | Planner/follow-up/review now point at Neon canonical task state |
+| Google Calendar | Connected | Execution schedule and commitments |
+| Notion | Transitional / rollback for planning | Planning snapshot retained for rollback/reference; Shopping Needs still live until migrated |
+| Google Tasks | Target client, integration pending | Preferred user-facing personal-action projection; no native ChatGPT/installed plugin was found in the current environment, so an OAuth adapter is still required |
+| Gmail | Connected capability | Email/source context and supported actions |
 | Slack | Connected capability | Work communication/context |
-| Neon | **Connected / production schema live** | Dedicated LLM4LIFE project is reachable; schema read/write path is verified; 15 production tables are present. Live domain data migration is the next step. |
-| Google Tasks | User-live / target client | Preferred v2 personal-action UI; direct ChatGPT task connector not currently verified |
 | Google Contacts | Connector available; migration not done | Preferred canonical address book after Apple/Google dedup |
-| Apple Contacts | User-live | Still contains part of contact identity; intended to become a synced client after migration |
-| Obsidian | Partial | Private GitHub backup can be inspected/maintained; trusted live local-vault bridge remains unimplemented |
+| Apple Contacts | User-live | Still contains part of contact identity; intended to become synced client |
+| Obsidian | Partial | GitHub-backed vault accessible; trusted live local-vault bridge remains unimplemented |
 | Jira / Atlassian | Connector available; verify per task | Canonical engineering backlog |
-| ORC | External subsystem | Coding-agent orchestrator; not the life-state backend |
-| Discord / WhatsApp / iMessage | User-live channels | Cross-channel AI access requires verified native/custom/OpenClaw bridge |
+| ORC | External subsystem | Coding-agent orchestrator |
+| Discord / WhatsApp / iMessage | User-live channels | Cross-channel AI access still requires verified bridge/native integration |
 
-## v2 target ownership
+## Next implementation priorities
 
-```text
-LLM4LIFE machine state      -> Neon/PostgreSQL
-Personal action state       -> Neon/PostgreSQL
-Personal action UI          -> Google Tasks
-Execution schedule          -> Google Calendar
-Knowledge/reasoning         -> Obsidian
-Relationship context        -> Obsidian
-Contact identity            -> Google Contacts after migration
-Engineering backlog         -> Jira
-Code/repository truth       -> GitHub
-Coding orchestration        -> ORC
-Consolidated finance        -> InUnity
-```
+### P0 — Google Tasks projection adapter
 
-See `config/domains.yaml` for the full domain matrix.
+Google Tasks remains the preferred simple action UI, but no native ChatGPT connector/plugin is available in the current runtime.
 
-## Current highest-priority implementation gaps
+Implement a thin adapter using the official Google Tasks API with least-privilege OAuth. Neon remains canonical; Google Tasks is a projection/client. Avoid long-term bidirectional ambiguity.
 
-### P0 — Migrate planning state without breaking current automations
+### P1 — Migrate remaining Notion operational state
 
-The production Neon schema is live, but the current daily planning loop still uses transitional Notion task state. Migration should:
+Move domains only when their replacement is ready:
 
-1. reconcile current tasks and external Calendar references;
-2. import execution telemetry needed for scheduling learning;
-3. preserve waiting/follow-up semantics;
-4. validate real Neon reads/writes using migrated data;
-5. introduce Google Tasks projection/sync;
-6. update automations only after parity is proven.
-
-Avoid long-term dual-write.
+- Shopping Needs -> Neon shopping state;
+- historical AI Activity Log -> optionally retain in Notion or normalize useful audit metadata into `action_receipts`;
+- retire old planning databases only after a rollback window.
 
 ### P1 — Live Obsidian bridge
 
@@ -114,41 +117,27 @@ Desired path:
 AI/router -> authenticated local adapter -> live vault -> normal vault backup/sync
 ```
 
-GitHub backup edits are not the preferred permanent real-time write mechanism.
-
 ### P1 — Contacts consolidation
 
-Inventory/deduplicate Apple Contacts and Google Contacts before making Google Contacts canonical. Do not blindly merge duplicates.
+Deduplicate Apple + Google Contacts before making Google Contacts canonical.
 
 ### P1 — Household operations
 
-Use the new asset/maintenance/shopping schema for household and vehicle maintenance plus grocery/shopping state, then emit actions to Google Tasks and actual scheduled work to Calendar.
+Populate `assets`, `maintenance_rules`, `maintenance_events`, `shopping_lists`, and `shopping_items`, then surface actions through the action backend and Calendar when time-specific.
 
 ## Scheduling runtime
 
-Until live migration changes it, the current planning semantics remain:
+Current defaults remain:
 
 - sleep 11:00 PM–7:00 AM protected;
 - weekday work 9:00 AM–1:00 PM soft-busy;
 - movable personal work defaults to 1:00 PM–9:00 PM America/Toronto;
 - leave buffer;
-- fixed commitments are not moved for optimization;
-- waiting work should not occupy execution blocks;
-- repeated misses are evidence for replanning.
+- hard commitments are not moved for optimization;
+- waiting work does not occupy execution time;
+- date-only deadlines/follow-ups remain date-only;
+- repeated misses are evidence for replanning, not an instruction to endlessly push work forward.
 
 ## Public repository constraint
 
-This repo contains architecture, contracts and schemas only.
-
-Never commit actual database URLs, credentials, private contact/relationship information, health data, financial identifiers, confidential work content or private message bodies.
-
-## When to update this file
-
-Update it after an actual runtime cutover or connection change, especially when:
-
-- task data is migrated;
-- Google Tasks sync becomes live;
-- a local Obsidian bridge is deployed;
-- contacts are consolidated;
-- a transitional Notion dependency is retired;
-- a connector becomes verified/unavailable.
+This repo contains architecture, contracts and schemas only. Never commit actual database URLs, credentials, private task payloads, private contact/relationship details, health records, financial identifiers, confidential work content, or private message bodies.
