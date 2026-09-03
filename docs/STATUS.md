@@ -2,181 +2,152 @@
 
 _Last updated: 2026-09-03_
 
-This file describes **what is actually live now**. Target ownership is defined by `config/domains.yaml`, `system.yaml`, and `docs/LONG_TERM_ROADMAP.md`.
+This file describes **what is actually live now**. Long-term target ownership is defined by `config/domains.yaml`, `system.yaml`, and `docs/LONG_TERM_ROADMAP.md`.
 
 ## Headline
 
-The v2 Neon backend is live, personal action/planning state is canonical in Neon, Google Tasks is **production-live on Cloudflare Worker v0.2.0**, and personal-care inventory has a **parity-verified Product Tracker mirror in Neon**. Product Tracker's new **Cloudflare Worker + Queue runtime is implemented and CI-green but not deployed yet**.
+LLM4LIFE v2 is live with Neon as durable machine state, Google Tasks as the human action projection, Google Calendar as the execution schedule, and Product Tracker as the specialized personal-care inventory service.
 
-Implemented and verified:
+Product Tracker **Cloudflare Phase 2 is now production-verified**: the Worker is deployed, authenticated reads work, Notion webhooks are signed/accepted, webhook receipts are durable in Neon, Cloudflare Queue processes them, the protected reconciliation relay is clean, and Worker database access is hardened through Cloudflare Hyperdrive using a dedicated least-privilege Neon runtime role.
 
-- dedicated `llm4life` Neon project and production schema;
-- personal planning cut over from Notion to Neon;
-- Google Tasks OAuth + Cloudflare Worker v0.2.0 production-live;
-- manual and scheduled Google Tasks sync verified;
-- dedicated `product_tracker` database created inside the same Neon project;
-- Product Tracker schema applied from the existing Prisma model;
-- 25 active inventory Needs mirrored from Notion;
-- 26 active Products mirrored from Notion;
-- 26 balances and 26 baseline inventory events imported atomically;
-- zero orphan product/balance records and zero baseline-vs-balance mismatches;
-- Product Tracker Cloudflare Worker/Queue runtime committed;
-- Product Tracker CI passes Prisma validation/migrations, dependency audit, typecheck/tests, and Wrangler dry-run;
-- InUnity ChatGPT MCP integration completed and recently read-verified.
-
-## Canonical planning runtime
+## Current architecture
 
 ```text
-                           +--> Google Tasks
-                           |    human action client
-                           |
-Neon/PostgreSQL actions ---+
-        |                  |
-        |                  +<-- Cloudflare Worker v0.2.0
-        |                       15-minute sync
-        |
-        +--> ChatGPT planner --> Google Calendar
-                                  execution/time
+                         ChatGPT / LLM4LIFE
+                                |
+            +-------------------+-------------------+
+            |                   |                   |
+            v                   v                   v
+         Neon             Google Calendar      Domain systems
+   durable machine state     execution time    Jira/GitHub/ORC,
+            |                                     InUnity, etc.
+            |
+      +-----+-------------------+
+      |                         |
+      v                         v
+Google Tasks              Product Tracker
+human action UI           personal-care inventory
+      |                         |
+Cloudflare Worker         Cloudflare Worker
+15-min sync               + Queue + Hyperdrive
+                                |
+                                v
+                              Neon
+                     canonical inventory/events
+                                |
+                                v
+                         Notion transitional UI
 ```
 
-### Current planning ownership
+## Verified planning state
 
-- **Neon `llm4life.actions`** -> canonical personal action/backlog state.
-- **Google Tasks** -> live human-facing action client and authorized capture/completion surface; not canonical state.
-- **Cloudflare Worker** -> live Google Tasks <-> Neon projection/sync runtime.
-- **Google Calendar** -> execution schedule and fixed time commitments.
-- **Neon `action_executions` / `adaptive_rules` / `action_receipts`** -> execution telemetry, learned rules, and audit metadata.
-- **Notion planning databases** -> rollback/reference only.
+- Neon `llm4life.actions` is canonical personal action/backlog state.
+- Google Tasks is production-live as the human-facing task projection/capture surface.
+- Google Tasks Worker v0.2.0 manual and scheduled syncs have succeeded.
+- Google Calendar owns scheduled execution and fixed commitments.
+- Notion planning databases are rollback/reference only.
 
-## Personal-care inventory migration
+## Product Tracker production state
 
-Personal-care inventory is intentionally owned by the specialized Product Tracker model rather than generic `shopping_items` because it needs stable Need/SKU identity, balances, append-only inventory events, reorder policy, derived urgency, webhook reconciliation, and idempotent writes.
+### Data mirror
 
-Verified Neon mirror:
+Verified in Neon `product_tracker`:
 
 - 25 active Needs;
 - 26 active Products;
 - 26 balances;
-- 26 baseline events;
-- zero orphan Products/balances;
+- 26 baseline inventory events;
+- zero orphan Product/balance relationships;
 - zero balance-vs-baseline mismatches;
-- derived state: 5 `BUY_NOW`, 1 `RESTOCK`, 19 `STOCKED`.
+- derived inventory health: 5 `BUY_NOW`, 1 `RESTOCK`, 19 `STOCKED`.
 
 The 25/26 relationship is expected because one functional Need has two active SKUs.
 
-### Product Tracker target runtime
+### Runtime
+
+Live Worker:
 
 ```text
-ChatGPT / clients / Notion webhook
-              |
-              v
-      Cloudflare Worker
-    HTTP/API/webhook ingress
-              |
-              v
-             Neon
- canonical inventory/event state
- outbox + webhook receipt ledger
-              |
-              v
-      Cloudflare Queue
- async projection / retries
-              |
-              v
- Notion projection / future effects
+llm4life-product-tracker
 ```
 
-Neon remains canonical. Cloudflare is compute/ingress/queue infrastructure, not the inventory database.
+Production path:
 
-The Worker implementation is committed and includes:
+```text
+Notion / ChatGPT / clients
+          |
+          v
+ Cloudflare Worker
+ API + webhook ingress
+          |
+          v
+      Hyperdrive
+          |
+          v
+         Neon
+ canonical inventory/events
+ outbox + webhook receipt ledger
+          |
+          v
+ Cloudflare Queue
+ async processing/retries
+```
 
-- `/health`;
-- authenticated `/v1/needs`;
-- authenticated + idempotent `/v1/inventory/events`;
-- signed `/webhooks/notion` ingestion;
-- Queue consumer by durable row ID;
-- DLQ/retry configuration;
-- protected `/internal/relay`;
-- a 5-minute scheduled reconciliation relay that scans only Product Tracker's own pending delivery ledger, **not Notion**.
+Verified after Hyperdrive deployment:
 
-The database transaction remains the durable boundary. Normal work publishes to Cloudflare Queue after commit; if queue publication is missed, the durable Neon outbox/receipt row survives and the scheduled relay can republish it.
+- `GET /health` succeeds;
+- authenticated `GET /v1/needs` returns the 25-Need production snapshot;
+- protected `/internal/relay` returns clean `webhooks: 0, outbox: 0` when no work is pending;
+- Notion `page.properties_updated` events reach the Worker;
+- signed webhook events are persisted in `WebhookReceipt`;
+- Queue processing completes on the first attempt with no `lastError`;
+- a reversible post-Hyperdrive Notion edit and its restoration were both received and processed successfully;
+- dedicated Neon role `product_tracker_runtime` is used through Hyperdrive instead of the owner credential;
+- production Prisma baseline is recorded.
 
-Cloudflare Workflows are optional later only if a real multi-step durable process justifies them. Hyperdrive is also a later connection optimization, not a prerequisite for first deployment.
+### Current ownership boundary
 
-See `docs/decisions/2026-09-03-product-tracker-runtime.md`.
+Neon/Product Tracker is the **target canonical personal-care inventory owner**, but Notion remains a transitional human control/projection surface until the remaining mutation/retry cutover gates are intentionally tested.
 
-### Inventory cutover gate
+Do **not** silently dual-write around Product Tracker.
 
-Notion remains the live personal-care control/source surface until all of these are verified against the deployed Cloudflare runtime:
+## Remaining Product Tracker cutover gates
 
-1. `/health` succeeds;
-2. authenticated `GET /v1/needs` matches the Neon mirror;
-3. duplicate/retried API requests create exactly one canonical inventory event;
-4. Notion webhook signature validation and deduplication work;
-5. Queue processing performs outbound Notion projection;
-6. retries do not duplicate events or side effects;
-7. reconciliation recovers a deliberately pending durable delivery row;
-8. DLQ/retry observability is confirmed;
-9. only then route all human/agent inventory mutations through Product Tracker and make Notion projection/rollback-only.
+Before demoting Notion to projection/rollback-only, intentionally verify:
 
-The production database was initialized before Prisma migration history existed. Run the repository's one-time `npm run db:baseline` against production before normal production `prisma migrate deploy` use.
+1. duplicate/retried `POST /v1/inventory/events` requests create exactly one canonical inventory event;
+2. an outbound Notion projection is produced from a real intentional inventory mutation;
+3. retry behavior does not duplicate canonical events or side effects;
+4. reconciliation recovers a deliberately pending durable delivery row;
+5. DLQ/retry observability is confirmed.
 
-## Google Tasks production state
-
-The live Worker is `llm4life-google-tasks-sync` with a `*/15 * * * *` Cron Trigger.
-
-Verified:
-
-- Worker health reports `version: 0.2.0`;
-- 17 Neon actions total;
-- 14 Google Tasks projection bindings;
-- both Google sync checkpoints present;
-- durable sync job enabled;
-- manual and scheduled v0.2.0 syncs succeeded.
-
-## Active planning automations
-
-1. **Daily Planning Loop** — 7:30 AM + 7:30 PM.
-2. **Calendar Task Follow-Up** — hourly condition watch.
-3. **Weekly Systems Review** — Friday around 5 PM.
-
-The Weekly Systems Review may continue reading Notion Shopping Needs until Product Tracker runtime cutover passes the gate above. Do not treat the Neon mirror alone as permission to demote Notion.
+After these pass, route all human/agent personal-care inventory mutations through Product Tracker and make Notion optional projection/rollback UI.
 
 ## Runtime paths
 
-| System | Runtime status | Current role / limitation |
+| System | Status | Role |
 |---|---|---|
-| GitHub | Connected, read/write verified | Architecture/config/code truth |
-| Neon | **Connected/live** | Canonical personal actions + Product Tracker database host |
-| ChatGPT Automations | Connected/live | Planning/follow-up/review execution surface |
-| Google Tasks | **Production-live v0.2.0** | Human action client/projection |
-| Cloudflare | **Google Tasks live; Product Tracker implementation ready** | Shared Worker/event runtime; Product Tracker deployment still pending |
-| Google Calendar | Connected | Execution schedule and commitments |
-| Product Tracker | **Neon mirror live; Cloudflare code CI-green; deployment pending** | Target personal-care inventory owner |
-| Notion | Transitional | Planning rollback-only; inventory control remains live until Product Tracker verification |
-| Vercel | User-live for fitting web workloads | No longer Product Tracker target; evaluate per project |
-| InUnity | **MCP complete / recently read-verified** | Consolidated finance |
-| Obsidian | Partial | Narrative/relationship knowledge; live local bridge pending |
-| Google Contacts | Available; migration incomplete | Preferred canonical contact identity after dedup |
-| Jira / ORC / GitHub | Available/current by domain | Engineering backlog / coding orchestration / code truth |
+| ChatGPT / LLM4LIFE | Live | Control plane / orchestration |
+| Neon | Live | Durable machine state + Product Tracker canonical database |
+| Google Tasks | Production-live | Human action projection/capture |
+| Google Calendar | Live | Execution schedule and commitments |
+| Cloudflare | Production-live | Google Tasks sync + Product Tracker Worker/Queue/Hyperdrive runtime |
+| Product Tracker | Phase 2 production-verified | Specialized personal-care inventory service |
+| Notion | Transitional | Planning rollback; inventory control/projection until final cutover gates |
+| InUnity | MCP live/read-verified | Finance domain |
+| Obsidian | Partial | Narrative/relationship knowledge; live bridge pending |
+| Google Contacts | Migration incomplete | Preferred future canonical contact identity after dedup |
+| Jira / ORC / GitHub | Live by domain | Engineering backlog / coding orchestration / code truth |
 
-## Next implementation priorities
+## Next priorities
 
-### P0 — Deploy and verify Product Tracker on Cloudflare
+### P0 — Finish Product Tracker write cutover
 
-1. run one-time production Prisma baseline if not already recorded;
-2. provision the Product Tracker Queue/DLQ;
-3. set Worker secrets outside Git;
-4. deploy `llm4life-product-tracker`;
-5. verify health + authenticated reads;
-6. verify idempotent API mutation behavior using a real intentional inventory action, not fabricated stock;
-7. configure/verify Notion webhook ingestion;
-8. verify Queue projection/retries/reconciliation/DLQ;
-9. then cut inventory writes over and demote Notion.
+Run the remaining idempotency, outbound projection, retry/reconciliation, and DLQ tests above. Then demote Notion from inventory source-of-truth responsibilities.
 
 ### P1 — Remaining Notion cleanup
 
-After Product Tracker cutover, remove Shopping Needs from Notion's live-source responsibilities while retaining useful projection/rollback/dashboard views.
+Remove Shopping Needs / Personal Care Products from live-source responsibilities after the Product Tracker cutover is complete while retaining useful dashboard/rollback views if desired.
 
 ### P1 — Live Obsidian bridge
 
@@ -192,8 +163,8 @@ Deduplicate Apple + Google Contacts before making Google Contacts canonical.
 
 Populate generic household/vehicle asset + maintenance state in LLM4LIFE while keeping personal-care inventory inside Product Tracker.
 
-See `docs/LONG_TERM_ROADMAP.md` for the complete long-term sequence.
+See `docs/LONG_TERM_ROADMAP.md` for the complete sequence.
 
 ## Public repository constraint
 
-Public repositories contain architecture, contracts and schemas only. Never commit actual database URLs, OAuth credentials, refresh tokens, Notion tokens/webhook secrets, private inventory/task payloads, private contact/relationship details, health records, financial identifiers, confidential work content, or private message bodies.
+Public repositories contain architecture, contracts, schemas, and non-sensitive runtime metadata only. Never commit database URLs, passwords, OAuth credentials, refresh tokens, API tokens, webhook secrets, private inventory/task payloads, private relationship/contact details, health records, financial identifiers, confidential work content, or private message bodies.
