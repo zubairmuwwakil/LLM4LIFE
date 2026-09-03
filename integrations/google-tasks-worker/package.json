@@ -1,0 +1,17 @@
+{
+  "name": "@llm4life/google-tasks-worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "oauth": "node scripts/oauth.mjs"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "1.1.0"
+  },
+  "devDependencies": {
+    "wrangler": "4.128.0"
+  }
+}
