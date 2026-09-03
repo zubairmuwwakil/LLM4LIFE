@@ -1,221 +1,185 @@
 # Current State
 
-_Last updated: 2026-08-27_
+_Last updated: 2026-09-02_
 
-This file is the narrative description of the current operating model. It is descriptive, not sacred.
+LLM4LIFE has completed a full personal software/life-system inventory and has entered **v2 migration**.
 
-For exact runtime/connectivity status, use `docs/STATUS.md`. For the complete tool matrix, use `docs/TOOL_REGISTRY.md`.
+The target architecture is now user-owned/durable where it matters, while existing live SaaS workflows remain temporarily operational until migrated.
 
 ## Current operating model
 
 ```text
-User expresses intent anywhere practical
-             |
-             v
-        AI router/planner
-             |
-   +---------+---------+----------------+
-   |         |         |                |
- action   engineering knowledge       structure
-   |         |         |                |
- Things    Jira     Obsidian          Notion
-   \         /                           |
-    \       /                            |
-     AI selects execution work           |
-             |                            |
-             v                            |
-       Google Calendar <-----------------+
-        execution schedule
+User expresses intent through practical channels
+                  |
+                  v
+          LLM4LIFE / AI router
+                  |
+      +-----------+-----------+----------------+
+      |                       |                |
+      v                       v                v
+   machine state          knowledge         domain truth
+ Neon/PostgreSQL           Obsidian      Jira/GitHub/InUnity
+      |
+      +--------+------------------+
+               |                  |
+               v                  v
+        Google Tasks       Google Calendar
+          action UI        execution/time
 ```
 
-Communication/source surfaces:
+Communication/source surfaces include Gmail, Slack, Discord, WhatsApp, iMessage, Shortcuts/Share Sheet and browser capture where integrations are available.
 
-- Slack -> work/software-engineering communication
-- Discord -> personal/life communication
-- Gmail -> email intake/source context
-- GitHub -> code/repository truth
+## v2 ownership
 
-## Tool ownership
+| Domain | Owner / direction |
+|---|---|
+| LLM4LIFE machine state | Neon/PostgreSQL |
+| Personal actions | Neon backend; Google Tasks preferred user-facing client |
+| Execution schedule | Google Calendar |
+| Engineering backlog | Jira |
+| Code/repository truth | GitHub |
+| Coding-agent orchestration | ORC |
+| Knowledge/reasoning/learning | Obsidian |
+| Relationship context | Obsidian |
+| Contact identity | Google Contacts after Apple/Google dedup migration |
+| Household + vehicle maintenance | Neon/PostgreSQL |
+| Grocery/shopping-list state | Neon/PostgreSQL |
+| Consolidated finance | InUnity |
+| Official provider records/execution | respective provider |
+| Files | Google Drive preferred; OneDrive secondary after audit |
 
-| Tool | Current responsibility | Explicit non-goals |
-|---|---|---|
-| GitHub | Code, PRs, commits, releases, repository truth, LLM4LIFE policy | Personal task management, life database |
-| Jira | Engineering bugs, backlog, technical work items | Personal reminders, general notes |
-| Things 3 | Personal backlog, actions, reminders, next actions | Knowledge base, engineering backlog, structured life database |
-| Google Calendar | Fixed time commitments and the current execution schedule | Permanent general task backlog |
-| Obsidian | Personal knowledge/context: reasoning, learning, durable notes, PARA context, daily/diary, research, retrieval prompts, mistake logs | Routine task management, structured operational state better owned by Notion, duplicate GitHub content |
-| Notion | Structured life state, personal operations, inventories/admin metadata, AI Activity Log | Duplicate Jira/GitHub state, deep knowledge, duplicate finance-engine state |
-| Slack | Work/software-engineering communication and desired work notification surface | Long-term task source of truth |
-| Discord | Personal/life communication and desired personal notification surface | Long-term task source of truth |
-| Gmail | Email intake and source context | Final home for actions/state that belong elsewhere |
-| AI layer | Routing, planning, orchestration, attention management | Becoming another canonical database |
+See `config/domains.yaml` for the complete registry.
 
-## Day planning is now first-class
+## What is implemented now
 
-The largest day-to-day workflow is:
+The repo now contains:
+
+- v2 architecture decision and domain ownership registry;
+- v2 `system.yaml`, `AGENTS.md`, and tool registry;
+- `db/migrations/001_core.sql` for systems, refs, jobs/runs, events, receipts, sync state, assets/maintenance and shopping;
+- `db/migrations/002_actions_and_adaptation.sql` for actions, execution telemetry and adaptive rules;
+- credential-free `DATABASE_URL` and local-vault path placeholders.
+
+The schema has **not yet been applied** to Neon because project discovery through the connector requires an organization/project resolution step.
+
+## Transitional runtime
+
+Target architecture and runtime cutover are intentionally separate.
+
+Existing ChatGPT planning automations currently use Notion-backed state including Tasks, Task Execution Log, Scheduling Model, Shopping Needs and AI Activity Log. These workflows stay live until Neon equivalents are populated and verified.
+
+Things 3 and older Notion state should not be deleted simply because v2 is adopted.
+
+## Planning model
+
+Target:
 
 ```text
-Things 3 personal backlog       Jira engineering backlog
-             \                        /
-              \                      /
-                AI planner/scheduler
+Neon personal actions        Jira engineering work
+          \                         /
+           \                       /
+              AI planner/scheduler
                        |
                        v
                 Google Calendar
                  execution plan
 ```
 
-Current default:
+Google Tasks is the preferred human action client/projection.
 
-- movable personal/admin/study/deep-work blocks: **1:00 PM–9:00 PM America/Toronto**;
+Current scheduling semantics remain:
+
+- sleep 11 PM–7 AM protected;
+- weekday work 9 AM–1 PM soft-busy;
+- movable personal work defaults to 1 PM–9 PM America/Toronto;
 - leave buffer;
-- plan tomorrow in the evening;
-- sanity-check the plan in the morning;
-- use a short 7-day high-confidence horizon;
-- keep the long tail in the real backlog;
-- treat missed work as evidence and reassess it instead of blindly pushing it one day forever.
-
-The biggest limitation is direct Things access: Things is canonical, but the current AI runtime does not yet have a verified Things bridge.
-
-See `docs/PLANNING.md`, `docs/AUTOMATIONS.md`, and `config/scheduling.yaml`.
-
-## AI layer
-
-Current conceptual roles:
-
-- **ChatGPT** — primary command/planning/orchestration layer and native connected-tool surface.
-- **Claude / Claude Code** — coding-heavy specialist.
-- **OpenClaw** — optional channel/custom-integration plumbing when a native path is missing.
-- **Repository agents (Copilot/Codex-style)** — code/repo-local assistance governed by this repo.
-
-These are roles, not competing sources of truth.
-
-## Runtime reality
-
-Currently verified useful direct paths in the ChatGPT environment include:
-
-- GitHub read/write;
-- Notion read/write;
-- Google Calendar read/write;
-- Gmail connection with read verified and supported write actions exposed;
-- Slack connection with read verified and supported write actions exposed;
-- scheduled/conditional automations.
-
-Important partial/missing paths:
-
-- Things 3 direct bridge;
-- direct live local Obsidian vault bridge (GitHub backup is accessible);
-- direct Jira connector should be verified before claims of access;
-- direct Discord connection is not assumed.
-
-See `docs/STATUS.md` for the operational snapshot.
-
-## Anywhere capture
-
-Desired entry points include:
-
-- ChatGPT
-- Slack
-- Discord
-- iPhone Shortcuts / Share Sheet
-- email
-- browser capture
-
-The user should not need to choose a destination app before expressing intent. The AI/router should classify and route to the canonical owner.
+- fixed commitments do not move for optimization;
+- waiting/blocked actions do not consume execution time;
+- repeated misses feed scheduling adaptation rather than endless blind rescheduling.
 
 ## Obsidian
 
-The `zubairmuwwakil/Obsidian` GitHub repository is a backup/source for the Obsidian vault and can be consulted when deeper personal knowledge/context is needed.
+Obsidian remains the durable narrative knowledge/context system.
 
-The vault is PARA-style:
+It owns:
 
-`00 Inbox -> 10 Daily -> 20 Areas / 30 Projects / 50 Resources -> 90 Archive`
+- learning and reasoning;
+- durable notes/research;
+- diary/reflections;
+- relationship/person context;
+- contextual knowledge that benefits from readable Markdown.
 
-Key rules:
+The People/Relationships system already uses a useful link-not-copy model. Improve its structured frontmatter and derived views before adding relationship tables to Neon.
 
-- **One home per item; link instead of copying.**
-- GitHub owns code/project artifacts; Obsidian owns remembering/reasoning.
-- Obsidian may link to Notion/GitHub/Jira rather than duplicate canonical operational state.
-- AI is authorized for autonomous knowledge maintenance, including create/link/merge/rewrite/capture, subject to provenance/privacy safeguards.
-- For software-engineering learning, the vault's retrieval-first learning contract remains authoritative and intentionally introduces desirable difficulty.
+The preferred future AI write path is a trusted local bridge to the live vault. GitHub backup access is useful but is not the permanent real-time architecture.
 
-Technical caveat: access to the GitHub backup is not the same as a verified live local-vault editing bridge.
+## Contacts
+
+Contact identity is currently fragmented across Apple Contacts and Google Contacts.
+
+Target:
+
+```text
+Google Contacts -> canonical address book
+Apple Contacts  -> synced Apple-device client
+Obsidian        -> relationship context
+```
+
+Migration requires deduplication before canonical cutover.
+
+## Household operations
+
+The full inventory revealed real missing systems for:
+
+- grocery/shopping lists;
+- household maintenance;
+- vehicle maintenance.
+
+These are now modeled in the v2 backend schema. Tasks should be generated when work becomes actionable; Calendar is used when actual time is reserved.
+
+## Finance
+
+- InUnity is the main consolidated finance system.
+- MoneyTalks refers to the same product lineage rather than a separate system.
+- Looply functionality has been absorbed into InUnity.
+- PickMe feeds relevant purchase/card data to InUnity.
+- MarketLens feeds market data to InUnity.
+- Banks/card issuers/brokerages remain authoritative for official provider state and execution.
+
+## Communication and ingress
+
+Communication applications are edge channels, not state databases.
+
+The desired pattern is:
+
+```text
+Gmail / Slack / Discord / WhatsApp / iMessage / Shortcuts
+                        |
+                        v
+                LLM4LIFE ingress/router
+                        |
+                        v
+                 canonical destination
+```
+
+Preserve the valuable cross-channel experience previously provided by OpenClaw, but OpenClaw itself remains replaceable by native connectors or thin bridges.
 
 ## Notion
 
-Current conclusion:
+Notion is no longer the default target backend.
 
-> **Notion's highest-value role is Personal Operations / Life Database.**
+Future best role:
 
-Strong fits:
+- optional dashboards/projections;
+- structured human-facing workspaces;
+- ad-hoc collaboration where it is actually useful.
 
-- personal-care/household inventory
-- shopping thresholds
-- subscriptions/membership metadata
-- benefits/cancellation instructions
-- important document metadata and expiries
-- warranties
-- property/vehicle/insurance administrative metadata
-- loyalty programs
-- administrative contacts/vendors
-- AI Activity Log
+Current Notion planning/inventory/audit databases remain transitional live state until migrated.
 
-Weak fits:
+## Free-first constraint
 
-- duplicate engineering project manager
-- duplicate Jira backlog
-- deep personal knowledge archive
-- duplicate finance engine
-
-## Finance boundary
-
-Dedicated financial applications own live financial state/calculation, such as:
-
-- transactions
-- balances/net worth
-- cash-flow calculations/forecasting
-- credit-card recommendation logic
-- other application-specific financial logic
-
-Notion may hold administrative reference metadata. Obsidian may hold financial reasoning/research. Neither should duplicate the live finance engine by default.
-
-## Communication boundary
-
-- Slack = work/software-engineering communication.
-- Discord = personal/life communication.
-
-Messages may create objects elsewhere:
-
-- engineering work -> Jira
-- personal action -> Things
-- scheduled execution/time -> Calendar
-- durable knowledge -> Obsidian
-- structured state -> Notion
-
-Slack/Discord remain communication surfaces, not task databases.
-
-## Automation layer
-
-Active automation includes:
-
-- evening `Plan Tomorrow`;
-- morning `Daily Systems Digest`;
-- hourly conditional `Calendar Task Follow-Up`;
-- weekly personal-care heartbeat;
-- weekly personal-care restock digest.
-
-See `docs/AUTOMATIONS.md` for exact responsibilities and interaction rules.
-
-## Audit layer
-
-A Notion database named **AI Activity Log** records meaningful autonomous actions when practical.
-
-It should store only enough metadata to understand/debug the action: source, destination, type, status, timestamp, links, details/error, and reversibility.
-
-It must not become a repository for private chain-of-thought or unnecessary sensitive content.
+Prefer already-paid capabilities, then strong free tiers/open-source solutions. New paid products require a clear material advantage.
 
 ## Public repo boundary
 
-`LLM4LIFE` is public. Architecture and policy belong here; private life state does not.
-
-Read `docs/SECURITY.md` before adding real-world examples or runtime details.
+LLM4LIFE is public. It stores architecture, contracts, schemas and placeholders — never real credentials, private people/relationship data, health records, financial identifiers, confidential work data or private message bodies.
