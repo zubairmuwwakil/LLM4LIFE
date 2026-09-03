@@ -40,7 +40,8 @@ async function cleanupArchivedProjections(env) {
       a.updated_at::text AS action_updated_at,
       er.id::text AS ref_id,
       er.external_id AS google_task_id,
-      er.metadata
+      er.metadata,
+      er.metadata ->> 'tasklist_id' AS google_tasklist_id
     FROM llm4life.actions a
     JOIN llm4life.external_refs er
       ON er.internal_type = 'action'
@@ -48,6 +49,7 @@ async function cleanupArchivedProjections(env) {
      AND er.system_id = ${GOOGLE_TASKS}
     WHERE a.status = 'archived'
       AND er.external_id IS NOT NULL
+      AND er.metadata ->> 'tasklist_id' IS NOT NULL
       AND COALESCE((er.metadata ->> 'google_projection_disabled')::boolean, false) = false
   `;
 
@@ -55,7 +57,7 @@ async function cleanupArchivedProjections(env) {
   const accessToken = await getAccessToken(env);
 
   for (const row of rows) {
-    const deleted = await deleteGoogleTask(accessToken, row.google_task_id);
+    const deleted = await deleteGoogleTask(accessToken, row.google_tasklist_id, row.google_task_id);
     const metadata = {
       ...(row.metadata && typeof row.metadata === 'object' ? row.metadata : {}),
       google_projection_disabled: true,
@@ -108,9 +110,9 @@ async function getAccessToken(env) {
   return body.access_token;
 }
 
-async function deleteGoogleTask(accessToken, taskId) {
+async function deleteGoogleTask(accessToken, taskListId, taskId) {
   const response = await fetch(
-    `https://tasks.googleapis.com/tasks/v1/lists/@default/tasks/${encodeURIComponent(taskId)}`,
+    `https://tasks.googleapis.com/tasks/v1/lists/${encodeURIComponent(taskListId)}/tasks/${encodeURIComponent(taskId)}`,
     {
       method: "DELETE",
       headers: { authorization: `Bearer ${accessToken}` },
