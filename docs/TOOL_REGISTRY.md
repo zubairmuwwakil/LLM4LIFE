@@ -2,7 +2,7 @@
 
 _Last updated: 2026-09-03_
 
-This registry separates **target ownership**, **current runtime status**, and **user-facing interfaces**. See `config/tools.yaml` for machine-readable detail and `docs/STATUS.md` for live migration status.
+This registry separates **target ownership**, **current runtime status**, and **user-facing interfaces**. See `config/tools.yaml` for machine-readable detail, `docs/STATUS.md` for live migration status, and `docs/LONG_TERM_ROADMAP.md` for the durable end-state plan.
 
 ## Core systems
 
@@ -12,8 +12,9 @@ This registry separates **target ownership**, **current runtime status**, and **
 | **Neon / PostgreSQL** | Durable LLM4LIFE machine-state backend + domain DB host | **Connected/live** | Canonical personal actions; also hosts dedicated Product Tracker DB |
 | **Google Tasks** | Preferred user-facing personal action client | **Production-live v0.2.0** | Human UI/capture surface for Neon actions; not canonical rich domain state |
 | **Cloudflare** | Edge runtime for Google Tasks projection | **Production-live Worker** | Runs Google Tasks sync every 15 minutes |
+| **Vercel** | Preferred existing serverless/event runtime for fitting workloads | User-live; Product Tracker deployment pending | Runtime, not canonical data owner; do not emulate permanent workers with frequent Hobby cron |
 | **Google Calendar** | Commitments + execution schedule | Connected/live | Calendar blocks are projections of actions, not the permanent backlog |
-| **Product Tracker** | Target canonical personal-care inventory domain service | **Neon mirror live; hosted runtime pending** | Owns SKU/balance/event/reorder semantics; generic shopping_items do not |
+| **Product Tracker** | Target canonical personal-care inventory domain service | **Neon mirror live; Vercel runtime pending** | Owns SKU/balance/event/reorder semantics; generic shopping_items do not |
 | **Notion** | Rollback/reference for planning + transitional personal-care control surface | Connected | Planning not canonical; inventory remains live until Product Tracker runtime cutover |
 | **Google Contacts** | Preferred canonical address book after migration | Connector available; migration incomplete | Identity/contact facts, not relationship narrative |
 | **Apple Contacts** | Current address-book client/source | User-live | Intended to become synced client after dedup migration |
@@ -64,7 +65,7 @@ Personal-care inventory is richer than a normal shopping list, so it has a dedic
 Notion Shopping Needs / Personal Care Products
               | transitional control
               v
-        Product Tracker
+        Product Tracker API
               |
               v
 Neon / product_tracker database
@@ -72,8 +73,14 @@ Neon / product_tracker database
   Product
   InventoryBalance
   InventoryEvent
-  OutboxEvent
+  Outbox/dispatch state
   WebhookReceipt
+              |
+              v
+ durable async processing
+              |
+              v
+ Notion projection / future clients
 ```
 
 Current verified mirror:
@@ -85,9 +92,29 @@ Current verified mirror:
 - zero orphan records;
 - zero balance/baseline mismatches.
 
-The mirror is **not** equivalent to write cutover. Notion stays live for personal-care edits until the hosted Product Tracker API/webhook/outbox path is verified. After cutover, meaningful inventory writes must flow through Product Tracker events and Notion becomes projection/rollback UI.
+The mirror is **not** equivalent to write cutover. Notion stays live for personal-care edits until the hosted Product Tracker runtime is verified. After cutover, meaningful inventory writes must flow through Product Tracker events and Notion becomes projection/rollback UI.
 
-Product Tracker has been refactored so the same transactional queue runtime can either run as a dedicated worker or in-process with the web API. A free-first single-service Render Blueprint is prepared for runtime verification; a dedicated always-on worker remains the upgrade path if needed later.
+### Target Product Tracker runtime
+
+The adopted target is:
+
+```text
+Fastify API -> Vercel Functions
+                 |
+                 v
+                Neon
+ canonical inventory/event state
+                 |
+                 v
+ Vercel Queue/Workflow-style durable async work
+                 |
+                 v
+ Notion projection / notifications / future clients
+```
+
+The old infinite PostgreSQL polling loop is transitional implementation debt, not a hosting requirement. Preserve the database outbox/dispatch record where necessary for atomicity/reconciliation, but make normal work event-driven. Do not use frequent Vercel Hobby Cron simply to recreate a permanent worker.
+
+See `docs/decisions/2026-09-03-product-tracker-runtime.md`.
 
 ## InUnity MCP
 
@@ -111,6 +138,7 @@ Personal-action sync         -> Cloudflare Worker
 Scheduled execution          -> Google Calendar
 Personal-care inventory now  -> Notion control + verified Product Tracker mirror
 Personal-care target owner   -> Product Tracker on Neon after runtime cutover
+Product Tracker target host  -> Vercel event-driven runtime
 General shopping/list state  -> LLM4LIFE generic shopping tables as appropriate
 Engineering work             -> Jira
 Code/repository truth        -> GitHub
@@ -127,7 +155,7 @@ Work communication           -> Slack
 
 ## Migration reality
 
-The personal planning backend has moved from Notion to Neon and Google Tasks is a live client/projection. Personal-care inventory has reached the **verified mirror** stage in Product Tracker/Neon, but Notion has not yet been demoted because the hosted event-write + webhook/outbox runtime still needs end-to-end verification.
+The personal planning backend has moved from Notion to Neon and Google Tasks is a live client/projection. Personal-care inventory has reached the **verified mirror** stage in Product Tracker/Neon, but Notion has not yet been demoted because the Vercel event-write + webhook + durable async projection runtime still needs end-to-end verification.
 
 ## Runtime verification rule
 
@@ -141,3 +169,5 @@ Before claiming a tool is usable for the current operation:
 ## Free-first rule
 
 Prefer capabilities already paid for, then strong free tiers/open-source options. Add a new paid product only when it provides a material advantage that existing/free capabilities cannot reasonably deliver.
+
+No tool is retained merely because it is already in the stack. Evaluate keep / reposition / consolidate / replace / retire when architecture changes materially.
