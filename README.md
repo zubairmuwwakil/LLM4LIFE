@@ -2,22 +2,39 @@
 
 LLM4LIFE is an **AI-driven personal operating system**: a control/orchestration layer that lets AI work across the user's life systems without making chat history, one SaaS app, or one giant database responsible for everything.
 
-The architecture is deliberately revisitable. Current tools are replaceable when a more reliable, scalable, lower-cost or better-integrated design is justified.
-
 > **Core idea:** one canonical owner per object/domain; AI provides the universal interface and orchestration layer.
+
+## Governing rule: nothing is grandfathered
+
+Current tools are not permanent merely because they are already in use. Every meaningful component can be **kept, repositioned, consolidated, replaced, or retired** when a materially better long-term design is justified on reliability, scalability, security, integration quality, maintainability, portability, cost, or UX.
+
+Change for novelty alone is not a goal. Production-grade also does not mean maximizing subscriptions or infrastructure complexity.
+
+## Start here
+
+- [`docs/LONG_TERM_ROADMAP.md`](docs/LONG_TERM_ROADMAP.md) — durable north star, migration sequence, and done gates.
+- [`docs/STATUS.md`](docs/STATUS.md) — what is actually live now.
+- [`system.yaml`](system.yaml) — machine-readable architecture and governing policy.
+- [`docs/decisions/2026-09-02-production-architecture-v2.md`](docs/decisions/2026-09-02-production-architecture-v2.md) — adopted v2 ownership architecture.
+- [`docs/decisions/2026-09-03-product-tracker-runtime.md`](docs/decisions/2026-09-03-product-tracker-runtime.md) — Product Tracker Vercel/event-driven runtime decision.
+- [`config/domains.yaml`](config/domains.yaml) — detailed domain ownership.
 
 ## Current phase
 
-**v2 migration started — 2026-09-02.**
+**v2 production migration is active.** The foundation and personal-action cutover are already live; remaining domains are migrated incrementally with rollback preserved.
 
-A full inventory of the user's software, services, devices, personal workflows and side-project ecosystem is complete. The first production-grade backend/contracts are now committed.
+Current major runtime facts:
 
-See:
+- Neon/PostgreSQL is the live LLM4LIFE machine-state backend.
+- Personal actions are canonical in Neon.
+- Google Tasks is the production-live human action client/projection.
+- Google Calendar remains execution/time ownership.
+- Cloudflare Worker v0.2.0 runs the Google Tasks sync every 15 minutes.
+- Notion planning databases are rollback/reference, not canonical task state.
+- InUnity remains the consolidated finance owner and its ChatGPT MCP path has been exercised successfully.
+- Product Tracker has a parity-verified personal-care inventory mirror in a dedicated Neon database; runtime cutover is still pending, so Notion remains the transitional inventory control surface.
 
-- [`docs/decisions/2026-09-02-production-architecture-v2.md`](docs/decisions/2026-09-02-production-architecture-v2.md)
-- [`config/domains.yaml`](config/domains.yaml)
-- [`system.yaml`](system.yaml)
-- [`docs/STATUS.md`](docs/STATUS.md)
+Always use `docs/STATUS.md` for the latest verified runtime state rather than inferring live status from target architecture.
 
 ## v2 architecture
 
@@ -35,7 +52,7 @@ See:
  Neon/PostgreSQL         Obsidian          Domain systems
  machine state           knowledge         Jira / GitHub
  jobs/actions/events      reasoning         ORC / InUnity
- receipts/sync state      relationships     provider authority
+ receipts/sync state      relationships     Product Tracker
         |
         +------------+----------------------+
                      |                      |
@@ -52,6 +69,7 @@ See:
 | Personal action state | **Neon/PostgreSQL** |
 | Personal action UI | **Google Tasks** |
 | Time commitments / execution schedule | **Google Calendar** |
+| Personal-care inventory | **Product Tracker / Neon** after verified runtime cutover; Notion transitional until then |
 | Contact identity | **Google Contacts** after Apple/Google dedup migration |
 | Knowledge, reasoning, learning | **Obsidian** |
 | Relationship context | **Obsidian** |
@@ -62,13 +80,11 @@ See:
 | Official bank/card/provider state | respective provider |
 | Cloud files | **Google Drive** preferred; OneDrive secondary after audit |
 
-See [`config/domains.yaml`](config/domains.yaml) for the complete machine-readable domain matrix.
+See [`config/domains.yaml`](config/domains.yaml) and [`docs/LONG_TERM_ROADMAP.md`](docs/LONG_TERM_ROADMAP.md) for the complete ownership/migration model.
 
-## Why PostgreSQL now exists
+## Why PostgreSQL exists
 
-The old architecture relied too heavily on SaaS applications and chat/automation context for operational state.
-
-Neon/PostgreSQL is introduced only for **machine-readable state LLM4LIFE itself needs to operate reliably**, such as:
+Neon/PostgreSQL is used for **machine-readable state LLM4LIFE or user-owned domain services need to operate reliably**, including:
 
 - stable internal IDs and external references;
 - personal actions;
@@ -79,129 +95,101 @@ Neon/PostgreSQL is introduced only for **machine-readable state LLM4LIFE itself 
 - sync checkpoints;
 - adaptive scheduling rules and execution telemetry;
 - household/vehicle maintenance;
-- grocery/shopping-list state.
+- structured shopping state where useful;
+- specialized user-owned domain databases such as Product Tracker.
 
-It is **not** a dumping ground for narrative knowledge, relationship journals, full conversations, health records or provider credentials.
+It is **not** a dumping ground for narrative knowledge, relationship journals, full conversations, health records, financial credentials, or provider-owned official records.
 
-## Database migrations
+## Personal actions and planning — live
 
 ```text
-db/
-  README.md
-  migrations/
-    001_core.sql
-    002_actions_and_adaptation.sql
+                 Neon canonical actions
+                    /             \
+                   v               v
+            Google Tasks       AI planner
+             action UX             |
+                                   v
+                           Google Calendar
+                            execution/time
 ```
 
-The schema is PostgreSQL-first and portable even though Neon is the current hosted target.
+The planning cutover is complete enough that live planning automations use Neon canonical action state. Notion Tasks, Task Execution Log, Scheduling Model, and AI Activity Log are rollback/reference for migrated planning data.
 
-The migrations have been committed but are **not yet applied to the live Neon project**. See `docs/STATUS.md`.
+Current scheduling defaults include:
+
+- sleep **11 PM–7 AM** protected;
+- weekday work **9 AM–1 PM** soft-busy;
+- movable personal work defaults to **1 PM–9 PM America/Toronto**;
+- waiting/blocked actions do not consume execution time;
+- due dates and execution times are distinct;
+- repeated misses are evidence for adaptation rather than blind rescheduling.
+
+See [`docs/AUTOMATIONS.md`](docs/AUTOMATIONS.md) and [`config/automations.yaml`](config/automations.yaml).
+
+## Product Tracker / personal-care inventory
+
+The long-term owner is a dedicated Product Tracker domain service backed by its own database inside the existing Neon project.
+
+The data mirror is already parity-verified, but runtime cutover is intentionally incomplete.
+
+Target runtime:
+
+```text
+ChatGPT / clients / Notion webhook
+              |
+              v
+        Product Tracker API
+        Vercel Functions
+              |
+              v
+             Neon
+ canonical inventory/event state
+              |
+              v
+ durable Vercel async processing
+              |
+              v
+ Notion projection / future clients
+```
+
+The existing infinite polling worker is transitional implementation debt. The target is event-driven processing with durable retry semantics, not choosing a host merely to keep a polling loop alive.
+
+See [`docs/decisions/2026-09-03-product-tracker-runtime.md`](docs/decisions/2026-09-03-product-tracker-runtime.md).
 
 ## Obsidian
 
-Obsidian remains the private, human-readable knowledge/context layer:
+Obsidian remains the private, human-readable knowledge/context layer for learning, reasoning, durable research/context, reflections, and relationship narrative.
 
-- learning and reasoning;
-- durable notes/research;
-- diary/reflections;
-- person/relationship context;
-- long-form personal knowledge.
-
-The existing People system's `link, don't copy` pattern is intentionally preserved. Relationship automation should first use structured frontmatter + derived views rather than creating a second relationship database prematurely.
-
-The preferred eventual AI write path is:
+Preferred eventual AI write path:
 
 ```text
 AI/router -> trusted local adapter -> live Obsidian vault -> normal backup/sync
 ```
 
-GitHub backup access is useful but is not the desired permanent real-time editing architecture.
+GitHub backup access is useful but is not the desired permanent real-time editing path.
 
-## Personal actions and planning
+## Contacts
 
-Target model:
-
-```text
-Neon personal actions             Jira engineering backlog
-         \                              /
-          \                            /
-             AI planner / scheduler
-                      |
-                      v
-              Google Calendar
-               execution plan
-
-Neon -> Google Tasks for human action-list UX
-```
-
-Current scheduling defaults:
-
-- sleep **11 PM–7 AM** protected;
-- weekday work **9 AM–1 PM** soft-busy;
-- movable personal work defaults to **1 PM–9 PM America/Toronto**;
-- leave buffer;
-- waiting/blocked actions do not consume execution time;
-- fixed external commitments do not move for optimization;
-- repeated misses feed adaptive scheduling rather than blind daily rescheduling.
-
-## Live automation loop
-
-Current active automation responsibilities:
+Target identity model:
 
 ```text
-07:30  Daily Planning Loop — morning sanity check
-19:30  Daily Planning Loop — tomorrow / rolling-horizon planning
-hourly Calendar Task Follow-Up — execution outcome feedback
-Friday 17:00-ish Weekly Systems Review — reconciliation + learning + restock
+Google Contacts -> canonical phone/email/address/birthday/org identity
+Apple Contacts  -> synchronized Apple-device client
+Obsidian        -> person/relationship narrative context
 ```
 
-These automations currently use **transitional Notion-backed state**. They are not being disabled until the Neon replacement is populated and verified.
-
-See [`docs/AUTOMATIONS.md`](docs/AUTOMATIONS.md) and [`config/automations.yaml`](config/automations.yaml).
-
-## Notion and Things 3
-
-### Notion
-
-Notion is repositioned from canonical life backend to:
-
-- transitional live dependency during migration;
-- optional dashboard/projection layer;
-- ad-hoc structured workspace where it provides real human UX value.
-
-Do not create new core state in Notion merely because a database is easy to add.
-
-### Things 3
-
-Things 3 becomes legacy/optional UX rather than the v2 canonical backlog. Existing data should be reconciled before retirement or reduced use.
-
-## People and relationships
-
-```text
-Google Contacts -> phone/email/address/birthday identity
-Obsidian        -> relationship context and narrative memory
-Personal action -> follow-up
-Calendar        -> scheduled interaction
-```
-
-The user should eventually be able to tell the AI information naturally and have it classified into the correct place without manually editing person records.
+Deduplicate before consolidating; never destroy one address book simply because the target has been chosen.
 
 ## Household operations
 
-The inventory identified real missing systems for:
+Neon is the target structured owner for household/vehicle assets, maintenance rules, and maintenance events. Due work becomes a personal action; only actual scheduled execution belongs on Calendar.
 
-- groceries/shopping lists;
-- household maintenance;
-- vehicle maintenance.
-
-These are now represented in the v2 PostgreSQL schema. Due maintenance becomes an action; only actual scheduled work belongs on Calendar.
+General shopping/grocery state should be structured only when automation provides real value. Avoid creating a new paid list-app dependency by default.
 
 ## Finance
 
-Current architecture:
-
 ```text
-External financial sources
+External financial providers
           |
           v
         InUnity
@@ -211,27 +199,36 @@ External financial sources
     PickMe    MarketLens
 ```
 
-- MoneyTalks is the same product lineage as InUnity, not a separate canonical system.
-- Looply functionality has already been absorbed into InUnity.
-- Banks/card issuers/brokerages remain authoritative for their official records and execution.
+- InUnity owns consolidated user-controlled finance state.
+- PickMe specializes in card decisions/purchase capture.
+- MarketLens specializes in market data.
+- Provider systems remain authoritative for their official records and execution.
+- LLM4LIFE must not become a second financial ledger or credential store.
 
-## ORC
+## Engineering
 
-`agent-orchestrator` (ORC) is the coding-specific control plane.
-
-LLM4LIFE may invoke ORC, but does not recreate ORC's coding model routing, quota-aware escalation, independent verification or cross-vendor review logic.
+- **Jira** — engineering backlog/bugs/work items.
+- **GitHub** — code/repository truth.
+- **ORC** — coding-agent routing, quota-aware escalation, independent verification, and cross-vendor review.
+- **LLM4LIFE** — invokes/routes these systems; it does not duplicate their canonical state.
 
 ## Communication and capture
 
-Gmail, Slack, Discord, WhatsApp, iMessage, Apple Shortcuts and Share Sheet are edge channels/source surfaces.
+Gmail, Slack, Discord, WhatsApp, iMessage, Apple Shortcuts, Share Sheet, and future bridges are ingress/source surfaces.
 
 Preferred shape:
 
 ```text
-source/channel -> LLM4LIFE ingress/router -> canonical destination
+many ingress channels -> one LLM4LIFE routing policy -> correct canonical owner
 ```
 
-The useful capability previously provided by OpenClaw is cross-channel AI access; OpenClaw itself remains replaceable by native connectors/webhooks/thin bridges when those are stronger.
+A bridge is replaceable infrastructure, not a second policy authority or database.
+
+## Durable automation
+
+ChatGPT Automations, Cloudflare Workers, Vercel Functions/Queues/Workflows, cron, or dedicated workers may execute jobs depending on workload.
+
+The runtime is replaceable. Important LLM4LIFE-owned jobs require durable identity, idempotency, execution receipts, retry/failure policy, observability, and checkpoints where appropriate. Chat threads are not durable job state.
 
 ## Free-first constraint
 
@@ -244,30 +241,26 @@ Tool decisions follow this order:
 
 **Production-grade does not mean more subscriptions or more enterprise complexity.**
 
-## Design principles
+## Migration rules
 
-1. One canonical owner per object/domain.
-2. AI is interface/router/orchestrator, not a database trapped in a chat thread.
-3. Link external records rather than copying them.
-4. Provider-authoritative state stays with the provider.
-5. Backlog is not Calendar.
-6. Important jobs have durable identity, idempotency and execution receipts.
-7. Safe reversible work can be automated; consequential actions keep stronger safeguards.
-8. Event-driven/exception-oriented behavior beats notification spam.
-9. Learn from repeated evidence with rollback.
-10. Build the minimum useful system, not life-as-ERP.
-11. Free/already-paid-first.
-12. Everything remains revisitable.
+1. Migrate one domain at a time.
+2. Preserve working legacy state until replacement parity/runtime behavior is verified.
+3. Temporary dual-read is acceptable; long-term dual-write is not.
+4. Keep stable provenance/external references.
+5. Prefer idempotent/event-driven adapters over hidden vendor coupling.
+6. Update `docs/STATUS.md` only when runtime reality changes.
+7. Update the long-term roadmap/decision records when the target changes.
+8. Preserve superseded decisions as historical context.
 
 ## Repository map
 
 ```text
 README.md                           Human entry point
 AGENTS.md                           Agent operating instructions
-system.yaml                         High-level machine architecture
+system.yaml                         Machine architecture/policy
 
 config/
-  domains.yaml                      Canonical v2 domain ownership
+  domains.yaml                      Canonical domain ownership
   tools.yaml                        Runtime/tool registry
   automations.yaml                  Live automation responsibility registry
   scheduling.yaml                   Scheduling defaults
@@ -277,9 +270,10 @@ db/
   migrations/                       PostgreSQL schema migrations
 
 docs/
-  STATUS.md                         What is live vs target
+  LONG_TERM_ROADMAP.md              North star + migration scoreboard
+  STATUS.md                         What is actually live now
   TOOL_REGISTRY.md                  Human tool inventory
-  CURRENT_STATE.md                  Current architecture narrative
+  CURRENT_STATE.md                  Architecture narrative
   ROUTING.md                        Routing logic
   PLANNING.md                       Planning/action model
   AUTOMATIONS.md                    Automation loop
@@ -292,6 +286,6 @@ docs/
 
 `LLM4LIFE` is public.
 
-Never commit real database URLs, passwords/tokens, private contact or relationship information, health records, financial identifiers, confidential work content, private messages or other sensitive operational state.
+Never commit real database URLs, passwords/tokens, private contact or relationship information, health records, financial identifiers, confidential work content, private messages, or other sensitive operational state.
 
-Architecture, schemas, variable **names**, placeholders and non-sensitive contracts belong here.
+Architecture, schemas, variable **names**, placeholders, and non-sensitive contracts belong here.
