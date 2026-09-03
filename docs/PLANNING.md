@@ -1,186 +1,186 @@
 # Day Planning & Backlog Scheduling
 
-_Last updated: 2026-08-27_
+_Last updated: 2026-09-02_
 
 ## Purpose
 
-The user wants the system to answer two questions reliably:
+The planning layer should reliably answer:
 
-1. **What should I do today?**
-2. **When will the rest of my backlog actually get done?**
+1. What should I do today?
+2. When will important remaining work get done?
+3. What is waiting/blocked instead of actually actionable?
 
-The planning layer should convert obligations and backlog into a realistic calendar without turning Google Calendar into the permanent task database.
-
-## Canonical model
+## v2 target model
 
 ```text
-Things 3 / Jira / other authoritative sources
-                |
-                v
-         AI planning layer
-   priority + effort + constraints
-                |
-                v
-        Google Calendar
-       execution schedule
+Neon personal actions             Jira engineering backlog
+         \                              /
+          \                            /
+             AI planner / scheduler
+                      |
+                      v
+              Google Calendar
+               execution plan
+
+Neon actions -> Google Tasks as preferred human action UI/projection
 ```
 
 ### Ownership
 
-- **Things 3** owns the personal backlog and next actions.
-- **Jira** owns engineering backlog/work items.
-- **Google Calendar** owns the current execution plan: appointments, commitments, deadlines, and time blocks selected for actual execution.
-- **AI** decides what should move from backlog into time, subject to safeguards and available integrations.
+- **Neon/PostgreSQL** — canonical LLM4LIFE personal action state after migration.
+- **Google Tasks** — preferred human-facing personal action client/projection.
+- **Jira** — canonical engineering backlog/work items.
+- **Google Calendar** — commitments and selected execution time blocks.
+- **AI layer** — planning/scheduling decisions subject to safeguards.
+- **Neon action execution telemetry + adaptive rules** — durable learning model after migration.
 
-Calendar events created from tasks are **scheduled representations**, not a second canonical copy of the task.
+Calendar task blocks are projections, not a second task database.
+
+## Transitional runtime
+
+Existing ChatGPT planning automations currently use Notion `Tasks`, `Task Execution Log` and `Scheduling Model`. Those remain live until their Neon equivalents are populated and parity is verified.
+
+Do not disable the existing planning loop merely because this target document changed.
+
+## Action lifecycle
+
+The v2 action model supports:
+
+- `inbox` — captured, not triaged;
+- `next` — actionable, unscheduled;
+- `scheduled` — has an execution block;
+- `waiting` — blocked on an external response/condition;
+- `done`;
+- `cancelled`;
+- `archived`.
+
+Waiting actions should use a follow-up date and should not consume execution time while blocked.
 
 ## Planning objective order
 
 Optimize in this order:
 
-1. prevent important things from slipping through the cracks;
+1. prevent important things from slipping;
 2. save time;
 3. reduce mental load;
-4. increase output.
+4. increase useful output.
 
-Do not maximize calendar utilization. A completely full calendar is fragile.
+Do not maximize calendar utilization.
 
-## Default scheduling window
+## Scheduling defaults
 
-For **movable personal tasks, errands, study blocks, routine admin, and movable deep work**, the default scheduling window is:
+Unless a newer explicit instruction or strong learned rule overrides them:
 
-- **1:00 PM–9:00 PM America/Toronto**
+- sleep **11:00 PM–7:00 AM** is protected;
+- weekday work **9:00 AM–1:00 PM** is soft-busy;
+- movable personal/admin/study/deep work defaults to **1:00 PM–9:00 PM America/Toronto**;
+- leave buffer;
+- fixed external commitments remain fixed;
+- due date and execution time are separate fields.
 
-Rules:
-
-- Do not schedule movable work outside this window by default.
-- Fixed commitments such as appointments, meetings, travel, or externally required times may exist outside the window and should be preserved.
-- A specific newer instruction for a task or day may override this default.
-- Keep buffer inside the 1–9 PM window rather than trying to occupy every minute.
-- The machine-readable source for this preference is `config/scheduling.yaml`.
+`config/scheduling.yaml` remains the machine-readable baseline for time-window preferences.
 
 ## Daily planning loop
 
-### Evening planning
+### Evening
 
-Each evening, prepare the next day and maintain a short future horizon.
+1. Read fixed Calendar commitments.
+2. Read current actionable personal state from the live source (transitional Notion until cutover; Neon after migration).
+3. Read Jira and other authoritative signals when relevant/available.
+4. Identify overdue, urgent, high-impact, dependency-unblocking and neglected-important work.
+5. Exclude blocked/waiting work from execution time.
+6. Estimate duration conservatively when absent.
+7. Select a realistic amount of tomorrow work.
+8. Schedule selected work into open windows.
+9. Leave buffer and resolve movable collisions.
+10. Keep the unscheduled long tail in the action/backlog owner.
 
-1. Read fixed commitments and existing calendar blocks.
-2. Read available authoritative backlogs and actionable inputs.
-3. Identify overdue, urgent, high-impact, dependency-unblocking, and neglected-but-important work.
-4. Estimate a reasonable duration when one is not available; use conservative defaults and learn from actual completion behavior.
-5. Select a realistic amount of work for tomorrow.
-6. Place selected work into open calendar windows, normally within the default 1:00 PM–9:00 PM movable-work window.
-7. Leave buffer; do not pack the day edge-to-edge.
-8. Detect overlaps and impossible schedules.
-9. Push lower-priority work forward rather than creating collisions.
-10. Keep unscheduled backlog in its canonical task system.
+### Morning
 
-### Morning check
+The morning run is a sanity/attention check rather than a second full planning system:
 
-The morning digest acts as the final execution check:
+- today's top outcomes;
+- chronological execution view;
+- due/overdue/waiting/at-risk exceptions;
+- low-risk conflict fixes where justified.
 
-- show the Top 3 outcomes for the day;
-- flag calendar collisions or unrealistic load;
-- surface anything important that appeared after the evening plan;
-- identify what can safely be ignored today.
+## Follow-up feedback loop
 
-## Scheduling rules
+After a scheduled action block ends, record an execution outcome rather than only mutating Calendar text.
 
-### Fixed vs movable
+Target outcomes:
 
-**Fixed:** appointments, meetings, flights, externally committed times, deadlines with a required clock time.
+- done;
+- missed;
+- waiting;
+- cancelled.
 
-**Movable:** personal/admin tasks, errands, study blocks, deep work, routine reviews, self-imposed work blocks.
+Do not fabricate actual duration. Record it only when genuinely known/reported.
 
-Never move a fixed commitment merely to make the plan prettier.
+Repeated outcomes feed adaptive scheduling rules with sample size/confidence; they are not psychological truths.
 
-### Priority signals
+## Adaptive scheduling
 
-Consider:
+The v2 backend supports versioned `adaptive_rules`.
 
-- hard deadline / time sensitivity;
-- consequence of delay;
-- dependency value;
-- impact;
-- age / neglect;
-- effort and available window;
-- location/context constraints;
-- batching opportunities;
-- observed completion behavior;
-- repeated deferral or manual override.
+Rules should:
 
-### Backlog horizon
+- remain soft preferences;
+- include evidence/sample size where practical;
+- require repeated evidence before activation;
+- preserve superseded/reverted rules for rollback;
+- never override explicit instructions or safety constraints.
 
-The system should maintain a rolling schedule, not attempt to calendar every possible someday item.
-
-Recommended behavior:
+## Horizon
 
 - **Today/tomorrow:** concrete execution blocks.
-- **Next 7 days:** schedule high-confidence important work where useful.
-- **Beyond 7 days:** keep most tasks in the backlog unless there is a deadline, appointment, preparation lead time, or strong reason to reserve time.
+- **Next 7 days:** high-confidence important work only.
+- **Beyond 7 days:** remain mostly unscheduled unless deadline/lead time warrants reserved time.
 
-## Rescheduling
+## Missed work
 
-When a movable task is missed:
+When a movable action is missed:
 
-1. determine whether it still matters;
-2. avoid blindly moving it to the next day forever;
-3. raise its priority if delay has growing consequences;
-4. lower/archive it if repeated deferral indicates low value and evidence supports that conclusion;
-5. place it in the next realistic window if still worthwhile.
-
-Repeated rescheduling is behavioral evidence and may tune future duration/priority estimates under `docs/ADAPTATION.md`.
+1. reassess whether it still matters;
+2. do not blindly move it to tomorrow forever;
+3. raise urgency if consequences increased;
+4. demote/defer/archive low-value work when evidence supports it;
+5. reschedule only into a realistic future slot when still worthwhile;
+6. record the execution outcome for learning.
 
 ## Calendar hygiene
 
-The planning system should actively prevent:
+Prevent:
 
-- overlapping movable tasks;
-- duplicate task blocks;
-- calendar blocks with no clear action;
-- too many tiny context switches;
-- full-day schedules with no buffer;
-- stale task blocks that remain after the underlying task is completed or abandoned.
+- overlapping movable blocks;
+- duplicate projections;
+- stale blocks after completion/cancellation;
+- too many small context switches;
+- edge-to-edge scheduling without buffer;
+- blocked/waiting work reserving time.
 
-Prefer batching similar errands/admin tasks when practical.
+Batch compatible errands/calls/online/deep-work tasks when useful.
 
-## Things 3 integration constraint
+## Google Tasks projection
 
-Things 3 is the intended canonical personal backlog, but the current connected AI environment may not have direct server-side Things access.
+The long-term action adapter should synchronize a useful subset of Neon action fields to Google Tasks without forcing Google Tasks to hold the entire domain model.
 
-Until a supported bridge exists:
+Required design properties:
 
-- never pretend the Things backlog was inspected when it was not;
-- use connected sources that are available;
-- treat a Things bridge as a high-priority integration gap;
-- preferred bridge options remain Apple Shortcuts, Things URL scheme, AppleScript on macOS, or another thin deterministic adapter using supported interfaces.
-
-Once the bridge exists, the planning layer should be able to:
-
-- read eligible backlog items;
-- schedule selected tasks on Calendar;
-- preserve a link/reference to the Things item when possible;
-- mark/complete/reschedule through supported Things interfaces;
-- avoid maintaining a duplicate task database in Calendar or Notion.
-
-## Autonomy
-
-Scheduling and rescheduling **movable, low-risk personal work** is pre-approved when the AI has enough information and the operation is reversible.
-
-Do not autonomously move/cancel:
-
-- external meetings or appointments;
-- travel bookings;
-- legal/financial commitments;
-- other externally consequential fixed commitments.
+- stable mapping through external references;
+- idempotent create/update;
+- conflict policy;
+- completion reconciliation;
+- no infinite sync loop;
+- clear behavior when Google Tasks API/direct connector is unavailable.
 
 ## Success metric
 
-A successful planning layer means the user can mostly trust:
+The user can trust that:
 
-- today is already realistic when they wake up;
-- important work has a future home;
-- missed work is intelligently replanned;
-- the calendar reflects intention without becoming the permanent backlog;
-- they do not need to manually hunt across apps to decide what to do next.
+- important work has a durable home;
+- today is realistic;
+- Calendar reflects intended execution rather than backlog storage;
+- blocked work is followed up without calendar clutter;
+- missed work improves future planning;
+- planning state survives chat-thread growth or automation context changes.
