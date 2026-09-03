@@ -6,9 +6,9 @@ This file describes **what is actually live now**. Long-term target ownership is
 
 ## Headline
 
-LLM4LIFE v2 is live with Neon as durable machine state, Google Tasks as the human action projection, Google Calendar as the execution schedule, and Product Tracker as the specialized personal-care inventory service.
+LLM4LIFE v2 is live with Neon as durable machine state, Google Tasks as the human action projection, Google Calendar as the execution schedule, and Product Tracker/Neon as the canonical personal-care inventory service.
 
-Product Tracker **Cloudflare Phase 2 is now production-verified**: the Worker is deployed, authenticated reads work, Notion webhooks are signed/accepted, webhook receipts are durable in Neon, Cloudflare Queue processes them, the protected reconciliation relay is clean, and Worker database access is hardened through Cloudflare Hyperdrive using a dedicated least-privilege Neon runtime role.
+Product Tracker Phase 2 reliability and write cutover are complete. The production Cloudflare Worker uses Hyperdrive and invocation-scoped Prisma database clients, API idempotency/retry/reconciliation gates passed, Cloudflare retry→DLQ behavior was verified in isolated staging, and production runs with Notion inbound inventory sync disabled.
 
 ## Current architecture
 
@@ -36,22 +36,22 @@ Cloudflare Worker         Cloudflare Worker
                      canonical inventory/events
                                 |
                                 v
-                         Notion transitional UI
+                         Notion projection/UI
 ```
 
 ## Verified planning state
 
 - Neon `llm4life.actions` is canonical personal action/backlog state.
 - Google Tasks is production-live as the human-facing task projection/capture surface.
-- Google Tasks Worker v0.2.0 manual and scheduled syncs have succeeded.
 - Google Calendar owns scheduled execution and fixed commitments.
 - Notion planning databases are rollback/reference only.
+- Personal-care inventory is canonical in Neon database `product_tracker`, owned through the Product Tracker domain service.
 
 ## Product Tracker production state
 
-### Data mirror
+### Baseline
 
-Verified in Neon `product_tracker`:
+Verified in Neon `product_tracker` at migration baseline:
 
 - 25 active Needs;
 - 26 active Products;
@@ -74,66 +74,66 @@ llm4life-product-tracker
 Production path:
 
 ```text
-Notion / ChatGPT / clients
-          |
-          v
- Cloudflare Worker
- API + webhook ingress
-          |
-          v
-      Hyperdrive
-          |
-          v
-         Neon
+ChatGPT / clients
+      |
+      v
+Cloudflare Worker
+ authenticated API
+      |
+      v
+  Hyperdrive
+      |
+      v
+     Neon
  canonical inventory/events
- outbox + webhook receipt ledger
-          |
-          v
- Cloudflare Queue
- async processing/retries
+ outbox + webhook receipts
+      |
+      v
+Cloudflare Queue
+ retries + reconciliation
+      |
+      v
+Notion projection
 ```
 
-Verified after Hyperdrive deployment:
+Verified cutover behavior:
 
-- `GET /health` succeeds;
-- authenticated `GET /v1/needs` returns the 25-Need production snapshot;
-- protected `/internal/relay` returns clean `webhooks: 0, outbox: 0` when no work is pending;
-- Notion `page.properties_updated` events reach the Worker;
-- signed webhook events are persisted in `WebhookReceipt`;
-- Queue processing completes on the first attempt with no `lastError`;
-- a reversible post-Hyperdrive Notion edit and its restoration were both received and processed successfully;
-- dedicated Neon role `product_tracker_runtime` is used through Hyperdrive instead of the owner credential;
-- production Prisma baseline is recorded.
+- `GET /health` succeeds and reports Product Tracker `v0.3.0` with `notionInboundSyncEnabled=false` at canonical cutover;
+- authenticated `GET /v1/needs` returns the production snapshot;
+- protected `/internal/relay` is clean when no durable work is pending;
+- duplicate/retried API mutations create exactly one canonical InventoryEvent;
+- outbound Neon → Notion projection works;
+- application-side failures use durable backoff and become terminal `FAILED` at attempt 8;
+- reconciliation recovered deliberately pending durable work without duplicate Notion side effects;
+- deliberate staging queue-handler crashes were retried by Cloudflare and delivered to the DLQ;
+- Worker database access uses Hyperdrive and the dedicated least-privilege Neon role `product_tracker_runtime`;
+- Prisma/pg clients are invocation-scoped in Workers after a cross-request I/O bug was caught during staging.
 
-### Current ownership boundary
+### Ownership boundary
 
-Neon/Product Tracker is the **target canonical personal-care inventory owner**, but Notion remains a transitional human control/projection surface until the remaining mutation/retry cutover gates are intentionally tested.
+Product Tracker/Neon is the **canonical personal-care inventory owner**.
 
-Do **not** silently dual-write around Product Tracker.
+Production sets `NOTION_INBOUND_SYNC_ENABLED=false`. Signed Notion webhook calls remain authenticated/acknowledged but do not mutate Neon. Notion Shopping Needs and Personal Care Products are projection/reference/rollback surfaces only.
 
-## Remaining Product Tracker cutover gates
+All human/agent personal-care inventory mutations must route through Product Tracker domain events. Do not silently dual-write or fall back to Notion when Product Tracker/Neon is unavailable.
 
-Before demoting Notion to projection/rollback-only, intentionally verify:
+## Reliability hardening in progress
 
-1. duplicate/retried `POST /v1/inventory/events` requests create exactly one canonical inventory event;
-2. an outbound Notion projection is produced from a real intentional inventory mutation;
-3. retry behavior does not duplicate canonical events or side effects;
-4. reconciliation recovers a deliberately pending durable delivery row;
-5. DLQ/retry observability is confirmed.
+The next production release adds durable DLQ receipts in Neon, an authenticated `/internal/status` reliability endpoint, and scheduled attention logging for failed outbox rows, overdue durable work, overdue webhook receipts and unresolved dead letters.
 
-After these pass, route all human/agent personal-care inventory mutations through Product Tracker and make Notion optional projection/rollback UI.
+A narrow outbound Notion exactly-once race remains: if Notion page creation succeeds but persistence of `notionEventPageId` fails immediately afterward, retry could create a duplicate page. The planned fix is a stable Product Tracker Event ID property in Notion plus query-before-create.
 
 ## Runtime paths
 
 | System | Status | Role |
 |---|---|---|
 | ChatGPT / LLM4LIFE | Live | Control plane / orchestration |
-| Neon | Live | Durable machine state + Product Tracker canonical database |
+| Neon | Live | Durable machine state + Product Tracker canonical inventory database |
 | Google Tasks | Production-live | Human action projection/capture |
 | Google Calendar | Live | Execution schedule and commitments |
 | Cloudflare | Production-live | Google Tasks sync + Product Tracker Worker/Queue/Hyperdrive runtime |
-| Product Tracker | Phase 2 production-verified | Specialized personal-care inventory service |
-| Notion | Transitional | Planning rollback; inventory control/projection until final cutover gates |
+| Product Tracker | Production canonical | Specialized personal-care inventory owner |
+| Notion | Transitional/auxiliary | Planning rollback + personal-care projection/reference |
 | InUnity | MCP live/read-verified | Finance domain |
 | Obsidian | Partial | Narrative/relationship knowledge; live bridge pending |
 | Google Contacts | Migration incomplete | Preferred future canonical contact identity after dedup |
@@ -141,13 +141,21 @@ After these pass, route all human/agent personal-care inventory mutations throug
 
 ## Next priorities
 
-### P0 — Finish Product Tracker write cutover
+### P0 — Observe Product Tracker cutover
 
-Run the remaining idempotency, outbound projection, retry/reconciliation, and DLQ tests above. Then demote Notion from inventory source-of-truth responsibilities.
+Run the 24-hour post-cutover observation check. If health, durable retry state and projection remain clean, remove the temporary reliability Worker/Queues and temporary Neon reliability branch.
+
+### P0 — Production reliability observability
+
+Deploy the durable DLQ receipt migration/runtime and monitor failed outbox, overdue work, overdue webhook receipts and unresolved dead letters.
+
+### P1 — Notion event idempotency hardening
+
+Add a stable Product Tracker Event ID to Notion Inventory Events and query it before remote page creation.
 
 ### P1 — Remaining Notion cleanup
 
-Remove Shopping Needs / Personal Care Products from live-source responsibilities after the Product Tracker cutover is complete while retaining useful dashboard/rollback views if desired.
+Retain useful dashboard/rollback views but do not restore Shopping Needs / Personal Care Products to source-of-truth responsibilities.
 
 ### P1 — Live Obsidian bridge
 
