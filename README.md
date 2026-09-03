@@ -12,28 +12,30 @@ Change for novelty alone is not a goal. Production-grade also does not mean maxi
 
 ## Start here
 
-- [`docs/LONG_TERM_ROADMAP.md`](docs/LONG_TERM_ROADMAP.md) — durable north star, migration sequence, and done gates.
+- [`AGENTS.md`](AGENTS.md) — mandatory operating rules for development agents.
 - [`docs/STATUS.md`](docs/STATUS.md) — what is actually live now.
+- [`docs/LONG_TERM_ROADMAP.md`](docs/LONG_TERM_ROADMAP.md) — durable north star, migration sequence, and done gates.
 - [`system.yaml`](system.yaml) — machine-readable architecture and governing policy.
-- [`docs/decisions/2026-09-02-production-architecture-v2.md`](docs/decisions/2026-09-02-production-architecture-v2.md) — adopted v2 ownership architecture.
-- [`docs/decisions/2026-09-03-product-tracker-runtime.md`](docs/decisions/2026-09-03-product-tracker-runtime.md) — Product Tracker Cloudflare Worker/Queue runtime decision.
 - [`config/domains.yaml`](config/domains.yaml) — detailed domain ownership.
+- [`docs/PEOPLE.md`](docs/PEOPLE.md) — People/Contacts/Relationships implementation contract.
+- [`docs/decisions/2026-09-03-people-subsystem-architecture.md`](docs/decisions/2026-09-03-people-subsystem-architecture.md) — newest People architecture decision.
+- [`docs/decisions/2026-09-02-production-architecture-v2.md`](docs/decisions/2026-09-02-production-architecture-v2.md) — adopted v2 base architecture.
 
 ## Current phase
 
-**v2 production migration is active.** The foundation and personal-action cutover are already live; remaining domains are migrated incrementally with rollback preserved.
+**v2 production migration is active.** Major domains are migrated one at a time with explicit ownership, reconciliation gates and rollback.
 
 Current major runtime facts:
 
 - Neon/PostgreSQL is the live LLM4LIFE machine-state backend.
 - Personal actions are canonical in Neon.
 - Google Tasks is the production-live human action client/projection.
-- Google Calendar remains execution/time ownership.
-- Cloudflare Worker v0.2.0 runs the Google Tasks sync every 15 minutes.
-- Notion planning databases are rollback/reference, not canonical task state.
-- InUnity remains the consolidated finance owner and its ChatGPT MCP path has been exercised successfully.
-- Product Tracker has a parity-verified personal-care inventory mirror in Neon.
-- Product Tracker's **Cloudflare Worker + Queue implementation is committed and CI-green, but deployment/runtime cutover is still pending**, so Notion remains the transitional inventory control surface.
+- Google Calendar owns execution/time.
+- Notion planning databases are rollback/reference rather than canonical task state.
+- InUnity remains the consolidated finance owner.
+- Product Tracker/Neon is the **production canonical** personal-care inventory owner.
+- Product Tracker Worker `v0.4.0`, Queue, Hyperdrive, durable reliability status/DLQ receipts and stable Notion event-idempotency hardening are live.
+- The next subsystem is **People / Relationships**, currently **Phase 0 documentation only**: target architecture is accepted, but the People Neon schema/contact migration has not been implemented.
 
 Always use `docs/STATUS.md` for verified runtime state rather than inferring live status from target architecture.
 
@@ -53,7 +55,7 @@ Always use `docs/STATUS.md` for verified runtime state rather than inferring liv
  Neon/PostgreSQL         Obsidian          Domain systems
  machine state           knowledge         Jira / GitHub
  jobs/actions/events      reasoning         ORC / InUnity
- domain databases         relationships     Product Tracker
+ structured domains       narrative         Product Tracker
         |
         +------------+----------------------+
                      |                      |
@@ -73,10 +75,13 @@ Cloudflare = shared event/runtime layer where workloads fit
 | Personal action UI | **Google Tasks** |
 | Time commitments / execution schedule | **Google Calendar** |
 | Shared event/runtime infrastructure | **Cloudflare** where workload fits; runtime only, not data owner |
-| Personal-care inventory | **Product Tracker / Neon** after verified runtime cutover; Notion transitional until then |
-| Contact identity | **Google Contacts** after Apple/Google dedup migration |
+| Personal-care inventory | **Product Tracker / Neon**; Notion projection/reference/rollback |
+| Stable person identity | **Neon target after People migration** |
+| Structured relationship machine state | **Neon target after People migration** |
+| Address-book human client | **Google Contacts** after People dedup/cutover |
+| Apple-device contacts | **Apple Contacts** as synchronized client after migration |
 | Knowledge, reasoning, learning | **Obsidian** |
-| Relationship context | **Obsidian** |
+| Relationship narrative/context | **Obsidian** |
 | Engineering backlog | **Jira** |
 | Code/repository truth | **GitHub** |
 | Coding-agent orchestration | **ORC** (`agent-orchestrator`) |
@@ -86,7 +91,7 @@ Cloudflare = shared event/runtime layer where workloads fit
 
 ## Why PostgreSQL exists
 
-Neon/PostgreSQL is used for **machine-readable state LLM4LIFE or user-owned domain services need to operate reliably**, including stable IDs/references, actions, jobs/runs, events, idempotency, receipts, checkpoints, scheduling telemetry, maintenance state, structured shopping state where useful, and specialized user-owned domain databases such as Product Tracker.
+Neon/PostgreSQL is used for **machine-readable state LLM4LIFE or user-owned domain services need to operate reliably**, including stable IDs/references, actions, jobs/runs, events, idempotency, receipts, checkpoints, scheduling telemetry, maintenance state, structured shopping state where useful, Product Tracker, and the target structured People layer.
 
 It is **not** a dumping ground for narrative knowledge, full conversations, health records, credentials, or provider-owned official records.
 
@@ -103,41 +108,72 @@ It is **not** a dumping ground for narrative knowledge, full conversations, heal
                             execution/time
 ```
 
-Live planning automations use Neon canonical action state. Notion Tasks, Task Execution Log, Scheduling Model, and migrated AI Activity Log state are rollback/reference rather than operational task truth.
+Live planning automations use Neon canonical action state. Notion planning state is rollback/reference rather than operational task truth.
 
-## Product Tracker / personal-care inventory
-
-The long-term owner is a dedicated Product Tracker domain service backed by its own database inside the existing Neon project.
-
-The data mirror is parity-verified; runtime cutover is intentionally incomplete.
-
-Target runtime:
+## Product Tracker / personal-care inventory — live
 
 ```text
-ChatGPT / clients / Notion webhook
-              |
-              v
-      Cloudflare Worker
-    API / webhook ingress
-              |
-              v
-             Neon
+ChatGPT / clients
+      |
+      v
+Cloudflare Worker v0.4.0
+      |
+      v
+ Hyperdrive -> Neon
  canonical inventory/events
- outbox + webhook receipts
-              |
-              v
-      Cloudflare Queue
- async projection / retries
-              |
-              v
- Notion projection / future clients
+ durable outbox + webhook receipts
+ dead-letter receipts
+      |
+      v
+Cloudflare Queue
+ retries + reconciliation
+      |
+      v
+Notion projection / rollback UI
 ```
 
-The normal path is event-driven. A low-frequency Cloudflare scheduled relay only republishes pending durable Product Tracker delivery rows if queue publication was missed; it does **not** poll Notion or recreate the old infinite database polling worker.
+Production has Notion inbound sync disabled. All canonical inventory mutations route through Product Tracker domain events.
 
-Cloudflare Workflows and Hyperdrive are optional future primitives only when justified. Neon remains canonical inventory state.
+The system includes durable retry/reconciliation, DLQ observability and a stable `Product Tracker Event ID` on Notion Inventory Events so projection retries query-before-create instead of recreating a page after the known create-then-pointer failure window.
 
-See [`docs/decisions/2026-09-03-product-tracker-runtime.md`](docs/decisions/2026-09-03-product-tracker-runtime.md).
+A short post-cutover observation/staging-cleanup step remains operational closeout, not an ownership blocker.
+
+## People / Contacts / Relationships — next subsystem
+
+**Current phase: Phase 0 architecture/documentation. No canonical data migration has happened yet.**
+
+Target:
+
+```text
+                     Neon People state
+        stable person_id + external references
+      structured relationship/fact/interaction state
+              /              |              \
+             v               v               v
+    Google Contacts      LLM4LIFE actions   source refs
+   address-book client      follow-ups
+          |                    |
+          v                    v
+   Apple Contacts        Google Tasks
+
+Obsidian = narrative relationship memory
+Google Calendar = scheduled interactions
+```
+
+Key invariants:
+
+- display name is not a primary identity key;
+- same-name-only auto-merge is prohibited;
+- structured facts require provenance;
+- sensitive model inference is not silently persisted;
+- raw private conversations are not archived by default;
+- relationship follow-ups reuse the existing action system;
+- Obsidian remains the narrative/reflective layer rather than being replaced with database blobs;
+- Google Contacts becomes the human-facing address-book projection only after dedup and verified cutover.
+
+The exact phone/email/address/birthday field authority remains a Phase 1 validation question. The default recommendation is Neon-owned structured state projected to Google Contacts, but future agents are explicitly allowed to recommend a materially better provider-authority model if they document tradeoffs, conflict semantics, migration and rollback.
+
+See [`docs/PEOPLE.md`](docs/PEOPLE.md).
 
 ## Obsidian
 
@@ -149,17 +185,7 @@ Preferred eventual AI write path:
 AI/router -> trusted local adapter -> live Obsidian vault -> normal backup/sync
 ```
 
-## Contacts
-
-Target identity model:
-
-```text
-Google Contacts -> canonical identity/contact facts
-Apple Contacts  -> synchronized Apple-device client
-Obsidian        -> person/relationship narrative context
-```
-
-Deduplicate before consolidating.
+The People subsystem should link structured identities to Obsidian notes rather than copying narrative prose into Neon.
 
 ## Household operations
 
@@ -197,7 +223,7 @@ Gmail, Slack, Discord, WhatsApp, iMessage, Shortcuts, Share Sheet, and future br
 many ingress channels -> one LLM4LIFE routing policy -> correct canonical owner
 ```
 
-A bridge is replaceable infrastructure, not a second policy authority or database.
+A bridge is replaceable infrastructure, not a second policy authority or database. For People, communication systems may be sources/references for meaningful interactions but are not automatically copied into a private conversation warehouse.
 
 ## Durable automation
 
@@ -223,7 +249,8 @@ The runtime is replaceable. Important LLM4LIFE-owned jobs require durable identi
 5. Prefer idempotent/event-driven adapters over hidden vendor coupling.
 6. Update `docs/STATUS.md` only when runtime reality changes.
 7. Update roadmap/decisions when the target changes.
-8. Preserve superseded decisions as historical context.
+8. Preserve superseded decisions/inventories as historical context.
+9. For People, use read-only inventory/dedup analysis before source mutations.
 
 ## Repository map
 
@@ -233,6 +260,7 @@ AGENTS.md                           Agent operating instructions
 system.yaml                         Machine architecture/policy
 config/                             Domain/tool/automation/scheduling registries
 db/                                 PostgreSQL migrations/contracts
+docs/PEOPLE.md                      People subsystem implementation contract
 docs/LONG_TERM_ROADMAP.md           North star + migration scoreboard
 docs/STATUS.md                      Verified live state
 docs/TOOL_REGISTRY.md               Human tool/runtime registry
@@ -241,4 +269,4 @@ docs/decisions/                     Dated architecture decisions
 
 ## Security
 
-`LLM4LIFE` is public. Never commit real database URLs, passwords/tokens, private contact/relationship information, health records, financial identifiers, confidential work content, private messages, or other sensitive operational state.
+`LLM4LIFE` is public. Never commit real database URLs, passwords/tokens, private contact/relationship information, health records, financial identifiers, confidential work content, private messages, or other sensitive operational state. Use synthetic People fixtures in code/tests.
