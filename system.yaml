@@ -88,6 +88,8 @@ systems:
       - household_assets_and_maintenance
       - vehicle_maintenance
       - general_grocery_and_shopping_state_when_justified
+      - stable_person_identity_after_people_migration
+      - relationship_machine_state_after_people_migration
     hosts_specialized_domain_databases:
       - product_tracker
     avoid:
@@ -101,15 +103,13 @@ systems:
     role: preferred_shared_edge_and_event_runtime_for_llm4life_backends_when_workload_fits
     live:
       - google_tasks_projection_worker
-    target_additions:
-      - product_tracker_http_ingress
-      - product_tracker_queue_delivery
-      - product_tracker_reconciliation_trigger
+      - product_tracker_worker_queue_hyperdrive_runtime
+    target_additions: []
     primitives:
       workers: http_compute_and_event_handlers
       queues: durable_async_delivery_retries_and_batching
       workflows: optional_for_future_multi_step_durable_processes_only_when_justified
-      hyperdrive: optional_future_postgres_connection_optimization
+      hyperdrive: postgres_connection_optimization_when_workload_justifies_it
     boundary: runtime_not_canonical_data_owner
     rules:
       - do_not_move_domain_truth_out_of_neon_merely_to_use_cloudflare
@@ -136,16 +136,17 @@ systems:
       - canonical_general_backlog
 
   google_contacts:
-    role: preferred_canonical_address_book_after_dedup_migration
-    owns_after_migration:
-      - contact_identity
-      - phone_email_address
-      - birthday_where_appropriate
-      - organization
+    role: preferred_human_facing_address_book_projection_after_people_dedup_migration
+    target_from_people_state:
+      - contact_identity_projection
+      - phone_email_address_projection_when_field_authority_is_verified
+      - birthday_projection_when_appropriate
+      - organization_projection
     current_state: fragmented_with_apple_contacts
+    migration_warning: target_role_does_not_mean_cutover_is_complete
 
   apple_contacts:
-    direction: synced_client_after_google_contacts_migration
+    direction: synced_client_after_people_google_contacts_migration
     avoid: independently_maintained_second_address_book
 
   obsidian:
@@ -161,9 +162,10 @@ systems:
       - person_narrative_notes
       - research_context
     relationship_strategy:
-      canonical_context: obsidian
-      structured_metadata_first: frontmatter
-      backend_projection: only_when_cross_system_automation_justifies_it
+      canonical_narrative_context: obsidian
+      structured_machine_state: neon_after_people_migration
+      stable_person_identity: neon_after_people_migration
+      link_instead_of_copy: true
     current_ai_path:
       github_backup_access: true
       direct_live_local_bridge_verified: false
@@ -178,13 +180,13 @@ systems:
   notion:
     role: transitional_structured_workspace_and_optional_projection
     direction: no_longer_default_canonical_backend
-    current_live_dependencies_may_include:
-      - personal_care_inventory_control_until_product_tracker_runtime_cutover
+    current_live_dependencies_may_include: []
     migration_rule: keep_until_replacement_verified_then_reposition_or_retire_per_domain
     good_future_uses:
       - human_friendly_dashboards
       - optional_views
       - ad_hoc_collaboration
+      - product_tracker_projection_and_rollback
     avoid:
       - new_core_state_that_belongs_in_neon_or_a_domain_service
       - duplicate_jira_or_github_truth
@@ -193,29 +195,34 @@ systems:
   product_tracker:
     repository: zubairmuwwakil/Product_Tracker
     role: specialized_personal_care_inventory_domain_service
-    canonical_database: neon_product_tracker_after_runtime_cutover
+    canonical_database: neon_product_tracker
     current_state:
-      neon_mirror_verified: true
-      notion_control_surface_still_live: true
-      runtime_cutover_complete: false
-      cloudflare_worker_code_committed: true
-      cloudflare_queue_runtime_code_committed: true
-    target_runtime:
+      canonical_cutover_complete: true
+      production_worker_version: 0.4.0
+      notion_inbound_sync_enabled: false
+      notion_role: projection_reference_and_rollback
+      cloudflare_worker_live: true
+      cloudflare_queue_live: true
+      hyperdrive_live: true
+      reliability_status_endpoint_live: true
+      durable_dead_letter_receipts_live: true
+      stable_notion_event_id_hardening_deployed: true
+      post_cutover_observation_active: true
+    runtime:
       api: cloudflare_worker
       async_processing: cloudflare_queue
       reconciliation: cloudflare_scheduled_handler_for_pending_delivery_ledger_only
-      optional_workflows: cloudflare_workflows_when_multi_step_durability_is_justified
       canonical_state: neon_product_tracker_database
       normal_processing: event_driven
-      continuous_database_polling: prohibited_as_target_architecture
-      hyperdrive: evaluate_after_functional_runtime_validation
+      database_connectivity: cloudflare_hyperdrive
+      continuous_database_polling: prohibited
     decision: docs/decisions/2026-09-03-product-tracker-runtime.md
     rules:
       - inventory_changes_are_events
       - stable_keys_beat_titles
       - external_writes_are_idempotent
       - preserve_transactional_outbox_as_durable_publish_intent
-      - notion_becomes_projection_after_verified_cutover
+      - notion_is_projection_after_verified_cutover
 
   vercel:
     role: user_live_web_application_host_for_workloads_where_it_remains_best_fit
@@ -333,8 +340,10 @@ routing:
   scheduled_commitment: google_calendar
   llm4life_machine_state: neon_postgresql
   knowledge_or_reasoning: obsidian
-  relationship_context: obsidian
-  contact_identity: google_contacts_after_migration
+  contact_identity: neon_postgresql_after_people_migration
+  relationship_machine_state: neon_postgresql_after_people_migration
+  relationship_narrative_context: obsidian
+  address_book_client: google_contacts_after_people_migration
   household_maintenance_state: neon_postgresql
   vehicle_maintenance_state: neon_postgresql
   personal_care_inventory: product_tracker
@@ -420,13 +429,26 @@ grocery_and_shopping:
   no_new_paid_list_app_by_default: true
 
 relationships:
-  contact_identity: google_contacts_after_migration
+  decision: docs/decisions/2026-09-03-people-subsystem-architecture.md
+  implementation_contract: docs/PEOPLE.md
+  migration_state: phase_0_documented_implementation_not_started
+  stable_person_identity: neon_postgresql_after_migration
+  structured_machine_state: neon_postgresql_after_migration
   narrative_context: obsidian
-  interaction_context: obsidian
-  structured_operations: obsidian_frontmatter_first
-  follow_up_action: google_tasks
+  interaction_narrative: obsidian
+  address_book_client: google_contacts_after_dedup_migration
+  apple_contacts_role: synced_device_client_after_migration
+  follow_up_action: llm4life_personal_actions
+  task_projection: google_tasks
   scheduled_interaction: google_calendar
-  neon_relationship_tables: not_yet_justified
+  rules:
+    - stable_person_id_not_display_name
+    - conservative_dedup
+    - no_name_only_auto_merge
+    - provenance_required_for_structured_facts
+    - raw_conversation_archival_not_default
+    - sensitive_model_inference_not_silently_persisted
+    - do_not_create_parallel_follow_up_task_backend
 
 health:
   canonical_aggregation: apple_health
@@ -489,9 +511,10 @@ migration:
     note: >-
       Personal planning has cut over to Neon with Google Tasks as the live
       action client. Notion planning data is rollback/reference. Personal-care
-      inventory has a parity-verified Product Tracker mirror in Neon, but
-      Notion remains its live control surface until the Cloudflare Worker/Queue
-      Product Tracker runtime is deployed and verified.
+      inventory has cut over to Product Tracker/Neon with Notion as projection
+      and rollback only. People/Relationships is currently Phase 0: target
+      architecture is documented, but no People Neon schema/contact migration
+      has been completed yet.
 
 change_management:
   on_major_change:
