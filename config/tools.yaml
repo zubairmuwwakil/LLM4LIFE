@@ -33,14 +33,19 @@ core_tools:
       - llm4life_public_architecture
 
   neon:
-    status: partial
+    status: connected
     role: v2_durable_llm4life_machine_state
+    access:
+      project_discovery_verified: true
+      production_schema_read_verified: true
+      production_schema_write_verified: true
     runtime_note: >-
-      Neon organization discovery works, but the only project currently visible
-      to the connector is the existing market-data project. It does not match
-      the intended LLM4LIFE database, so the LLM4LIFE migrations have not been
-      applied by guess. Schema is committed under db/migrations.
-    target_owns:
+      The dedicated llm4life project is connected. The v2 schema was validated
+      on a disposable branch, then explicitly approved and applied to the
+      production branch on 2026-09-02. Production catalog verification confirmed
+      all 15 expected llm4life tables. Live data migration from transitional
+      Notion state is still pending.
+    owns:
       - actions
       - jobs_and_runs
       - events
@@ -210,7 +215,7 @@ canonical_routing_v2:
   email_source_context: gmail
 
 runtime_rules:
-  - target_architecture_does_not_prove_cutover_completed
+  - target_architecture_does_not_prove_live_data_cutover_completed
   - verify_live_connector_before_claiming_access
   - search_before_create
   - use_idempotency_for_repeated_automated_writes
