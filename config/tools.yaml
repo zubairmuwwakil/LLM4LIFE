@@ -1,238 +1,219 @@
-version: 1
-updated: 2026-08-27
+version: 2
+updated: 2026-09-02
+status: migration_in_progress
+
 status_vocabulary:
   connected: direct_runtime_path_verified
-  partial: useful_access_but_missing_desired_end_to_end_path
-  user_live: user_uses_tool_but_current_ai_direct_access_not_verified
+  partial: useful_path_exists_but_required_end_to_end_capability_is_incomplete
+  available_unverified: connector_or_interface_exists_but_was_not_exercised_this_pass
+  user_live: user_uses_tool_but_current_ai_direct_access_is_not_verified
   optional_planned: use_only_when_it_removes_real_friction
-  auxiliary: available_but_not_canonical_domain_owner
+  transitional: currently_live_but_target_ownership_is_moving_elsewhere
+  auxiliary: useful_capability_but_not_canonical_domain_owner
 
 core_tools:
   chatgpt:
     status: connected
-    role: primary_ai_command_and_orchestration_layer
-    users:
-      - user
-      - scheduled_automations
+    role: primary_conversational_control_plane
     owns:
       - orchestration
       - routing
-      - cross_system_planning
+      - connected_tool_execution
     must_not_own:
-      - canonical_personal_backlog
-      - canonical_engineering_backlog
-      - canonical_knowledge_database
-      - canonical_structured_life_state
+      - durable_state_only_in_chat_history
 
   github:
     status: connected
     access:
       read_verified: true
       write_verified: true
-    users:
-      - user
-      - chatgpt
-      - claude
-      - repository_agents
     owns:
       - code
-      - repositories
-      - pull_requests
-      - commits
-      - releases
       - repository_truth
-      - llm4life_policy_repo
-    related_repositories:
-      obsidian_backup: zubairmuwwakil/Obsidian
+      - llm4life_public_architecture
 
-  jira:
+  neon:
+    status: partial
+    role: v2_durable_llm4life_machine_state
+    runtime_note: >-
+      Neon connector is available, but project listing currently requires an
+      organization ID that was not resolved during the initial v2 foundation
+      pass. Schema is committed under db/migrations and has not yet been applied.
+    target_owns:
+      - actions
+      - jobs_and_runs
+      - events
+      - receipts
+      - sync_checkpoints
+      - adaptive_rules
+      - household_and_vehicle_maintenance
+      - shopping_state
+
+  google_tasks:
     status: user_live
+    role: preferred_user_facing_personal_action_client
     direct_chatgpt_connector_verified: false
-    users:
-      - user
-      - engineering_agents_when_connector_available
-    owns:
-      - engineering_bugs
-      - engineering_backlog
-      - technical_work_items
-    rule: verify_jira_or_atlassian_connector_before_claiming_live_access
-
-  things3:
-    status: user_live
-    direct_ai_bridge_verified: false
-    users:
-      - user
-      - ai_planner_when_bridge_exists
-    owns:
-      - personal_backlog
-      - personal_actions
-      - reminders
-      - next_actions
-    preferred_bridge_options:
-      - apple_shortcuts
-      - things_url_scheme
-      - applescript_macos
-      - thin_supported_adapter
-    prohibited_bridge_pattern: direct_private_database_or_cloud_credential_manipulation
+    target_relationship: projection_client_for_neon_action_state
 
   google_calendar:
     status: connected
     access:
       read_verified: true
       write_verified: true
-    users:
-      - user
-      - ai_planner
-      - calendar_followup_automation
-      - daily_digest
     owns:
       - fixed_time_commitments
-      - current_execution_schedule
-      - selected_task_time_blocks
+      - execution_schedule
     does_not_own:
-      - permanent_task_backlog
+      - permanent_general_backlog
 
   notion:
-    status: connected
+    status: transitional
     access:
-      read_verified: true
-      write_verified: true
-    users:
-      - user
-      - chatgpt
-      - scheduled_automations
-    owns:
-      - structured_life_state
-      - personal_operations
-      - inventories
-      - administrative_metadata
+      current_connector: available
+    current_live_roles_may_include:
+      - task_planning_state
+      - task_execution_log
+      - scheduling_model
+      - shopping_needs
       - ai_activity_log
-    avoid:
-      - duplicate_jira_backlog
-      - duplicate_github_truth
-      - deep_knowledge_better_owned_by_obsidian
-      - core_financial_calculation_state
+    target_role:
+      - optional_dashboard
+      - optional_projection
+      - ad_hoc_structured_workspace
+    migration_rule: do_not_remove_live_dependency_until_replacement_is_verified
+
+  things3:
+    status: user_live
+    target_role: legacy_or_optional_task_ux
+    direct_ai_bridge_verified: false
+    v2_canonical: false
 
   obsidian:
     status: partial
-    users:
-      - user
-      - chatgpt
-      - claude
-      - knowledge_agents
-    owns:
-      - durable_personal_knowledge
-      - reasoning
-      - learning
-      - para_context
-      - long_form_notes
-      - retrieval_prompts
-      - mistake_logs
+    role: canonical_narrative_knowledge_and_relationship_context
     current_ai_path:
       github_backup_repo_access: true
       direct_live_local_vault_bridge_verified: false
-    policy:
-      autonomous_read_write_authorized: true
-      merge_rewrite_authorized: true
-      conversation_capture_authorized: true
-      learning_contract_overrides_frictionless_automation: true
+    preferred_future_path: trusted_local_bridge
 
-  slack:
-    status: connected
-    access:
-      read_verified: true
-      write_capability_exposed: true
-      write_verified_in_documentation_pass: false
-    users:
-      - user
-      - chatgpt
-      - work_agents
-    owns:
-      - work_communication
-      - engineering_communication
-      - work_notification_surface
-    does_not_own:
-      - durable_task_backlog
+  google_contacts:
+    status: available_unverified
+    role: preferred_canonical_address_book_after_dedup_migration
+    current_state: fragmented_with_apple_contacts
 
-  discord:
+  apple_contacts:
     status: user_live
-    direct_chatgpt_connector_verified: false
-    users:
-      - user
-      - integration_agent_if_bridge_deployed
-    owns:
-      - personal_communication
-      - desired_personal_notification_surface
-    candidate_bridge:
-      - openclaw
-      - thin_custom_channel_bridge
+    role: current_address_book_client
+    target_role: synced_client_after_google_contacts_migration
+
+  jira:
+    status: available_unverified
+    role: canonical_engineering_backlog
+    connector: atlassian_rovo
+    rule: harmless_read_before_claiming_live_access_when_task_depends_on_it
+
+  orc:
+    status: external_specialist
+    repository: zubairmuwwakil/agent-orchestrator
+    role: coding_agent_orchestration
 
   gmail:
     status: connected
-    access:
-      account_read_verified: true
-      connector_write_actions_exposed: true
-      all_write_actions_tested: false
-    users:
-      - user
-      - daily_digest
-      - ai_planner
-      - chatgpt
-    owns:
-      - email_intake
-      - source_context
-    rule: route_actions_and_structured_state_to_their_canonical_systems
+    role: email_and_intake_source
+    rule: route_durable_actions_and_state_to_domain_owner
 
-agents:
-  claude:
-    status: external_specialist
-    role: coding_heavy_agent
-    instructions: read_CLAUDE_md_then_AGENTS_md
-  github_copilot_or_codex_style_agents:
-    status: repository_agents
-    role: repository_local_assistance
-    instructions: follow_github_copilot_instructions_and_AGENTS_md
+  slack:
+    status: connected
+    role: work_communication_and_automation_surface
+
+  discord:
+    status: user_live
+    role: preferred_historical_personal_ai_channel
+    direct_chatgpt_connector_verified: false
+    candidate_bridge:
+      - openclaw
+      - thin_custom_bridge
+
+  whatsapp:
+    status: user_live
+    role: personal_communication_source_and_optional_ai_channel
+    direct_runtime_path: verify_before_use
+
+  imessage:
+    status: user_live
+    role: personal_communication_source
+    likely_bridge: trusted_local_mac_bridge
+
   openclaw:
     status: optional_planned
-    role: channel_and_custom_integration_plumbing
+    role: channel_and_local_integration_plumbing
     rule: not_a_database_and_not_a_second_policy_authority
-  chatgpt_automations:
-    status: connected
-    role: scheduled_and_conditional_orchestration
-    registry: config/automations.yaml
 
-auxiliary_capabilities:
   google_drive:
     status: auxiliary
-    role: connected_document_and_file_source_when_task_requires_it
-  google_contacts:
-    status: auxiliary
-    role: recipient_and_attendee_resolution
-  namecheap:
-    status: auxiliary
-    role: domain_utility
-  apple_music:
-    status: auxiliary
-    role: personal_media_utility
+    role: preferred_canonical_cloud_file_store
 
-canonical_routing:
-  personal_action: things3
-  personal_backlog: things3
-  engineering_bug: jira
+  onedrive:
+    status: user_live
+    role: secondary_or_exception_file_store_pending_audit
+
+  apple_health:
+    status: user_live
+    role: health_aggregation
+    llm4life_copy_policy: no_by_default
+
+  inunity:
+    status: domain_application
+    role: consolidated_user_owned_financial_system
+
+  pickme:
+    status: domain_application
+    role: card_decision_and_purchase_capture
+    data_direction: inunity
+
+  marketlens:
+    status: domain_application
+    role: market_data_service
+    data_direction: inunity
+
+agents:
+  chatgpt:
+    role: primary_life_control_plane
+  claude_code:
+    role: coding_worker_or_specialist
+    preferred_routing: orc_when_practical
+  codex:
+    role: coding_worker
+    preferred_routing: orc_when_practical
+  gemini:
+    role: complementary_ai_and_browser_assistant
+  github_copilot:
+    role: coding_assistant
+  chatgpt_automations:
+    role: current_scheduled_execution_surface
+    durable_future_state: neon_jobs_and_job_runs
+
+canonical_routing_v2:
+  personal_action_backend: neon
+  personal_action_client: google_tasks
   engineering_backlog: jira
-  code_or_repository_truth: github
+  code_repository_truth: github
+  coding_orchestration: orc
   scheduled_execution: google_calendar
-  structured_life_state: notion
-  knowledge_or_reasoning: obsidian
+  llm4life_machine_state: neon
+  narrative_knowledge: obsidian
+  contact_identity_after_migration: google_contacts
+  relationship_context: obsidian
+  finance_consolidated: inunity
   work_communication: slack
-  personal_communication: discord
   email_source_context: gmail
-  orchestration: chatgpt
 
 runtime_rules:
-  - authorized_by_policy_does_not_mean_connected_right_now
+  - target_architecture_does_not_prove_cutover_completed
   - verify_live_connector_before_claiming_access
   - search_before_create
+  - use_idempotency_for_repeated_automated_writes
   - link_instead_of_duplicate
   - preserve_provenance
   - public_repo_must_not_contain_sensitive_private_state
+  - do_not_disable_transitional_notion_automation_until_neon_replacement_is_verified
