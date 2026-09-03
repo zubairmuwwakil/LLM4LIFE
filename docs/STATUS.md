@@ -2,11 +2,11 @@
 
 _Last updated: 2026-09-03_
 
-This file describes **what is actually live now**. Target ownership is defined by `config/domains.yaml` and `system.yaml`.
+This file describes **what is actually live now**. Target ownership is defined by `config/domains.yaml`, `system.yaml`, and `docs/LONG_TERM_ROADMAP.md`.
 
 ## Headline
 
-The v2 Neon backend is live, personal action/planning state is canonical in Neon, Google Tasks is **production-live on Worker v0.2.0**, and the personal-care inventory domain now has a **parity-verified Product Tracker mirror in Neon**.
+The v2 Neon backend is live, personal action/planning state is canonical in Neon, Google Tasks is **production-live on Worker v0.2.0**, and the personal-care inventory domain has a **parity-verified Product Tracker mirror in Neon**.
 
 Implemented and verified:
 
@@ -20,7 +20,7 @@ Implemented and verified:
 - 26 active Products mirrored from Notion;
 - 26 balances and 26 baseline inventory events imported atomically;
 - zero orphan product/balance records and zero baseline-vs-balance mismatches;
-- Product Tracker server/worker refactored to support a single free web-service process without abandoning the transactional outbox;
+- Product Tracker runtime target revised to Vercel + event-driven durable async processing; hosted runtime cutover remains pending;
 - InUnity ChatGPT MCP integration completed and recently read-verified.
 
 ## Canonical planning runtime
@@ -55,23 +55,29 @@ Neon/PostgreSQL actions ---+
 
 LLM4LIFE's generic `shopping_items` model is appropriate for ordinary lists, but personal-care inventory needs richer domain semantics: stable Need/SKU identity, current backup/open-unit balances, append-only inventory events, reorder policy, derived urgency, Notion reconciliation, and idempotent agent writes.
 
-Therefore:
+Therefore the target ownership is:
 
 ```text
-Notion Shopping Needs / Products
-          |  transitional control surface
-          v
- Product Tracker domain service
-          |
-          v
+ChatGPT / clients / Notion webhook
+             |
+             v
+      Product Tracker API
+             |
+             v
 Neon project: llm4life
 Database: product_tracker
   InventoryNeed
   Product
   InventoryBalance
   InventoryEvent
-  OutboxEvent
+  Outbox/dispatch metadata
   WebhookReceipt
+             |
+             v
+ durable async projection/retry
+             |
+             v
+ Notion projection / future clients
 ```
 
 The database mirror is live and verified, but **this is intentionally not the write cutover yet**.
@@ -90,18 +96,34 @@ The 25/26 relationship is expected: one functional Need has two active Product/S
 
 Product Tracker's derived inventory rules currently classify the mirrored Needs as 5 `BUY_NOW`, 1 `RESTOCK`, and 19 `STOCKED`. Notion's visible `Alert State` is not used as canonical truth; urgency is recalculated from balances and policy.
 
+### Product Tracker runtime target
+
+The adopted target is **Vercel Functions + Neon + durable Vercel queue/workflow-style event processing**, not a permanent Render/polling worker design.
+
+The existing polling loop may remain temporarily during refactoring, but the target normal path is event-driven:
+
+1. API/webhook receives an event;
+2. Neon transaction records canonical state/event + durable work intent;
+3. durable async consumer performs external projection/side effects;
+4. retry is idempotent;
+5. reconciliation handles missed external events/drift.
+
+Do not use frequent Vercel Hobby Cron simply to emulate a long-running worker.
+
+See `docs/decisions/2026-09-03-product-tracker-runtime.md`.
+
 ### Inventory cutover gate
 
 Notion remains the live personal-care control/source surface until the hosted Product Tracker runtime passes all of these checks:
 
-1. `/health` succeeds and reports the expected worker mode;
+1. `/health` succeeds;
 2. authenticated `GET /v1/needs` matches the Neon mirror;
-3. a Notion webhook reaches `POST /webhooks/notion` and is processed from `WebhookReceipt`;
-4. an outbox projection succeeds back to Notion;
-5. retry/idempotency behavior does not duplicate inventory events;
-6. only then route all human/agent inventory mutations through Product Tracker and make Notion projection/rollback-only.
-
-Product Tracker now supports `RUN_WORKER_IN_PROCESS=true`, allowing the API + webhook inbox + outbox loop to run in one service for a free-first deployment. The standalone worker entrypoint remains available for a future dedicated worker.
+3. an API mutation records exactly one durable inventory event under retries;
+4. a Notion webhook reaches the service, authenticates, deduplicates, and is processed;
+5. durable async projection succeeds back to Notion or another target;
+6. retry/idempotency behavior does not duplicate inventory events or side effects;
+7. reconciliation can detect/recover missed events or drift;
+8. only then route all human/agent inventory mutations through Product Tracker and make Notion projection/rollback-only.
 
 The production schema was initialized before Prisma migration history existed. Before any normal production `prisma migrate deploy`, run the repository's one-time `npm run db:baseline` command against the `product_tracker` production database.
 
@@ -146,7 +168,8 @@ Legacy Calendar events remain compatible:
 | Google Tasks | **Production-live v0.2.0** | Human action client/projection; Neon remains canonical |
 | Cloudflare | **Production-live Worker runtime** | Google Tasks sync every 15 minutes |
 | Google Calendar | Connected | Execution schedule and commitments |
-| Product Tracker | **Production mirror live; hosted runtime pending** | Target personal-care inventory domain owner; do not cut Notion writes yet |
+| Product Tracker | **Production mirror live; hosted runtime pending** | Target personal-care inventory owner; Vercel/event-driven runtime not yet deployed/verified |
+| Vercel | User stack / target runtime for Product Tracker | Do not claim Product Tracker runtime live until deployment is verified |
 | Notion | Transitional | Planning is rollback-only; personal-care inventory remains live control until Product Tracker runtime verification |
 | InUnity | **MCP integration complete / recently read-verified** | Consolidated finance system |
 | Gmail | Connected capability | Email/source context and supported actions |
@@ -159,15 +182,19 @@ Legacy Calendar events remain compatible:
 
 ## Next implementation priorities
 
-### P0 — Deploy and verify Product Tracker runtime
+### P0 — Refactor and deploy Product Tracker runtime
 
-1. record the existing production migration with `npm run db:baseline` once;
-2. deploy the committed single-service free-first runtime (Render Blueprint currently prepared);
-3. configure Neon + Notion secrets outside Git;
-4. verify `/health` and authenticated `/v1/needs`;
-5. configure and verify Notion webhook delivery;
-6. verify webhook inbox + outbox reconciliation and idempotency;
-7. then cut personal-care inventory writes over to Product Tracker and demote Notion to projection/rollback.
+1. fix the current Product Tracker CI dependency/audit issue without bypassing the security gate;
+2. record the existing production migration with `npm run db:baseline` once;
+3. make the Fastify API Vercel-compatible while keeping domain logic portable;
+4. replace normal infinite polling with durable Vercel async queue/workflow consumers;
+5. preserve a DB outbox/dispatch record where needed to avoid a transaction-vs-publish dual-write race;
+6. deploy to Vercel using secrets outside Git;
+7. verify `/health` and authenticated `/v1/needs`;
+8. verify API mutation idempotency;
+9. verify Notion webhook ingestion/deduplication;
+10. verify async projection/retries and reconciliation;
+11. then cut personal-care inventory writes over to Product Tracker and demote Notion to projection/rollback.
 
 ### P1 — Remaining Notion cleanup
 
@@ -192,6 +219,8 @@ Deduplicate Apple + Google Contacts before making Google Contacts canonical.
 ### P1 — Household operations
 
 Populate generic household/vehicle asset + maintenance state in LLM4LIFE; keep personal-care inventory inside Product Tracker rather than flattening it into generic shopping rows.
+
+See `docs/LONG_TERM_ROADMAP.md` for the complete long-term sequence beyond these immediate priorities.
 
 ## Scheduling runtime
 
