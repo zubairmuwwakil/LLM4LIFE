@@ -1,6 +1,6 @@
 # Routing
 
-_Last updated: 2026-09-02_
+_Last updated: 2026-09-03_
 
 ## Goal
 
@@ -17,8 +17,11 @@ The user should be able to speak naturally from practical entry points. LLM4LIFE
 | Coding-agent work | ORC |
 | LLM4LIFE machine/automation state | Neon/PostgreSQL |
 | Knowledge, reasoning, learning | Obsidian |
-| Relationship/person context | Obsidian |
-| Contact phone/email/address identity | Google Contacts after migration |
+| Stable person identity / structured People state | Neon **target after People migration** |
+| Relationship narrative / reflections | Obsidian |
+| Address-book UI | Google Contacts **after People/contact dedup cutover** |
+| Relationship follow-up | Existing Neon personal action -> Google Tasks |
+| Scheduled interaction | Google Calendar |
 | Household/vehicle maintenance state | Neon/PostgreSQL |
 | Grocery/shopping-list state | Neon/PostgreSQL |
 | Consolidated finance state | InUnity |
@@ -27,7 +30,7 @@ The user should be able to speak naturally from practical entry points. LLM4LIFE
 | Email source/intake | Gmail |
 | Personal communication | originating/provider channel |
 
-See `config/domains.yaml` for full ownership.
+See `config/domains.yaml` for full ownership and `docs/PEOPLE.md` for People-specific rules.
 
 ## Routing algorithm
 
@@ -58,18 +61,26 @@ Do not reconstruct canonical task state from Calendar alone.
 
 Engineering work remains in Jira, not in the personal-action backend unless there is a genuinely separate personal reminder that links to the Jira item.
 
-## Relationship information
+## People and relationship information
 
-Route different parts of a person to different owners:
+The People target is a split between structured machine state and narrative context:
 
 ```text
-phone/email/address/birthday -> Google Contacts
-relationship context         -> Obsidian
-follow-up action             -> personal actions / Google Tasks
-scheduled interaction        -> Google Calendar
+stable person_id / external refs ------> Neon (after People migration)
+structured relationship state --------> Neon (after People migration)
+structured facts + provenance --------> Neon (after People migration)
+relationship narrative/reflections ---> Obsidian
+address-book human UI ----------------> Google Contacts after dedup/cutover
+follow-up action ----------------------> Neon personal action -> Google Tasks
+scheduled interaction ----------------> Google Calendar
+communication evidence ---------------> originating provider; link, do not archive wholesale
 ```
 
-Do not turn the Google Contacts notes field or Neon into a dump of relationship narrative.
+**Runtime warning:** People is currently Phase 0 documentation. Apple/Google Contacts remain fragmented and the People Neon schema has not been implemented yet. Do not route live writes to a nonexistent backend merely because the target is documented.
+
+When the People runtime is built, resolve a person by stable ID/external refs before fuzzy signals. Same-name-only auto-merge is prohibited.
+
+Do not turn Google Contacts notes, Neon JSON blobs, or Obsidian into competing copies of the same relationship narrative.
 
 ## Provider/edge apps
 
@@ -86,18 +97,23 @@ Avoid:
 - Calendar event treated as a permanent task record;
 - Notion manually duplicating Neon/Jira/GitHub state;
 - relationship narrative copied into Contacts + Obsidian + database;
+- one person duplicated because names differ slightly across sources;
+- two different people merged because their names match;
 - bank/provider state copied into LLM4LIFE merely for dashboard completeness.
 
 ## Migration routing rule
 
 During v2 migration, a target owner may not yet be live.
 
-When the current workflow still relies on a transitional source such as Notion:
+When the current workflow still relies on a transitional source:
 
 - use the current live source when required to keep the workflow functioning;
 - do not create new architectural dependence on it unnecessarily;
 - migrate/reconcile the domain deliberately;
-- do not silently dual-write indefinitely.
+- do not silently dual-write indefinitely;
+- preserve external IDs and rollback.
+
+For People specifically, read-only inventory and dedup analysis comes before canonical import or contact-provider mutation.
 
 ## Event-driven behavior
 
