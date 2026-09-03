@@ -34,6 +34,7 @@ architecture:
   durable_machine_state: neon_postgresql
   narrative_knowledge: obsidian
   coding_orchestration: orc
+  shared_event_runtime: cloudflare
   engineering_truth:
     backlog: jira
     code: github
@@ -95,6 +96,26 @@ systems:
       - health_records_by_default
       - financial_credentials
       - provider_owned_official_records
+
+  cloudflare:
+    role: preferred_shared_edge_and_event_runtime_for_llm4life_backends_when_workload_fits
+    live:
+      - google_tasks_projection_worker
+    target_additions:
+      - product_tracker_http_ingress
+      - product_tracker_queue_delivery
+      - product_tracker_reconciliation_trigger
+    primitives:
+      workers: http_compute_and_event_handlers
+      queues: durable_async_delivery_retries_and_batching
+      workflows: optional_for_future_multi_step_durable_processes_only_when_justified
+      hyperdrive: optional_future_postgres_connection_optimization
+    boundary: runtime_not_canonical_data_owner
+    rules:
+      - do_not_move_domain_truth_out_of_neon_merely_to_use_cloudflare
+      - do_not_recreate_infinite_polling_loops_inside_workers
+      - queue_delivery_is_at_least_once_so_handlers_must_be_idempotent
+      - scheduled_reconciliation_may_scan_only_durable_pending_delivery_state_when_possible
 
   google_tasks:
     role: preferred_user_facing_personal_action_client
@@ -177,27 +198,30 @@ systems:
       neon_mirror_verified: true
       notion_control_surface_still_live: true
       runtime_cutover_complete: false
+      cloudflare_worker_code_committed: true
+      cloudflare_queue_runtime_code_committed: true
     target_runtime:
-      api: vercel_functions
-      async_processing: vercel_queue_or_workflow_primitive
+      api: cloudflare_worker
+      async_processing: cloudflare_queue
+      reconciliation: cloudflare_scheduled_handler_for_pending_delivery_ledger_only
+      optional_workflows: cloudflare_workflows_when_multi_step_durability_is_justified
       canonical_state: neon_product_tracker_database
       normal_processing: event_driven
-      frequent_cron_polling: prohibited_as_target_architecture
+      continuous_database_polling: prohibited_as_target_architecture
+      hyperdrive: evaluate_after_functional_runtime_validation
     decision: docs/decisions/2026-09-03-product-tracker-runtime.md
     rules:
       - inventory_changes_are_events
       - stable_keys_beat_titles
       - external_writes_are_idempotent
-      - preserve_transactional_outbox_or_equivalent_atomicity
+      - preserve_transactional_outbox_as_durable_publish_intent
       - notion_becomes_projection_after_verified_cutover
 
   vercel:
-    role: preferred_existing_serverless_runtime_for_product_tracker_and_appropriate_web_workloads
+    role: user_live_web_application_host_for_workloads_where_it_remains_best_fit
     boundary: runtime_not_canonical_data_owner
-    adoption_rule: use_when_workload_fits_serverless_event_driven_model
-    avoid:
-      - preserving_infinite_polling_loops_as_architectural_requirement
-      - frequent_hobby_cron_as_worker_emulation
+    product_tracker_target: false
+    adoption_rule: evaluate_project_by_project_under_nothing_is_grandfathered_policy
 
   things3:
     role: legacy_or_optional_task_ux
@@ -368,7 +392,9 @@ jobs:
   execution_may_use:
     - chatgpt_automations
     - cloudflare_workers
-    - vercel_functions_queues_or_workflows
+    - cloudflare_queues
+    - cloudflare_workflows_when_multi_step_durability_is_justified
+    - vercel_functions_for_workloads_where_they_remain_best_fit
     - cron_when_frequency_and_platform_fit
     - dedicated_worker_when_justified
     - github_actions_for_repository_ci_only
@@ -464,7 +490,7 @@ migration:
       Personal planning has cut over to Neon with Google Tasks as the live
       action client. Notion planning data is rollback/reference. Personal-care
       inventory has a parity-verified Product Tracker mirror in Neon, but
-      Notion remains its live control surface until the Vercel/event-driven
+      Notion remains its live control surface until the Cloudflare Worker/Queue
       Product Tracker runtime is deployed and verified.
 
 change_management:
