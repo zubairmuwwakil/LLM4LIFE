@@ -39,14 +39,17 @@ core_tools:
       project_discovery_verified: true
       production_schema_read_verified: true
       production_schema_write_verified: true
+      personal_action_data_read_verified: true
+      personal_action_data_write_verified: true
     runtime_note: >-
       The dedicated llm4life project is connected. The v2 schema was validated
-      on a disposable branch, then explicitly approved and applied to the
-      production branch on 2026-09-02. Production catalog verification confirmed
-      all 15 expected llm4life tables. Live data migration from transitional
-      Notion state is still pending.
+      on a disposable branch and applied to production. On 2026-09-02 the full
+      transitional Notion task snapshot (15 actions) and Task Execution Log (2
+      executions) were imported with parity verification and stable external
+      references. The live planning automations now treat Neon as canonical.
     owns:
       - actions
+      - action_executions
       - jobs_and_runs
       - events
       - receipts
@@ -59,7 +62,9 @@ core_tools:
     status: user_live
     role: preferred_user_facing_personal_action_client
     direct_chatgpt_connector_verified: false
+    installed_plugin_found: false
     target_relationship: projection_client_for_neon_action_state
+    integration_gap: thin_official_google_tasks_api_oauth_adapter_required
 
   google_calendar:
     status: connected
@@ -76,17 +81,19 @@ core_tools:
     status: transitional
     access:
       current_connector: available
-    current_live_roles_may_include:
-      - task_planning_state
+    planning_role: rollback_reference_only
+    still_live_domains:
+      - shopping_needs_until_migrated
+    migrated_planning_sources:
+      - tasks
       - task_execution_log
       - scheduling_model
-      - shopping_needs
-      - ai_activity_log
+      - ai_activity_log_no_longer_live_audit_target
     target_role:
       - optional_dashboard
       - optional_projection
       - ad_hoc_structured_workspace
-    migration_rule: do_not_remove_live_dependency_until_replacement_is_verified
+    rule: do_not_write_migrated_planning_state_as_canonical
 
   things3:
     status: user_live
@@ -197,11 +204,11 @@ agents:
     role: coding_assistant
   chatgpt_automations:
     role: current_scheduled_execution_surface
-    durable_future_state: neon_jobs_and_job_runs
+    durable_state: neon_actions_executions_rules_and_receipts
 
 canonical_routing_v2:
   personal_action_backend: neon
-  personal_action_client: google_tasks
+  personal_action_client: google_tasks_when_adapter_exists
   engineering_backlog: jira
   code_repository_truth: github
   coding_orchestration: orc
@@ -215,11 +222,12 @@ canonical_routing_v2:
   email_source_context: gmail
 
 runtime_rules:
-  - target_architecture_does_not_prove_live_data_cutover_completed
+  - neon_is_canonical_for_personal_action_state_after_2026_09_02_cutover
+  - notion_planning_databases_are_rollback_reference_not_live_write_targets
   - verify_live_connector_before_claiming_access
   - search_before_create
   - use_idempotency_for_repeated_automated_writes
   - link_instead_of_duplicate
   - preserve_provenance
   - public_repo_must_not_contain_sensitive_private_state
-  - do_not_disable_transitional_notion_automation_until_neon_replacement_is_verified
+  - if_neon_unavailable_do_not_silently_fallback_to_notion_task_writes
