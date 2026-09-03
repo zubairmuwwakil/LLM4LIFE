@@ -1,0 +1,38 @@
+name: Architecture Docs CI
+
+on:
+  push:
+    paths:
+      - "AGENTS.md"
+      - "README.md"
+      - "system.yaml"
+      - "config/**/*.yaml"
+      - "docs/**/*.md"
+      - "scripts/validate_architecture_docs.py"
+      - ".github/workflows/architecture-docs-ci.yml"
+  pull_request:
+    paths:
+      - "AGENTS.md"
+      - "README.md"
+      - "system.yaml"
+      - "config/**/*.yaml"
+      - "docs/**/*.md"
+      - "scripts/validate_architecture_docs.py"
+      - ".github/workflows/architecture-docs-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install validator dependency
+        run: python -m pip install --disable-pip-version-check PyYAML==6.0.2
+      - name: Validate architecture docs and config
+        run: python scripts/validate_architecture_docs.py
