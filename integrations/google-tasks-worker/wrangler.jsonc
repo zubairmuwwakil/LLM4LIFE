@@ -1,7 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "llm4life-google-tasks-sync",
-  "main": "src/index.js",
+  "main": "src/entry.js",
   "compatibility_date": "2026-09-02",
   "triggers": {
     "crons": ["*/15 * * * *"]
