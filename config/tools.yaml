@@ -42,10 +42,9 @@ core_tools:
       personal_action_data_read_verified: true
       personal_action_data_write_verified: true
     runtime_note: >-
-      The dedicated llm4life project is connected. Personal actions are canonical
-      in the llm4life schema. A separate product_tracker database now hosts the
-      parity-verified personal-care inventory mirror so domain-specific inventory
-      semantics do not get flattened into generic shopping_items.
+      Personal actions are canonical in the llm4life schema. A separate
+      product_tracker database hosts the parity-verified personal-care inventory
+      mirror and will remain canonical after Product Tracker runtime cutover.
     owns:
       - actions
       - action_executions
@@ -58,69 +57,58 @@ core_tools:
       - general_shopping_state
       - database_hosting_for_product_tracker
 
+  cloudflare:
+    status: connected
+    role: preferred_shared_edge_and_event_runtime_for_fitting_llm4life_backends
+    user_stack: existing
+    chatgpt_app_connection: enabled_by_user
+    current_session_namespace_visible: false
+    live_runtime:
+      google_tasks_worker:
+        name: llm4life-google-tasks-sync
+        worker_version: 0.2.0
+        schedule: every_15_minutes
+        sync_verified: true
+    product_tracker_target:
+      implementation_status: code_committed_ci_green_deployment_pending
+      worker: llm4life-product-tracker
+      http_runtime: cloudflare_worker
+      async_runtime: cloudflare_queue
+      queue: llm4life-product-tracker-events
+      reconciliation: scheduled_handler_every_5_minutes_for_pending_delivery_ledger_only
+      workflows: optional_future_only_when_multi_step_durability_is_justified
+      hyperdrive: evaluate_after_functional_runtime_validation
+      canonical_backend: neon_product_tracker_database
+      direct_chatgpt_deployment_available_this_session: false
+    boundary: runtime_not_canonical_data_owner
+
   google_tasks:
     status: connected
     role: preferred_user_facing_personal_action_client
     direct_chatgpt_connector_verified: false
-    installed_plugin_found: false
     target_relationship: projection_and_authorized_capture_client_for_neon_action_state
     adapter:
-      code_committed: true
       path: integrations/google-tasks-worker
       runtime: cloudflare_worker
-      schedule: every_15_minutes
       deployment_status: production_live
+      worker_version: 0.2.0
+      schedule: every_15_minutes
       oauth_status: complete
       canonical_backend: neon
       calendar_time_owner: google_calendar
       deletion_rule: google_task_deletion_never_deletes_canonical_neon_action
       production_verified:
-        worker_version: 0.2.0
         successful_manual_sync: true
         successful_cron_sync: true
         google_task_external_refs: 14
         google_sync_checkpoints: 2
-        latest_checkpoint_records_worker_version: true
-      hardening:
-        current_live_worker: v0.2.0
-        neon_sql_transaction_batching: true
-        google_tasks_multipart_batching: true
-        incremental_updated_min_reads: true
-        overlap_minutes: 5
-    note: >-
-      The first v0.1 bulk production projection exceeded Cloudflare Free's 50
-      external-subrequest limit after partially completing safely. Worker v0.2.0
-      is now deployed and verified through manual and scheduled syncs.
-
-  cloudflare:
-    status: connected
-    role: edge_worker_runtime_for_google_tasks_projection
-    user_stack: existing
-    chatgpt_app_connection: enabled_by_user
-    current_session_namespace_visible: false
-    live_runtime:
-      worker: llm4life-google-tasks-sync
-      worker_version: 0.2.0
-      workers_dev_url_enabled: true
-      schedule: every_15_minutes
-      google_tasks_sync_verified: true
-      manual_and_cron_v0_2_verified: true
 
   vercel:
     status: user_live
-    role: preferred_existing_serverless_runtime_for_product_tracker_and_fitting_web_workloads
-    current_product_tracker_runtime_live: false
-    target_product_tracker_runtime:
-      api: vercel_functions
-      async_processing: vercel_queue_or_workflow_primitive
-      canonical_backend: neon_product_tracker_database
-      normal_processing: event_driven
-      frequent_hobby_cron_polling: false
+    role: web_application_host_for_workloads_where_it_remains_best_fit
+    product_tracker_target: false
     boundary: runtime_not_canonical_data_owner
-    note: >-
-      Product Tracker has not yet been deployed/verified on Vercel. The target
-      deliberately replaces the old permanent polling-worker assumption with an
-      event-driven async runtime while keeping Neon canonical.
+    adoption_rule: evaluate_project_by_project_under_nothing_is_grandfathered_policy
 
   google_calendar:
     status: connected
@@ -140,11 +128,6 @@ core_tools:
     planning_role: rollback_reference_only
     still_live_domains:
       - personal_care_inventory_control_until_product_tracker_runtime_cutover
-    migrated_planning_sources:
-      - tasks
-      - task_execution_log
-      - scheduling_model
-      - ai_activity_log_no_longer_live_audit_target
     target_role:
       - optional_dashboard
       - inventory_projection_after_product_tracker_cutover
@@ -181,26 +164,30 @@ core_tools:
       stable_product_keys: true
       event_based_inventory_mutations: true
       derived_urgency: true
-      transactional_outbox_or_equivalent_atomic_dispatch_required: true
+      transactional_outbox_required_as_durable_publish_intent: true
       generic_llm4life_shopping_items_are_not_personal_care_canonical: true
     runtime:
-      hosted_service_status: pending_vercel_refactor_deployment_and_verification
-      target_api_runtime: vercel_functions
-      target_async_runtime: vercel_queue_or_workflow_primitive
+      hosted_service_status: cloudflare_code_ready_deployment_and_verification_pending
+      target_api_runtime: cloudflare_worker
+      target_async_runtime: cloudflare_queue
+      reconciliation_runtime: cloudflare_scheduled_handler
       normal_processing_target: event_driven
-      old_in_process_worker: transitional_only
-      dedicated_worker_path: transitional_or_future_option_if_justified
-      notion_webhook_path_requires_verification: true
-      frequent_cron_polling_target: false
+      continuous_database_polling_target: false
+      ci:
+        prisma_validate: passed
+        prisma_migrate_test: passed
+        dependency_audit: passed
+        typecheck_and_tests: passed
+        wrangler_dry_run: passed
+      notion_webhook_path_requires_live_verification: true
     cutover_gate:
       notion_remains_live_control_surface: true
       postgres_authoritative_writes: false
-      require_hosted_health_read_mutation_webhook_async_projection_reconciliation_verification: true
+      require_health_read_mutation_webhook_queue_projection_reconciliation_dlq_verification: true
     note: >-
-      The data mirror is exact and live, but this is intentionally not a write
-      cutover yet. Refactor/deploy/verify the Vercel event-driven runtime first;
-      only then make Product Tracker/Neon authoritative and demote Notion to
-      projection/rollback.
+      The Neon mirror is exact and the Cloudflare Worker/Queue implementation is
+      committed and CI-green, but this is intentionally not a write cutover yet.
+      Deploy and verify the Cloudflare runtime before demoting Notion.
 
   things3:
     status: user_live
@@ -230,7 +217,6 @@ core_tools:
     status: available_unverified
     role: canonical_engineering_backlog
     connector: atlassian_rovo
-    rule: harmless_read_before_claiming_live_access_when_task_depends_on_it
 
   orc:
     status: external_specialist
@@ -240,7 +226,6 @@ core_tools:
   gmail:
     status: connected
     role: email_and_intake_source
-    rule: route_durable_actions_and_state_to_domain_owner
 
   slack:
     status: connected
@@ -248,16 +233,12 @@ core_tools:
 
   discord:
     status: user_live
-    role: preferred_historical_personal_ai_channel
+    role: personal_communication_and_historical_ai_channel
     direct_chatgpt_connector_verified: false
-    candidate_bridge:
-      - openclaw
-      - thin_custom_bridge
 
   whatsapp:
     status: user_live
     role: personal_communication_source_and_optional_ai_channel
-    direct_runtime_path: verify_before_use
 
   imessage:
     status: user_live
@@ -290,10 +271,6 @@ core_tools:
       recent_read_verified: true
       verified_operation: get_attention_summary
       current_session_namespace_visible: false
-    runtime_note: >-
-      The ChatGPT MCP integration has been completed and successfully exercised.
-      Re-verify the namespace before a task that needs a live call when it is not
-      surfaced in the current session.
 
   pickme:
     status: domain_application
@@ -328,7 +305,7 @@ canonical_routing_v2:
   personal_action_projection_runtime: cloudflare_worker
   personal_care_inventory_current_control: notion_until_product_tracker_runtime_cutover
   personal_care_inventory_target_owner: product_tracker_on_neon
-  personal_care_inventory_target_runtime: vercel_event_driven
+  personal_care_inventory_target_runtime: cloudflare_worker_and_queue
   engineering_backlog: jira
   code_repository_truth: github
   coding_orchestration: orc
@@ -349,9 +326,10 @@ runtime_rules:
   - google_tasks_is_live_projection_and_authorized_capture_client_not_canonical_backend
   - google_task_deletion_must_not_delete_canonical_neon_action
   - google_calendar_remains_time_of_day_execution_owner
-  - google_tasks_worker_bulk_io_uses_batching_to_respect_cloudflare_free_subrequest_limits
   - product_tracker_neon_mirror_does_not_equal_inventory_write_cutover
-  - product_tracker_target_runtime_is_vercel_event_driven_not_render_polling
+  - product_tracker_target_runtime_is_cloudflare_worker_queue_with_neon_canonical
+  - cloudflare_queue_delivery_is_at_least_once_so_product_tracker_handlers_must_be_idempotent
+  - product_tracker_scheduled_relay_is_reconciliation_not_normal_polling
   - notion_personal_care_inventory_remains_live_until_product_tracker_runtime_is_verified
   - personal_care_inventory_mutations_must_use_product_tracker_domain_events_after_cutover
   - do_not_flatten_personal_care_inventory_into_generic_shopping_items
