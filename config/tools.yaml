@@ -75,22 +75,24 @@ core_tools:
       calendar_time_owner: google_calendar
       deletion_rule: google_task_deletion_never_deletes_canonical_neon_action
       production_verified:
+        worker_version: 0.2.0
         successful_manual_sync: true
         successful_cron_sync: true
         google_task_external_refs: 14
         google_sync_checkpoints: 2
+        latest_checkpoint_records_worker_version: true
       hardening:
-        current_live_worker: v0.1
-        v0_2_committed_pending_redeploy: true
+        current_live_worker: v0.2.0
         neon_sql_transaction_batching: true
         google_tasks_multipart_batching: true
         incremental_updated_min_reads: true
         overlap_minutes: 5
     note: >-
-      The first bulk production projection exceeded Cloudflare Free's 50
+      The first v0.1 bulk production projection exceeded Cloudflare Free's 50
       external-subrequest limit after partially completing safely. A retry
-      completed successfully without duplicate projections. v0.2 hardening is
-      committed to batch DB and Google mutations before redeployment.
+      completed without duplicate projections. Worker v0.2.0 is now deployed
+      and verified through both a manual sync and a subsequent scheduled cron;
+      it batches DB and Google mutations and uses incremental Google reads.
 
   cloudflare:
     status: connected
@@ -100,9 +102,11 @@ core_tools:
     current_session_namespace_visible: false
     live_runtime:
       worker: llm4life-google-tasks-sync
+      worker_version: 0.2.0
       workers_dev_url_enabled: true
       schedule: every_15_minutes
       google_tasks_sync_verified: true
+      manual_and_cron_v0_2_verified: true
     note: >-
       Cloudflare is production-live for the Google Tasks projection. The
       official ChatGPT app is enabled, but this current session still does not
@@ -282,7 +286,7 @@ runtime_rules:
   - google_tasks_is_live_projection_and_authorized_capture_client_not_canonical_backend
   - google_task_deletion_must_not_delete_canonical_neon_action
   - google_calendar_remains_time_of_day_execution_owner
-  - google_tasks_worker_bulk_io_should_use_batching_to_respect_cloudflare_free_subrequest_limits
+  - google_tasks_worker_bulk_io_uses_batching_to_respect_cloudflare_free_subrequest_limits
   - verify_live_connector_before_claiming_access
   - search_before_create
   - use_idempotency_for_repeated_automated_writes
