@@ -1,12 +1,12 @@
 # Runtime Status
 
-_Last updated: 2026-09-02_
+_Last updated: 2026-09-03_
 
 This file describes **what is actually live now**. Target ownership is defined by `config/domains.yaml` and `system.yaml`.
 
 ## Headline
 
-The v2 Neon backend is live and **personal action/planning state has been cut over from Notion to Neon**.
+The v2 Neon backend is live, personal action/planning state is canonical in Neon, and the Google Tasks projection/client is now **production-live** through a Cloudflare Worker.
 
 Implemented and verified:
 
@@ -19,65 +19,71 @@ Implemented and verified:
 - migration checkpoints and audit receipts;
 - source/destination parity verification;
 - live Daily Planning Loop, Calendar Task Follow-Up, and Weekly Systems Review prompts cut over to Neon canonical task state;
-- Google Tasks projection Worker implementation committed under `integrations/google-tasks-worker/`;
+- Google Tasks OAuth completed and Cloudflare Worker deployed;
+- first Google Tasks bulk projection completed successfully after one safe retry;
+- 15-minute Cloudflare cron verified succeeding;
 - InUnity ChatGPT MCP integration completed and recently read-verified.
-
-The Google Tasks Worker is **implemented but not deployed yet**. Google OAuth secrets and a Cloudflare Worker deployment are still required before Google Tasks becomes a live projection/client.
-
-Parity at cutover:
-
-- 15 Notion task rows -> 15 Neon actions;
-- 2 Notion execution rows -> 2 Neon action executions;
-- status distribution matched exactly: 1 Done, 1 legacy status-less item, 1 Next, 10 Scheduled, 2 Waiting;
-- the legacy status-less item was preserved as `inbox` with migration metadata rather than inventing meaning;
-- 15 Notion action references were preserved;
-- 13 Google Calendar action bindings were preserved;
-- Scheduling Model contained **no learned overrides**, so zero artificial `adaptive_rules` were created.
 
 ## Canonical planning runtime
 
 ```text
-Neon/PostgreSQL
-  llm4life.actions
-  llm4life.action_executions
-  llm4life.adaptive_rules
-  llm4life.external_refs
-  llm4life.action_receipts
-          |
-          v
-  ChatGPT planning automations
-          |
-          v
-   Google Calendar
-    execution/time
-```
-
-Target client path once deployment completes:
-
-```text
-Google Tasks
-      ^  |
-      |  v
-Cloudflare Worker (15-minute sync)
-      ^  |
-      |  v
-Neon/PostgreSQL canonical actions
+                           +--> Google Tasks
+                           |    human action client
+                           |
+Neon/PostgreSQL actions ---+
+        |                  |
+        |                  +<-- Cloudflare Worker
+        |                       15-minute sync
+        |
+        +--> ChatGPT planner --> Google Calendar
+                                  execution/time
 ```
 
 ### Current ownership
 
 - **Neon `llm4life.actions`** -> canonical personal action/backlog state.
+- **Google Tasks** -> live human-facing action client and authorized capture/completion surface; not canonical state.
+- **Cloudflare Worker** -> live Google Tasks <-> Neon projection/sync runtime.
 - **Google Calendar** -> execution schedule and fixed time commitments.
 - **Neon `action_executions`** -> scheduling/execution telemetry.
 - **Neon `adaptive_rules`** -> learned scheduling overrides; currently empty until evidence justifies a rule.
 - **Neon `action_receipts`** -> meaningful autonomous-action audit metadata.
-- **Notion Tasks / Task Execution Log / Scheduling Model / AI Activity Log** -> rollback/reference only for migrated planning state; live planning automations must not write them as canonical state.
+- **Notion Tasks / Task Execution Log / Scheduling Model / AI Activity Log** -> rollback/reference only for migrated planning state.
 - **Notion Shopping Needs** -> still transitional for personal-care inventory until that domain is migrated.
 - **InUnity** -> canonical consolidated finance application; ChatGPT MCP integration is implemented and has been exercised successfully.
 
+## Google Tasks production state
+
+The live Worker is deployed as `llm4life-google-tasks-sync` with a `*/15 * * * *` Cron Trigger.
+
+Verified production state after cutover:
+
+- 17 Neon actions total;
+- 14 Google Tasks projection bindings in `external_refs`;
+- both `google_tasks_tasklist` and `google_tasks_projection` checkpoints present;
+- `google-tasks-sync` job enabled;
+- manual retry succeeded after the initial bulk run;
+- following scheduled cron succeeded with zero changes.
+
+The first bulk projection exceeded Cloudflare Workers Free's 50 external-subrequest limit after partially completing safely. The retry completed the remaining work because existing projection bindings prevented duplication.
+
+### v0.2 hardening
+
+Worker v0.2 is committed and awaiting redeployment. It addresses the first-run scaling issue by:
+
+- grouping Neon SQL with `sql.transaction(...)` so many statements share one database HTTP fetch;
+- batching Google Tasks create/patch/delete mutations through the Google Tasks multipart batch endpoint, up to 50 mutations per Google batch request;
+- using the previous projection checkpoint as `updatedMin` for incremental Google reads after the initial snapshot;
+- adding a five-minute overlap window to avoid timestamp-boundary misses;
+- using external-ref push metadata to decide when a Neon change needs to be patched to Google without rereading every Google task;
+- handling cancelled/archived projection deletion directly in the core worker;
+- retaining idempotent run keys, external refs, checkpoints, and action receipts.
+
+No database schema migration is required for v0.2.
+
 ## Active planning automations
 
-The following live automations now use Neon canonical action state:
+The following live automations use Neon canonical action state:
 
 1. **Daily Planning Loop** — 7:30 AM + 7:30 PM.
 2. **Calendar Task Follow-Up** — hourly condition watch.
@@ -91,44 +97,29 @@ Legacy Calendar events remain compatible:
 
 If Neon is unavailable, automations are instructed **not** to silently fall back to Notion writes.
 
-## Google Tasks adapter state
+## Google Tasks sync contract
 
-Code exists at `integrations/google-tasks-worker/` and includes:
-
-- Cloudflare Worker runtime;
-- Cron Trigger every 15 minutes;
-- Neon serverless database access;
-- least-privilege Google Tasks OAuth scope;
-- local PKCE OAuth bootstrap helper;
-- automatic dedicated `LLM4LIFE` task-list discovery/creation;
-- Neon -> Google Tasks projection;
-- Google Tasks -> Neon capture, complete/reopen, and safe title/date ingestion;
-- conflict detection when both sides changed;
-- safe deletion semantics: deleting a Google Task never deletes the Neon action;
-- `jobs` / `job_runs`, `external_refs`, `sync_checkpoints`, and `action_receipts` integration;
-- protected manual `/sync` endpoint and public `/health` endpoint.
-
-Runtime deployment is still blocked on:
-
-1. enabling Google Tasks API in the user's Google Cloud project;
-2. creating a personal-use OAuth desktop client and obtaining a refresh token;
-3. storing `DATABASE_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`, and `SYNC_ADMIN_TOKEN` as Cloudflare Worker secrets;
-4. deploying the Worker and running the first smoke test.
-
-The official Cloudflare ChatGPT app was enabled by the user, but this current session still does not expose a Cloudflare tool namespace, so deployment could not be performed through ChatGPT yet.
+- New tasks created in the dedicated `LLM4LIFE` list may be captured as Neon `inbox` actions.
+- Completing a Google Task may mark the corresponding Neon action `done`.
+- Reopening a projected task may return the Neon action to `next`.
+- Safe title/date edits can be ingested when Neon did not independently change.
+- Conflicts preserve Neon as canonical and record a receipt.
+- Deleting a Google Task never deletes the Neon action; it disables the projection.
+- Cancelled/archived Neon actions are removed from the Google projection.
+- Google Tasks due values are date-only; time-of-day execution remains in Google Calendar.
 
 ## Runtime paths
 
 | System | Runtime status | Current role / limitation |
 |---|---|---|
 | GitHub | Connected, read/write verified | Architecture/config/code repository operations |
-| Neon | **Connected / canonical personal action backend** | Production schema and migrated action state are live; read/write path verified |
-| ChatGPT Automations | Connected/live | Planner/follow-up/review now point at Neon canonical task state |
+| Neon | **Connected / canonical personal action backend** | Production schema and action state live; read/write verified |
+| ChatGPT Automations | Connected/live | Planner/follow-up/review use Neon canonical task state |
+| Google Tasks | **Production-live** | Human action client/projection; Neon remains canonical |
+| Cloudflare | **Production-live Worker runtime** | Runs Google Tasks sync every 15 minutes; ChatGPT app is enabled but this session does not expose its namespace |
 | Google Calendar | Connected | Execution schedule and commitments |
-| Notion | Transitional / rollback for planning | Planning snapshot retained for rollback/reference; Shopping Needs still live until migrated |
-| Google Tasks | **Adapter implemented; deployment pending** | Preferred human action client; Cloudflare + Google OAuth runtime not live yet |
-| Cloudflare | Partial | Existing user platform and intended Google Tasks Worker runtime; ChatGPT app enabled but namespace not visible in this session |
-| InUnity | **MCP integration complete / recently read-verified** | Consolidated finance system; current session should re-check namespace before a live call |
+| Notion | Transitional / rollback for planning | Planning snapshot retained; Shopping Needs still live until migrated |
+| InUnity | **MCP integration complete / recently read-verified** | Consolidated finance system; re-check namespace before a live call when needed |
 | Gmail | Connected capability | Email/source context and supported actions |
 | Slack | Connected capability | Work communication/context |
 | Google Contacts | Connector available; migration not done | Preferred canonical address book after Apple/Google dedup |
@@ -140,20 +131,15 @@ The official Cloudflare ChatGPT app was enabled by the user, but this current se
 
 ## Next implementation priorities
 
-### P0 — Deploy Google Tasks projection adapter
+### P0 — Redeploy Google Tasks Worker v0.2
 
-Implementation and architecture are complete. The remaining work is runtime setup:
+The current production Worker is healthy. Redeploy the committed v0.2 hardening, then verify:
 
-1. enable Google Tasks API;
-2. create personal OAuth credentials using only `https://www.googleapis.com/auth/tasks`;
-3. use the committed OAuth helper to obtain a refresh token;
-4. add secrets to Cloudflare;
-5. deploy `llm4life-google-tasks-sync`;
-6. run one manual sync;
-7. verify Google Task projections + Neon refs/job receipts;
-8. allow the 15-minute Cron Trigger to take over.
-
-Do not use Google Tasks' due field as execution time. Its API stores only a date; Google Calendar remains the time-of-day owner.
+1. `/health` reports version `0.2.0`;
+2. one manual sync succeeds;
+3. the following cron succeeds;
+4. `job_runs.metadata` / checkpoint metadata records `worker_version: 0.2.0`;
+5. no duplicate Google Tasks or `external_refs` are created.
 
 ### P1 — Migrate remaining Notion operational state
 
@@ -194,4 +180,4 @@ Current defaults remain:
 
 ## Public repository constraint
 
-This repo contains architecture, contracts and schemas only. Never commit actual database URLs, credentials, private task payloads, private contact/relationship details, health records, financial identifiers, confidential work content, or private message bodies.
+This repo contains architecture, contracts and schemas only. Never commit actual database URLs, OAuth credentials, refresh tokens, private task payloads, private contact/relationship details, health records, financial identifiers, confidential work content, or private message bodies.
