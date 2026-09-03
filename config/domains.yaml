@@ -55,6 +55,8 @@ domains:
       - action_receipts
       - sync_checkpoints
       - adaptive_rules
+      - stable_person_identity_after_people_migration
+      - relationship_machine_state_after_people_migration
 
   knowledge_and_reasoning:
     owner: obsidian
@@ -66,16 +68,55 @@ domains:
       - research_context
 
   contact_identity:
-    preferred_owner: google_contacts
+    owner: neon
+    migration_state: phase_0_documented_implementation_not_started
     current_state: fragmented_apple_and_google_contacts
+    target_human_address_book_client: google_contacts
     apple_contacts_role: synced_client_after_migration
+    includes:
+      - stable_person_id
+      - cross_system_person_refs
+      - structured_contact_state_when_field_authority_is_verified
+    field_authority_note: >-
+      Phase 1 must validate Google Contacts API and conflict semantics before
+      finalizing phone/email/address/birthday field authority. Default target is
+      Neon canonical structured state projected to Google Contacts; exceptions
+      require an explicit newer decision.
+    decision: docs/decisions/2026-09-03-people-subsystem-architecture.md
+    implementation_contract: docs/PEOPLE.md
+
+  relationship_machine_state:
+    owner: neon
+    migration_state: phase_0_documented_implementation_not_started
+    includes:
+      - structured_relationship_metadata
+      - structured_person_facts_with_provenance
+      - interaction_metadata_when_operationally_useful
+      - person_external_references
+    action_output: personal_actions
+    task_projection: google_tasks
+    scheduled_output: google_calendar
+    rules:
+      - do_not_create_parallel_relationship_task_lifecycle
+      - do_not_auto_merge_on_name_similarity_alone
+      - structured_facts_require_provenance
+      - raw_conversation_archival_not_default
+      - sensitive_model_inference_not_silently_persisted
+    decision: docs/decisions/2026-09-03-people-subsystem-architecture.md
+    implementation_contract: docs/PEOPLE.md
 
   relationship_context:
     owner: obsidian
-    structured_metadata_first: obsidian_frontmatter
-    neon_projection: only_if_cross_system_automation_justifies_it
+    scope: narrative_only
+    includes:
+      - long_form_person_notes
+      - diary_and_reflections
+      - nuanced_relationship_context
+      - narrative_interaction_context
+    structured_machine_state_owner: neon
     task_output: google_tasks
     scheduled_output: google_calendar
+    rule: link_to_stable_person_identity_instead_of_copying_narrative_into_neon
 
   household_assets_and_maintenance:
     owner: neon
