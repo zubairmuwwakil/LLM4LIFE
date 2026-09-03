@@ -1,5 +1,5 @@
 version: 2
-updated: 2026-09-02
+updated: 2026-09-03
 timezone: America/Toronto
 status: live_neon_backend
 
@@ -7,10 +7,41 @@ runtime_backend:
   canonical_personal_action_state: neon_postgresql
   execution_calendar: google_calendar
   legacy_planning_source: notion_rollback_reference
-  google_tasks_projection: pending_oauth_adapter
+  google_tasks_projection: live_cloudflare_worker
   cutover_verified: true
 
 active:
+  google_tasks_sync:
+    title: Google Tasks Projection Sync
+    enabled: true
+    runtime: cloudflare_worker
+    worker: llm4life-google-tasks-sync
+    schedule: "*/15 * * * *"
+    timezone: UTC
+    purpose: project_neon_actions_to_google_tasks_and_ingest_safe_google_task_changes
+    canonical_backend: neon_postgresql
+    projection_client: google_tasks
+    production_verified:
+      manual_sync: true
+      cron_sync: true
+      external_refs_verified: true
+      checkpoints_verified: true
+    current_live_version: v0.1
+    v0_2_hardening:
+      committed: true
+      pending_redeploy: true
+      neon_transaction_batching: true
+      google_tasks_batch_mutations: true
+      incremental_google_reads: true
+      overlap_minutes: 5
+    policies:
+      google_task_delete_never_deletes_neon_action: true
+      calendar_remains_time_of_day_owner: true
+      capture_new_google_tasks_as_inbox: true
+      use_idempotency_and_external_refs: true
+      failed_sync_never_falls_back_to_notion: true
+      respect_cloudflare_free_subrequest_budget: true
+
   daily_planning_loop:
     title: Daily Planning Loop
     enabled: true
@@ -127,4 +158,5 @@ design_rules:
   - preserve_date_only_semantics
   - do_not_expand_permissions_automatically
   - google_tasks_is_projection_not_canonical_backend
+  - google_tasks_bulk_io_is_batched_to_respect_cloudflare_free_limits
   - github_actions_are_for_repository_ci_cd_not_general_personal_scheduling
