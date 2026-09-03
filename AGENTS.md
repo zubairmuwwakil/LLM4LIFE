@@ -35,8 +35,9 @@ Before making architecture, routing, automation, or integration decisions, read:
 14. `docs/ADAPTATION.md`
 15. `docs/GAP_DETECTION.md`
 16. `docs/KNOWLEDGE_CAPTURE.md`
-17. `docs/SECURITY.md`
-18. `docs/DECISIONS.md` and relevant files under `docs/decisions/`
+17. `docs/PEOPLE.md` when work touches people, contacts, relationships, interaction capture, dedup or follow-ups
+18. `docs/SECURITY.md`
+19. `docs/DECISIONS.md` and relevant files under `docs/decisions/`
 
 If decisions conflict, the **newest explicit decision wins**.
 
@@ -81,11 +82,11 @@ jobs/actions/receipts      knowledge          provider authority
 
 ### Canonical v2 responsibilities
 
-- **Neon/PostgreSQL** — LLM4LIFE-owned structured machine state: actions, external references, jobs/runs, events, receipts, sync checkpoints, adaptive rules, household/vehicle maintenance, shopping state.
+- **Neon/PostgreSQL** — LLM4LIFE-owned structured machine state: actions, external references, jobs/runs, events, receipts, sync checkpoints, adaptive rules, household/vehicle maintenance, shopping state, and the target structured People/Relationships machine state once that migration is implemented.
 - **Google Tasks** — preferred user-facing personal action client/projection during v2.
 - **Google Calendar** — fixed commitments and execution schedule; not the permanent backlog.
-- **Google Contacts** — preferred canonical address book after Apple/Google dedup migration.
-- **Obsidian** — narrative personal knowledge, reasoning, learning, diary/reflections and relationship context.
+- **Google Contacts** — preferred human-facing address-book projection/client after People/contact dedup migration; do not assume its target role means that migration is already complete.
+- **Obsidian** — narrative personal knowledge, reasoning, learning, diary/reflections and narrative relationship context.
 - **Jira** — engineering backlog/bugs/work items.
 - **GitHub** — code, repositories, PRs, commits, releases and repository truth.
 - **ORC (`agent-orchestrator`)** — coding-agent routing, quota-aware escalation and independent verification.
@@ -169,13 +170,22 @@ Obsidian remains an autonomous read/write-capable **knowledge/context** destinat
 
 GitHub access to the private Obsidian backup is useful context and maintenance access, but should not be treated as the permanent real-time local-vault integration.
 
-### Relationship information
+### People and relationship information
 
-- Google Contacts (after migration) owns contact identity.
-- Obsidian owns relationship narrative/context.
-- Use structured Obsidian frontmatter before inventing relationship tables in Neon.
-- Concrete follow-ups become personal actions and scheduled meetings become Calendar events.
-- Do not persist entire private conversations merely because a channel bridge can read them.
+The People architecture changed on 2026-09-03. **Do not follow the older “Obsidian frontmatter first; avoid Neon relationship tables” recommendation as the current target.** Read `docs/PEOPLE.md` and `docs/decisions/2026-09-03-people-subsystem-architecture.md` before developing this subsystem.
+
+Target boundaries:
+
+- Neon owns the stable internal `person_id`, cross-system person references and structured People/relationship machine state once the migration is implemented.
+- Obsidian owns long-form/narrative relationship context, reflections, diary/history and nuanced person notes.
+- Google Contacts is the preferred address-book projection/human client after dedup/cutover; Apple Contacts should become a synchronized device client rather than independent truth.
+- Concrete follow-ups use the existing LLM4LIFE personal action domain and project to Google Tasks.
+- Scheduled interactions use Google Calendar.
+- Do not persist complete private conversations merely because a channel bridge can read them.
+- Do not auto-merge people on name similarity alone; stable refs and conservative dedup rules are mandatory.
+- Structured facts require provenance; model inference is not user-asserted truth.
+
+**Runtime warning:** Phase 0 is documentation only. The People Neon schema/contact migration is not live merely because the target is documented.
 
 ### Learning exception
 
