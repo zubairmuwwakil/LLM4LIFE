@@ -1,490 +1,418 @@
-version: 1
-status: evolving
-updated: 2026-08-27
+version: 2
+status: migration_in_progress
+updated: 2026-09-02
+superseding_decision: docs/decisions/2026-09-02-production-architecture-v2.md
 purpose: >-
-  Machine-readable description of the current AI-driven personal operating
-  system. Current choices are defaults, not permanent doctrine.
+  Machine-readable architecture for the user's AI-driven personal operating
+  system. LLM4LIFE is the control/orchestration layer; canonical data stays in
+  the best domain owner. The v2 migration moves LLM4LIFE-owned machine state
+  from SaaS dashboards/chat history toward PostgreSQL while preserving
+  specialized provider systems and Obsidian narrative knowledge.
 
 principles:
-  - one_owner_per_responsibility
-  - ai_is_interface_and_router_not_database
-  - link_instead_of_duplicate
+  - one_owner_per_object
+  - ai_is_interface_router_and_orchestrator_not_chat_database
+  - neon_for_llm4life_machine_state
+  - obsidian_for_narrative_knowledge_and_context
+  - link_external_records_instead_of_copying
+  - provider_authority_remains_with_provider
+  - event_driven_over_manual_polling_when_reliable
+  - idempotent_writes_and_execution_receipts
   - autonomous_for_safe_reversible_actions
   - consequential_actions_need_stronger_safeguards
-  - receipts_for_autonomous_writes
-  - event_driven_over_manual_polling
-  - optimize_attention_not_notification_volume
-  - learned_preferences_are_soft_preferences
-  - architecture_is_open_to_change
+  - minimum_useful_system_over_life_as_erp
   - capture_durable_signal_not_conversational_exhaust
-  - self_tune_with_evidence_and_rollback
-  - standing_yes_does_not_expand_authority
-  - detect_missing_systems_not_just_optimize_existing_ones
-  - minimum_useful_system_over_infrastructure_sprawl
-  - backlog_is_not_calendar
-  - plan_realistically_not_maximally
+  - free_or_already_paid_first
+  - architecture_is_open_to_change
+
+architecture:
+  control_plane: llm4life
+  primary_conversational_interface: chatgpt
+  durable_machine_state: neon_postgresql
+  narrative_knowledge: obsidian
+  coding_orchestration: orc
+  engineering_truth:
+    backlog: jira
+    code: github
+  execution_surfaces:
+    actions: google_tasks
+    time: google_calendar
+  transitional_projection_surfaces:
+    - notion
+  ingress_surfaces:
+    - chatgpt
+    - gmail
+    - slack
+    - discord_when_bridge_available
+    - whatsapp_when_bridge_available
+    - imessage_when_bridge_available
+    - iphone_shortcuts
+    - share_sheet
+    - browser_capture
 
 systems:
+  llm4life:
+    owns:
+      - architecture_policy
+      - routing_policy
+      - integration_contracts
+      - orchestration
+    must_not_own:
+      - raw_private_life_dump
+      - provider_credentials
+      - duplicate_domain_truth
+
+  chatgpt:
+    role: primary_conversational_control_surface
+    owns:
+      - conversational_orchestration
+      - connected_tool_execution
+    must_not_own:
+      - durable_system_state_only_in_chat_history
+
+  neon_postgresql:
+    role: durable_llm4life_machine_state
+    owns:
+      - system_registry
+      - external_references
+      - personal_action_state
+      - jobs_and_job_runs
+      - normalized_events
+      - action_receipts
+      - sync_checkpoints
+      - adaptive_rules
+      - household_assets_and_maintenance
+      - vehicle_maintenance
+      - grocery_and_shopping_state
+    avoid:
+      - narrative_relationship_notes
+      - full_message_history_by_default
+      - health_records_by_default
+      - financial_credentials
+      - provider_owned_official_records
+
+  google_tasks:
+    role: preferred_user_facing_personal_action_client
+    direction: projection_and_execution_client_for_v2_actions
+    transitional_from:
+      - things3
+      - notion_tasks
+    avoid:
+      - rich_domain_state
+      - engineering_backlog
+
+  google_calendar:
+    owns:
+      - fixed_time_commitments
+      - execution_schedule
+      - selected_action_time_blocks
+    avoid:
+      - canonical_general_backlog
+
+  google_contacts:
+    role: preferred_canonical_address_book_after_dedup_migration
+    owns_after_migration:
+      - contact_identity
+      - phone_email_address
+      - birthday_where_appropriate
+      - organization
+    current_state: fragmented_with_apple_contacts
+
+  apple_contacts:
+    direction: synced_client_after_google_contacts_migration
+    avoid: independently_maintained_second_address_book
+
+  obsidian:
+    repository: zubairmuwwakil/Obsidian
+    role: private_human_readable_knowledge_and_context
+    owns:
+      - learning
+      - reasoning
+      - durable_knowledge
+      - long_form_notes
+      - diary_and_reflections
+      - relationship_context
+      - person_narrative_notes
+      - research_context
+    relationship_strategy:
+      canonical_context: obsidian
+      structured_metadata_first: frontmatter
+      backend_projection: only_when_cross_system_automation_justifies_it
+    current_ai_path:
+      github_backup_access: true
+      direct_live_local_bridge_verified: false
+    preferred_write_path: safe_local_bridge_to_live_vault
+    learning_contract:
+      preserve_retrieval_first_model: true
+    avoid:
+      - routine_task_backlog
+      - duplicate_provider_state
+      - secrets
+
+  notion:
+    role: transitional_structured_workspace_and_optional_projection
+    direction: no_longer_default_canonical_backend
+    current_live_dependencies_may_include:
+      - task_planning_automation
+      - task_execution_telemetry
+      - personal_care_views
+      - ai_activity_log
+    migration_rule: keep_until_replacement_verified_then_reposition_or_retire_per_domain
+    good_future_uses:
+      - human_friendly_dashboards
+      - optional_views
+      - ad_hoc_collaboration
+    avoid:
+      - new_core_state_that_belongs_in_neon
+      - duplicate_jira_or_github_truth
+      - duplicate_obsidian_knowledge
+
+  things3:
+    role: legacy_or_optional_task_ux
+    direction: not_canonical_in_v2
+    migration_rule: preserve_existing_data_until_reconciled
+
   github:
     owns:
       - code
-      - pull_requests
       - commits
+      - pull_requests
       - releases
-      - repository_truth
+      - repository_specific_technical_truth
+      - llm4life_public_architecture
+
   jira:
     owns:
-      - engineering_bugs
       - engineering_backlog
+      - engineering_bugs
       - technical_work_items
-  things3:
+
+  orc:
+    repository: zubairmuwwakil/agent-orchestrator
     owns:
-      - personal_actions
-      - personal_reminders
-      - next_actions
-      - personal_backlog
-  google_calendar:
+      - coding_agent_routing
+      - quota_aware_escalation
+      - coding_verification
+      - cross_vendor_code_review
+    integration_rule: llm4life_invokes_orc_without_reimplementing_orc
+
+  inunity:
     owns:
-      - time_commitments
-      - scheduled_events
-      - deadlines_when_time_itself_matters
-      - current_execution_schedule
-      - selected_task_time_blocks
-  notion:
+      - user_owned_consolidated_financial_state
+      - receipts_bills_and_subscription_functionality
+    notes:
+      - moneytalks_is_inunity
+      - looply_functionality_has_been_absorbed
+    inputs:
+      - pickme
+      - marketlens
+
+  pickme:
+    role: specialized_card_decision_and_purchase_capture
+    data_direction: pickme_to_inunity
+
+  marketlens:
+    role: specialized_market_data_service
+    data_direction: marketlens_to_inunity
+
+  financial_providers:
     owns:
-      - structured_personal_state
-      - life_operations
-      - inventories
-      - subscriptions_and_membership_metadata
-      - renewals_and_expiries
-      - warranties_and_documents_metadata
-      - administrative_reference_data
-      - ai_activity_log
-    avoid:
-      - duplicate_jira_backlog
-      - duplicate_github_project_truth
-      - deep_personal_knowledge
-      - duplicate_core_financial_state
-  obsidian:
-    repository: zubairmuwwakil/Obsidian
-    access_mode: autonomous_read_write
-    owns:
-      - personal_knowledge_context
-      - thinking
-      - learning
-      - durable_knowledge
-      - long_form_notes
-      - daily_and_diary_context
-      - para_areas_projects_resources
-      - spaced_repetition_prompts
-      - mistake_logs
-      - contextual_research
-    autonomous_writes:
-      - create_contextual_notes
-      - capture_durable_conversation_insights
-      - triage_inbox_into_para
-      - organize_and_move_notes
-      - update_frontmatter
-      - add_links_and_moc_references
-      - merge_duplicate_or_overlapping_notes
-      - rewrite_existing_notes_for_clarity_or_conflict_resolution
-      - archive_reversible_stale_material
-      - connect_to_canonical_external_records
-    conversation_capture:
-      enabled: true
-      explicit_save_phrase_required: false
-      policy_doc: docs/KNOWLEDGE_CAPTURE.md
-      capture:
-        - durable_insights
-        - decisions_with_rationale
-        - lessons_and_mistakes
-        - reusable_frameworks_and_processes
-        - research_conclusions
-        - meaningful_project_reasoning
-        - stable_workflow_preferences
-        - useful_personal_context_when_appropriate
-      skip:
-        - casual_chatter
-        - transient_answers
-        - one_off_logistics_owned_elsewhere
-        - duplicate_canonical_information
-        - raw_transcripts_by_default
-        - temporary_status
-        - receipts_and_notifications
-      sensitive_implicit_capture:
-        credentials_and_secrets: prohibited
-        high_risk_identifiers: prohibited
-        unusually_sensitive_personal_material: require_explicit_storage_intent
-      search_before_create: true
-      prefer_update_or_merge: true
-      preserve_provenance_when_useful: true
-      log_material_captures: true
-    merge_rewrite_policy:
-      enabled: true
-      preserve_user_authored_reasoning: true
-      preserve_provenance_and_dates: true
-      preserve_or_repair_links: true
-      prefer_merge_or_archive_over_delete: true
-      unresolved_conflicts: preserve_with_context_or_flag_for_review
-      avoid_false_certainty: true
-      log_material_changes: true
-    avoid:
-      - routine_task_management
-      - structured_operational_state_when_notion_is_canonical
-      - duplicate_github_content
-      - duplicate_live_financial_state
-      - bypass_learning_contract_with_answer_generation
-    principles:
-      - one_home_per_item
-      - link_instead_of_copy
-      - retrieval_first_for_learning
-      - prefer_archive_over_delete
-    learning_contract:
-      agents_entrypoint: AGENTS.md
-      canonical_manual: "50 Resources/Software Engineering/_System/AI Operating Manual (READ ME).md"
-      prime_directive: ai_may_improve_output_but_must_not_replace_learning_thinking
-      overrides_general_frictionless_automation_when_learning: true
-  slack:
-    owns:
-      - work_communication
-      - software_engineering_communication
-      - work_notification_surface
-  discord:
-    owns:
-      - personal_communication
-      - personal_notification_surface
+      - official_account_records
+      - official_balances_and_transactions
+      - execution
+    rule: never_store_provider_credentials_in_llm4life
+
   gmail:
-    owns:
-      - email_source_context
-      - email_intake
+    role: email_and_intake_source
+    routing_rule: durable_actions_and_state_go_to_domain_owner
+
+  slack:
+    role: work_communication_and_automation_surface
+    avoid: canonical_task_database
+
+  discord:
+    role: preferred_historical_personal_ai_channel
+    current_direct_chatgpt_access: not_assumed
+    bridge_candidates:
+      - openclaw
+      - thin_custom_bridge
+
+  whatsapp:
+    role: personal_communication_source_and_optional_ai_channel
+    direct_integration: verify_before_use
+
+  imessage:
+    role: personal_communication_source
+    likely_requires: trusted_local_bridge
+
+  openclaw:
+    role: optional_channel_and_local_integration_plumbing
+    status: evaluate_against_native_connectors_and_thin_bridges
+    must_not_be:
+      - second_policy_authority
+      - canonical_database
+
+  google_drive:
+    role: preferred_canonical_cloud_file_store
+    migration_from_onedrive: audit_before_consolidation
+
+  onedrive:
+    role: secondary_or_exception_file_store
+
+  time_machine:
+    role: local_disaster_recovery
+
+  apple_health:
+    role: health_aggregation
+    llm4life_copy_policy: no_by_default
 
 routing:
+  personal_action: neon_postgresql
+  personal_action_user_interface: google_tasks
+  personal_action_scheduled_execution: google_calendar
   engineering_bug: jira
-  engineering_backlog_item: jira
-  code_change_or_repo_state: github
-  personal_action: things3
-  time_commitment: google_calendar
-  scheduled_execution_block: google_calendar
-  structured_life_state: notion
-  knowledge_or_thinking: obsidian
-  contextual_personal_note: obsidian
-  durable_conversation_insight: obsidian
+  engineering_backlog: jira
+  code_or_repository_state: github
+  coding_agent_work: orc
+  scheduled_commitment: google_calendar
+  llm4life_machine_state: neon_postgresql
+  knowledge_or_reasoning: obsidian
+  relationship_context: obsidian
+  contact_identity: google_contacts_after_migration
+  household_maintenance_state: neon_postgresql
+  vehicle_maintenance_state: neon_postgresql
+  grocery_or_shopping_state: neon_postgresql
+  consolidated_finance_state: inunity
+  official_financial_record: respective_financial_provider
+  email_source_context: gmail
   work_communication: slack
-  personal_communication: discord
+  personal_communication: provider_channel
 
-ai_layer:
-  desired_entry_points:
-    - chatgpt
-    - slack
-    - discord
-    - iphone_shortcuts_or_share_sheet
-    - email
-    - browser_capture
-  candidate_components:
-    chatgpt: primary_interface_and_native_plugins
-    claude: coding_heavy_agent
-    openclaw: integration_and_channel_plumbing_where_needed
-  behavior:
-    autonomous: true
-    deduplicate_before_write: true
-    source_provenance: true
-    send_receipt_after_write: true
-    consolidate_multi_action_receipts: true
-    log_meaningful_writes: true
-    proactively_capture_durable_conversation_knowledge: true
-    self_tune_low_risk_rules: true
-    standing_low_risk_recommendation_approval: true
-    proactively_detect_missing_systems: true
-    autonomously_build_low_risk_missing_workflows: true
-    autonomously_plan_day_to_day: true
-    maintain_rolling_schedule_horizon: true
-
-adaptation:
-  enabled: true
-  policy_doc: docs/ADAPTATION.md
-  may_self_modify:
-    - ambiguous_capture_routing_defaults
-    - prioritization_weights
-    - stale_resurface_thresholds
-    - notification_thresholds_and_cooldowns
-    - deduplication_heuristics
-    - obsidian_capture_and_placement_heuristics
-    - classification_and_tagging_defaults
-    - low_risk_cleanup_thresholds
-    - task_duration_estimates
-    - scheduling_and_batching_heuristics
-  evidence:
-    require_repeated_pattern_or_clear_override: true
-    single_observation_not_permanent_rule: true
-    prefer_measurable_friction_reduction: true
-  change_style:
-    prefer_small_reversible_changes: true
-    meaningful_changes_use_bounded_experiment_when_practical: true
-    preserve_previous_rule_for_rollback: true
-    rollback_on_clear_regression: true
-  monitor:
-    - user_overrides
-    - routing_failures
-    - duplicate_creation
-    - reopened_items
-    - missed_urgency
-    - notification_noise
-    - repeated_rescheduling
-    - task_duration_mismatch
-  report_material_changes_in_digest: true
-  may_not_self_modify:
-    - weaken_safeguards
-    - expand_permissions_or_credentials
-    - authorize_purchases_or_subscriptions
-    - authorize_cancellations
-    - authorize_money_movement
-    - authorize_destructive_deletion
-    - authorize_security_or_account_changes
-    - authorize_externally_consequential_messages
-    - authorize_production_changes
-    - authorize_irreversible_actions
-
-standing_recommendation_policy:
-  default: auto_accept_and_execute_if_low_risk_reversible_and_already_authorized
-  avoid_repetitive_yes_no_loops: true
-  does_not_authorize:
-    - purchase_or_new_subscription
-    - cancel_subscription_or_financial_product
-    - money_movement
-    - destructive_delete
-    - account_security_or_credential_change
-    - externally_consequential_message_or_commitment
-    - production_change_with_material_impact
-    - legal_or_other_high_consequence_commitment
-    - hard_to_reverse_action
-    - weakening_autonomy_safeguards
-    - granting_ai_new_access_or_permissions
-
-gap_detection:
-  enabled: true
-  policy_doc: docs/GAP_DETECTION.md
-  objective: detect_recurring_or_consequential_unmanaged_domains_and_build_minimum_useful_workflow
-  signals:
-    - repeated_manual_recreation
-    - repeatedly_hard_to_retrieve_information
-    - deadlines_depending_on_memory
-    - recurring_maintenance_without_owner
-    - fragmented_state_without_canonical_home
-    - repeated_workflow_failure_due_to_missing_trigger_or_followup
-    - ai_repeatedly_missing_durable_context
-    - meaningful_domain_existing_only_in_transient_messages
-  before_building:
-    - verify_recurrence_or_consequence
-    - search_existing_canonical_systems
-    - choose_single_owner
-    - reuse_existing_capability_before_new_tool
-    - design_minimum_viable_workflow
-    - confirm_within_existing_authority
-  autonomous_build_allowed:
-    - add_low_risk_notion_database_property_or_view
-    - create_safe_routing_rule
-    - create_recurring_reminder_or_calendar_event_when_cadence_is_clear
-    - create_obsidian_moc_or_template
-    - add_low_risk_followup_or_dedup_rule
-    - add_documentation_and_cross_links
-  autonomous_build_not_allowed:
-    - purchase_or_subscription
-    - new_credentials_or_permissions
-    - financial_action
-    - consequential_external_commitment
-    - destructive_change
-    - material_production_change
-    - hard_to_reverse_action
-  anti_goals:
-    - life_as_erp
-    - database_for_every_category
-    - dashboard_without_demonstrated_value
-    - infrastructure_for_one_off_fact
-    - new_tool_for_novelty
+personal_actions:
+  canonical_backend: neon_postgresql
+  preferred_client: google_tasks
+  execution_schedule: google_calendar
   lifecycle:
-    provisional_by_default: true
-    simplify_or_remove_if_maintenance_exceeds_value: true
-    monitor:
-      - manual_work_remaining
-      - duplicate_records
-      - ignored_reminders
-      - low_usage
-      - user_overrides
-      - generated_noise
-      - better_canonical_owner_available
+    - inbox
+    - next
+    - scheduled
+    - waiting
+    - done
+    - cancelled
+    - archived
+  rule: calendar_event_is_a_projection_not_the_task
+  migration:
+    current_legacy_sources:
+      - notion_tasks
+      - things3
+    do_not_delete_before_reconciliation: true
 
 planning:
   enabled: true
-  policy_doc: docs/PLANNING.md
-  objective_priority:
-    - prevent_important_things_from_slipping
-    - save_time
-    - reduce_mental_load
-    - increase_output
-  ownership:
-    personal_backlog: things3
-    engineering_backlog: jira
-    execution_schedule: google_calendar
-    scheduler: ai_layer
-  calendar_semantics:
-    task_blocks_are_scheduled_representations_not_canonical_backlog: true
-    fixed_commitments_must_not_be_moved_for_optimization: true
-    movable_low_risk_work_may_be_autonomously_rescheduled: true
-  daily_loop:
-    evening_plan_next_day: true
-    morning_digest_sanity_check: true
-    rolling_horizon_days: 7
-  evening_plan_steps:
-    - read_fixed_calendar_commitments
-    - read_available_authoritative_backlogs_and_action_sources
-    - detect_overdue_urgent_high_impact_dependency_and_neglected_work
-    - estimate_reasonable_duration_when_missing
-    - select_realistic_tomorrow_workload
-    - schedule_into_open_windows
+  scheduler: ai_layer
+  personal_backlog: neon_postgresql_after_migration
+  engineering_backlog: jira
+  execution_schedule: google_calendar
+  adaptive_rules: neon_postgresql
+  execution_telemetry: neon_postgresql
+  protected_routine:
+    sleep: "23:00-07:00"
+  current_movable_work_default:
+    start: "13:00"
+    end: "21:00"
+    timezone: America/Toronto
+  principles:
+    - fixed_commitments_are_not_moved_for_optimization
     - leave_buffer
-    - detect_and_resolve_movable_overlaps
-    - defer_lower_priority_work_instead_of_colliding
-  scheduling_signals:
-    - hard_deadline
-    - consequence_of_delay
-    - dependency_value
-    - impact
-    - age_and_neglect
-    - effort
-    - available_window
-    - location_or_context_constraint
-    - batching_opportunity
-    - observed_completion_behavior
-    - repeated_deferral_or_override
-  horizon:
-    today_and_tomorrow: concrete_execution_blocks
-    next_7_days: high_confidence_important_work
-    beyond_7_days: keep_in_backlog_unless_deadline_or_lead_time_justifies_calendar
-  calendar_hygiene:
-    - prevent_overlapping_movable_tasks
-    - prevent_duplicate_task_blocks
-    - leave_buffer
-    - batch_related_admin_or_errands_when_useful
-    - remove_or_reschedule_stale_task_blocks_when_authorized
-    - avoid_full_day_max_utilization
-  missed_task_policy:
-    reassess_value_before_reschedule: true
-    do_not_blindly_push_one_day_forever: true
-    repeated_rescheduling_is_behavioral_evidence: true
-  things_bridge:
-    required_for_complete_personal_backlog_planning: true
-    if_unavailable_do_not_claim_backlog_was_inspected: true
-    preferred_supported_interfaces:
-      - apple_shortcuts
-      - things_url_scheme
-      - applescript_macos
-      - thin_deterministic_adapter
-  autonomous_not_allowed:
-    - move_or_cancel_external_meeting
-    - move_or_cancel_appointment
-    - alter_travel_commitment
-    - alter_legal_or_financial_commitment
-    - other_consequential_fixed_event
+    - distinguish_due_date_from_execution_time
+    - waiting_items_do_not_consume_execution_time
+    - repeated_misses_are_evidence_not_reason_for_blind_reschedule
+    - next_7_days_is_short_high_confidence_horizon
 
-safeguards:
-  auto_allowed_examples:
-    - create_low_risk_task
-    - create_or_update_jira_work_item
-    - update_notion_structured_state
-    - create_or_organize_obsidian_knowledge
-    - capture_durable_conversation_insight_to_obsidian
-    - merge_or_rewrite_obsidian_knowledge_with_provenance
-    - add_calendar_event
-    - schedule_or_reschedule_movable_low_risk_work
-    - resolve_movable_calendar_collision
-    - classify_or_tag
-    - low_risk_reversible_cleanup
-    - self_tune_low_risk_reversible_rule
-    - implement_low_risk_workflow_recommendation
-    - build_minimum_low_risk_missing_system
-  stronger_review_examples:
-    - destructive_delete
-    - externally_consequential_message
-    - purchase_or_new_subscription
-    - cancel_subscription
-    - money_movement
-    - production_change
-    - security_or_credential_change
-    - move_or_cancel_fixed_external_commitment
-    - hard_to_reverse_action
+jobs:
+  registry: neon_postgresql
+  public_design_registry: config/automations.yaml
+  execution_may_use:
+    - chatgpt_automations
+    - cron
+    - dedicated_worker
+    - github_actions_for_repository_ci_only
+  required_properties:
+    - stable_job_identity
+    - idempotency_key
+    - execution_receipt
+    - retries_or_failure_policy
+    - logs_or_observability
+    - least_privilege_credentials
+  rule: chat_thread_is_not_durable_job_state
 
-notifications:
-  work_default: slack
-  personal_default: discord
-  philosophy: exceptions_and_high_value_signals_only
+household:
+  assets_and_maintenance: neon_postgresql
+  action_output: google_tasks
+  scheduled_output: google_calendar
+  provider_apps: execution_or_source_only
 
-daily_digest:
+grocery_and_shopping:
+  state: neon_postgresql
+  provider_choice: optimize_total_value_without_vendor_loyalty
+  no_new_paid_list_app_by_default: true
+
+relationships:
+  contact_identity: google_contacts_after_migration
+  narrative_context: obsidian
+  interaction_context: obsidian
+  structured_operations: obsidian_frontmatter_first
+  follow_up_action: google_tasks
+  scheduled_interaction: google_calendar
+  neon_relationship_tables: not_yet_justified
+
+health:
+  canonical_aggregation: apple_health
+  copy_to_neon_by_default: false
+  public_repo_sensitive_details: prohibited
+
+security:
+  public_repo: true
+  never_commit:
+    - secrets
+    - credentials
+    - private_contact_data
+    - private_relationship_notes
+    - health_records
+    - financial_identifiers
+    - confidential_work_content
+  least_privilege: true
+  crypto_signing_isolated_from_autonomous_agents: true
+
+free_first:
   enabled: true
-  approximate_time: "08:00 America/Toronto"
-  sections:
-    - top_3_priorities
-    - needs_attention_today
-    - work_engineering
-    - personal_admin
-    - upcoming_deadlines
-    - neglected_but_important
-    - what_can_be_ignored_today
-    - cleanup_performed
-    - learned_preferences
-    - system_gaps
-    - tool_roi_opportunities
-    - automated_actions_taken
-  priority_factors:
-    - urgency
-    - impact
-    - dependencies
-    - time_sensitivity
-    - observed_behavior
-  stale_resurface_window_days: "7-14+"
+  preference_order:
+    - already_paid_for_capability
+    - strong_free_tier
+    - open_source_or_self_hosted_when_operationally_reasonable
+    - paid_only_when_incremental_value_is_material
+  production_grade_does_not_mean_more_subscriptions: true
 
-learning:
-  enabled: true
-  observe:
-    - repeatedly_ignored
-    - repeatedly_deferred
-    - completed_quickly
-    - manually_overridden
-    - reopened
-    - consistently_prioritized
-  rule: learned_behavior_is_soft_preference_not_safety_override
-  software_engineering_mode:
-    source: obsidian_ai_operating_manual
-    default_assistance_level: 0
-    require_attempt_before_answer: true
-    escalate_one_rung_at_a_time: true
-    preserve_desirable_difficulty: true
-
-tool_roi:
-  enabled: true
-  recommend:
-    - cancel
-    - downgrade
-    - consolidate
-    - replace
-    - new_tool_or_integration
-  constraint: prefer_existing_capabilities_before_new_subscription
-  avoid: novelty_driven_tool_sprawl
-
-known_current_conclusions:
-  notion_best_role: personal_operations_and_life_database
-  notion_generic_project_manager: likely_redundant
-  obsidian_best_role: personal_knowledge_and_context_layer
-  obsidian_access: autonomous_read_write_merge_rewrite_and_conversation_capture_with_learning_guardrails
-  adaptive_rules: autonomous_low_risk_self_tuning_with_evidence_and_rollback
-  recommendation_default: standing_yes_for_low_risk_reversible_recommendations_only
-  missing_systems: proactively_detect_and_build_minimum_low_risk_workflows
-  planning_model: things_and_jira_hold_backlog_ai_schedules_calendar_execution
-  engineering_truth: github_plus_jira
-  core_finance_truth: dedicated_finance_apps_not_notion
+migration:
+  phase: v2_foundation
+  rules:
+    - migrate_one_domain_at_a_time
+    - do_not_destroy_working_legacy_state_before_verification
+    - temporary_dual_read_is_allowed
+    - avoid_long_term_dual_write
+    - preserve_rollback
+    - update_runtime_docs_when_live_cutover_occurs
+  current_transitional_runtime:
+    note: >-
+      Existing ChatGPT planning automations may still depend on Notion Tasks,
+      Task Execution Log, Scheduling Model, Shopping Needs, or AI Activity Log.
+      Those live dependencies remain valid until migrated and verified; target
+      architecture must not be confused with completed runtime cutover.
 
 change_management:
   on_major_change:
+    - add_or_update_decision_record
     - update_system_yaml
-    - update_current_state_docs
-    - append_decision_log
+    - update_config_domains
+    - update_runtime_docs_when_cutover_is_real
   precedence: newest_explicit_decision_wins
