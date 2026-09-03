@@ -14,7 +14,7 @@ const client = credentials.installed;
 if (!client?.client_id || !client?.client_secret) {
   if (credentials.web) {
     throw new Error(
-      "This JSON is for a Google OAuth Web application. Create an OAuth Client ID with Application type = Desktop app, download that JSON, and rerun this command. Do not manually add a loopback redirect URI to a Web client for this helper.",
+      "This JSON is for a Google OAuth Web application. Create an OAuth Client ID with Application type = Desktop app, download that JSON, and rerun this command.",
     );
   }
   throw new Error(
@@ -34,12 +34,26 @@ function openBrowser(url) {
   child.unref();
 }
 
+// Google Desktop OAuth clients support loopback redirects on an ephemeral port.
+// Match the host declared in the downloaded credentials (normally localhost),
+// while still allowing 127.0.0.1 when that is what Google emitted.
+let loopbackHost = "127.0.0.1";
+try {
+  const configured = client.redirect_uris?.[0];
+  if (configured) {
+    const parsed = new URL(configured);
+    if (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1") {
+      loopbackHost = parsed.hostname;
+    }
+  }
+} catch {
+  // Fall back to 127.0.0.1.
+}
+
 const server = http.createServer();
 await new Promise((resolve, reject) => {
   server.once("error", reject);
-  // Port 0 asks the OS for an available local port, which is the recommended
-  // loopback pattern for installed desktop OAuth clients.
-  server.listen(0, "127.0.0.1", resolve);
+  server.listen(0, loopbackHost, resolve);
 });
 
 const address = server.address();
@@ -48,7 +62,7 @@ if (!address || typeof address === "string") {
   throw new Error("Could not allocate a local OAuth callback port.");
 }
 
-const redirectUri = `http://127.0.0.1:${address.port}`;
+const redirectUri = `http://${loopbackHost}:${address.port}`;
 
 const auth = new URL("https://accounts.google.com/o/oauth2/v2/auth");
 auth.searchParams.set("client_id", client.client_id);
@@ -99,6 +113,7 @@ const codePromise = new Promise((resolve, reject) => {
 });
 
 console.log("Opening Google authorization in your browser...");
+console.log(`Using Desktop OAuth loopback redirect: ${redirectUri}`);
 console.log(auth.toString());
 openBrowser(auth.toString());
 
