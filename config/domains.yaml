@@ -93,14 +93,16 @@ domains:
     canonical_database: neon_product_tracker
     current_control_surface: notion_until_runtime_cutover
     target_runtime:
-      api: vercel_functions
-      async_processing: vercel_queue_or_workflow_primitive
-      processing_model: event_driven
+      api: cloudflare_worker
+      async_processing: cloudflare_queue
+      reconciliation: cloudflare_scheduled_handler_for_pending_delivery_ledger_only
+      optional_future_workflows: cloudflare_workflows_when_multi_step_durability_is_justified
+      processing_model: event_driven_with_reconciliation_safety_net
     interfaces:
       - chatgpt
       - notion_projection_after_cutover
       - future_mobile_capture
-    migration_state: mirror_verified_runtime_cutover_pending
+    migration_state: mirror_verified_cloudflare_runtime_implementation_in_progress
     rule: do_not_flatten_into_generic_shopping_items
 
   grocery_and_general_shopping_list:
