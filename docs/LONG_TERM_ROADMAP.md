@@ -46,11 +46,11 @@ Durable operational state belongs in Neon, Obsidian, a domain service, or the au
 
 ### Neon owns user-controlled structured machine state when DB semantics help
 
-Use PostgreSQL for actions, jobs/runs, events, receipts, checkpoints, external references, maintenance state, and specialized user-owned domain databases. Do not turn it into a raw dump of messages, narrative notes, health records, credentials, or provider-owned official records.
+Use PostgreSQL for actions, jobs/runs, events, receipts, checkpoints, external references, maintenance state, specialized user-owned domain databases, and the target structured People/Relationships machine state. Do not turn it into a raw dump of messages, narrative notes, health records, credentials, or provider-owned official records.
 
 ### Obsidian owns narrative knowledge
 
-Learning, reasoning, research context, reflections, and relationship narrative remain human-readable. Use frontmatter before inventing parallel database models.
+Learning, reasoning, research context, reflections, and relationship narrative remain human-readable. Structured cross-system People state may live in Neon without copying the narrative itself.
 
 ### Prefer events/webhooks over polling
 
@@ -79,10 +79,12 @@ A target is not a cutover. Migrate one domain at a time, verify parity and runti
 | Code truth | GitHub | developer tooling |
 | Coding orchestration | ORC | LLM4LIFE invokes it |
 | Narrative knowledge | Obsidian | trusted live-vault bridge target |
-| Contact identity | Google Contacts after dedup | Apple Contacts synchronized client |
-| Relationship context | Obsidian | actions/Calendar for follow-up |
+| Stable person identity | Neon after People migration | Google Contacts address-book projection/client |
+| Structured relationship machine state | Neon after People migration | actions/Calendar for execution |
+| Relationship narrative/context | Obsidian | linked to stable person identity |
+| Apple-device contacts | Apple Contacts | synchronized client after People migration |
 | Consolidated finance | InUnity | providers retain official authority |
-| Personal-care inventory | Product Tracker / Neon | Cloudflare Worker + Queue runtime; Notion projection after cutover |
+| Personal-care inventory | Product Tracker / Neon | Cloudflare Worker + Queue + Hyperdrive; Notion projection/rollback |
 | Household/vehicle maintenance | Neon | Google Tasks / Calendar |
 | General grocery/shopping | Neon when structure adds value | lightweight client/projection |
 | Health aggregation | Apple Health | no Neon copy by default |
@@ -95,59 +97,63 @@ A target is not a cutover. Migrate one domain at a time, verify parity and runti
 
 **Current:** Neon canonical; Google Tasks projection/capture and Google Calendar execution are production-live; Notion planning is rollback/reference.
 
-**Done gate:** normal action flows work without Notion, telemetry/receipts are durable, and no planning automation silently falls back to Notion writes.
-
 **Status:** substantially complete.
 
 ### Personal-care inventory / Product Tracker
 
-**Current:** parity-verified Product Tracker mirror exists in a dedicated Neon database; Notion remains live control until runtime verification.
+**Current:** Product Tracker/Neon is production canonical. Cloudflare Worker `v0.4.0`, Queue, Hyperdrive, reliability status/DLQ receipts and stable Notion event-idempotency hardening are live. Notion inbound sync is disabled and Notion is projection/reference/rollback.
+
+**Remaining closeout:** complete the post-cutover observation window and remove temporary reliability staging infrastructure if production remains clean.
+
+**Status:** canonical cutover complete; observation/cleanup active.
+
+### People / Contacts / Relationships
+
+**Current:** Phase 0 architecture accepted; implementation not started. Apple + Google Contacts remain fragmented. Obsidian remains the live private narrative relationship system.
 
 **Target:**
 
 ```text
-ChatGPT / clients / Notion webhook
-              |
-              v
-      Cloudflare Worker
-              |
-              v
-             Neon
- canonical inventory/events
- outbox + webhook receipt ledger
-              |
-              v
-      Cloudflare Queue
- async projection / retries
-              |
-              v
- Notion projection / future effects
+Neon
+ stable person identity
+ cross-system refs
+ structured relationship/fact/interaction state
+      |
+      +--> Google Contacts address-book client/projection
+      +--> LLM4LIFE actions -> Google Tasks follow-ups
+      +--> Google Calendar scheduled interactions
+
+Obsidian
+ narrative relationship memory
+ diary/reflections
+ long-form context
 ```
-
-The database transaction is the durable boundary. Normal work publishes Queue messages after commit. A low-frequency Cloudflare scheduled relay only republishes due Product Tracker ledger rows when queue publication was missed or a claim became stale; it does not poll Notion.
-
-Cloudflare Workflows are optional when genuinely multi-step durable workflows emerge. Hyperdrive is a later Postgres connection optimization after the direct Neon runtime is proven.
 
 **Done gate:**
 
-- Cloudflare Worker deployment healthy;
-- authenticated reads match Neon;
-- duplicate/retried API requests create one canonical inventory event;
-- Notion webhook authentication/deduplication verified;
-- Queue projection/retry path verified;
-- reconciliation recovers missed publication;
-- DLQ/observability verified;
-- only then Notion becomes projection/rollback.
+- minimum People schema reviewed/tested;
+- read-only Apple/Google inventory completed;
+- stable person IDs and external refs imported idempotently;
+- duplicate candidates reconciled conservatively;
+- same-name-only auto-merge prohibited/tested;
+- ambiguous merges remain reviewable and reversible;
+- contact-field authority/conflict policy explicitly chosen;
+- Google Contacts projection/cutover verified;
+- Apple-device sync path verified;
+- Obsidian person notes linked without copying narrative into Neon;
+- structured facts preserve provenance;
+- relationship follow-ups reuse the existing action domain;
+- no private People payloads committed to the public repo.
 
-**Status:** mirror complete; Cloudflare implementation committed and CI-green; deployment/cutover pending.
+**Status:** **NEXT — Phase 0 complete, Phase 1 schema + read-only inventory pending.**
+
+See `docs/PEOPLE.md`.
 
 ### Notion repositioning
 
-**Current:** planning rollback/reference; personal-care inventory transitional.
+**Current:** planning rollback/reference and Product Tracker projection/reference/rollback.
 
 **Target:** optional dashboard/projection/ad-hoc workspace only where it provides real UX value.
-
-**Done gate:** every remaining operational Notion domain has a verified replacement and rollback window.
 
 ### Obsidian live bridge
 
@@ -159,11 +165,7 @@ LLM4LIFE -> authenticated least-privilege local adapter -> live Obsidian vault
 
 **Done gate:** authenticated read/write, atomic updates, path restrictions, auditability, and no private vault data in the public LLM4LIFE repo.
 
-### Contacts consolidation
-
-**Target:** Google Contacts canonical; Apple Contacts synchronized device client.
-
-**Done gate:** deduplicate first, preserve important fields, verify both ecosystems, then stop independently maintaining two address books.
+The People subsystem can proceed with schema/contact inventory independently, but narrative write automation should use this bridge when practical.
 
 ### Household and vehicle operations
 
@@ -182,6 +184,8 @@ many ingress channels -> one routing/control policy -> correct domain owner
 ```
 
 Every adopted bridge must use least privilege, explicit actions, deduplication/idempotency, and remain removable without loss of canonical state.
+
+For People, communication systems should normally provide source references/interaction signals, not full-message archival.
 
 ### Files/storage rationalization
 
@@ -207,24 +211,38 @@ For every material tool, periodically record its real job, canonical ownership, 
 
 **State:** largely complete.
 
-### Phase B — Finish Product Tracker and remove remaining Notion operational dependency
+### Phase B — Product Tracker canonical cutover
 
-- deploy Product Tracker on Cloudflare Worker + Queue;
-- verify inventory runtime and demote Notion inventory to projection/rollback;
-- retain historical Notion data until rollback confidence is sufficient;
-- evaluate Hyperdrive only after functional runtime verification.
+- deploy Cloudflare Worker + Queue + Hyperdrive;
+- verify API mutation idempotency/retry/reconciliation/DLQ;
+- disable Notion inbound writes;
+- demote Notion to projection/rollback;
+- add reliability status and stable Notion event ID hardening;
+- observe production, then remove temporary reliability staging.
 
-### Phase C — Knowledge and identity
+**State:** cutover/hardening complete; observation/cleanup remains.
+
+### Phase C — People / identity / relationships — NEXT
+
+Follow `docs/PEOPLE.md` rather than improvising from chat history.
+
+1. **Phase 1:** minimum schema + tests + read-only Google/Apple contact inventory.
+2. Decide exact field-level authority after real API/conflict testing.
+3. **Phase 2:** stable identity import + external refs + conservative dedup/merge audit.
+4. **Phase 3:** Google Contacts projection/cutover + Apple synchronized-client verification.
+5. **Phase 4:** Obsidian stable-person linking + conversational structured fact/interaction capture.
+6. **Phase 5:** low-noise relationship automation using existing actions/Calendar.
+
+Do not start by mass-editing contacts or migrating narrative notes.
+
+### Phase D — Knowledge bridge + household operations
 
 - trusted live Obsidian bridge;
-- contact dedup/consolidation;
-- stronger structured retrieval without duplicating narrative state.
-
-### Phase D — Household operations
-
 - populate household/vehicle assets and maintenance;
 - generate actions idempotently;
 - add general shopping structure only where automation justifies it.
+
+The Obsidian bridge can be pulled earlier if People Phase 4 needs it, but it should not block read-only People inventory/schema work.
 
 ### Phase E — Ingress/orchestration hardening
 
@@ -248,9 +266,10 @@ When a major architecture choice changes:
 
 1. update/add a decision record;
 2. update machine-readable registries;
-3. update `docs/STATUS.md` only when runtime reality changes;
-4. update this roadmap when the long-term target changes;
-5. preserve superseded decisions as historical context.
+3. update the domain implementation contract when one exists;
+4. update `docs/STATUS.md` only when runtime reality changes;
+5. update this roadmap when the long-term target changes;
+6. preserve superseded decisions/inventories as historical context.
 
 Newest explicit adopted decision wins when documents conflict.
 
