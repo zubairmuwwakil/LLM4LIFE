@@ -10,6 +10,7 @@ status_vocabulary:
   optional_planned: use_only_when_it_removes_real_friction
   transitional: currently_live_but_target_ownership_is_moving_elsewhere
   auxiliary: useful_capability_but_not_canonical_domain_owner
+  production_canonical: live_verified_domain_owner
 
 core_tools:
   chatgpt:
@@ -31,6 +32,7 @@ core_tools:
       - code
       - repository_truth
       - llm4life_public_architecture
+    public_repo_rule: never_store_private_people_relationship_or_contact_payloads
 
   neon:
     status: connected
@@ -42,9 +44,10 @@ core_tools:
       personal_action_data_read_verified: true
       personal_action_data_write_verified: true
     runtime_note: >-
-      Personal actions are canonical in the llm4life schema. A separate
-      product_tracker database hosts the parity-verified personal-care inventory
-      mirror and will remain canonical after Product Tracker runtime cutover.
+      Personal actions are canonical in the llm4life schema. Product Tracker is
+      production-canonical in the separate product_tracker database. The People
+      subsystem is a documented target only; its schema/import has not been
+      implemented yet.
     owns:
       - actions
       - action_executions
@@ -56,6 +59,12 @@ core_tools:
       - household_and_vehicle_maintenance
       - general_shopping_state
       - database_hosting_for_product_tracker
+    target_additions_after_migration:
+      - stable_person_identity
+      - person_external_refs
+      - structured_relationship_machine_state
+      - provenance_aware_person_facts
+      - minimal_interaction_metadata
 
   cloudflare:
     status: connected
@@ -69,17 +78,20 @@ core_tools:
         worker_version: 0.2.0
         schedule: every_15_minutes
         sync_verified: true
-    product_tracker_target:
-      implementation_status: code_committed_ci_green_deployment_pending
-      worker: llm4life-product-tracker
-      http_runtime: cloudflare_worker
-      async_runtime: cloudflare_queue
-      queue: llm4life-product-tracker-events
-      reconciliation: scheduled_handler_every_5_minutes_for_pending_delivery_ledger_only
-      workflows: optional_future_only_when_multi_step_durability_is_justified
-      hyperdrive: evaluate_after_functional_runtime_validation
-      canonical_backend: neon_product_tracker_database
-      direct_chatgpt_deployment_available_this_session: false
+      product_tracker:
+        worker: llm4life-product-tracker
+        worker_version: 0.4.0
+        http_runtime: cloudflare_worker
+        async_runtime: cloudflare_queue
+        queue: llm4life-product-tracker-events
+        reconciliation: scheduled_handler_every_5_minutes_for_pending_delivery_ledger_only
+        hyperdrive: live
+        canonical_backend: neon_product_tracker_database
+        reliability_status_endpoint: live
+        durable_dlq_receipts: live
+        stable_notion_event_id_hardening: live
+        notion_inbound_sync_enabled: false
+        production_verified: true
     boundary: runtime_not_canonical_data_owner
 
   google_tasks:
@@ -87,6 +99,7 @@ core_tools:
     role: preferred_user_facing_personal_action_client
     direct_chatgpt_connector_verified: false
     target_relationship: projection_and_authorized_capture_client_for_neon_action_state
+    people_role: relationship_followups_project_through_existing_action_domain
     adapter:
       path: integrations/google-tasks-worker
       runtime: cloudflare_worker
@@ -118,26 +131,28 @@ core_tools:
     owns:
       - fixed_time_commitments
       - execution_schedule
+    people_role: scheduled_interactions_only_not_relationship_truth
     does_not_own:
       - permanent_general_backlog
+      - canonical_relationship_state
 
   notion:
-    status: transitional
+    status: auxiliary
     access:
       current_connector: available
     planning_role: rollback_reference_only
-    still_live_domains:
-      - personal_care_inventory_control_until_product_tracker_runtime_cutover
+    personal_care_role: projection_reference_and_rollback_only
+    product_tracker_inbound_sync_enabled: false
     target_role:
       - optional_dashboard
-      - inventory_projection_after_product_tracker_cutover
+      - inventory_projection
       - rollback_reference
       - ad_hoc_structured_workspace
-    rule: do_not_write_migrated_planning_state_as_canonical
+    rule: do_not_write_migrated_planning_or_personal_care_state_as_canonical
 
   product_tracker:
-    status: partial
-    role: target_canonical_personal_care_inventory_domain_service
+    status: production_canonical
+    role: canonical_personal_care_inventory_domain_service
     repository: zubairmuwwakil/Product_Tracker
     persistence:
       provider: neon
@@ -150,8 +165,8 @@ core_tools:
         - InventoryEvent
         - OutboxEvent
         - WebhookReceipt
-    mirror:
-      state: production_data_mirror_live_and_verified
+        - DeadLetterEvent
+    baseline:
       active_needs: 25
       active_products: 26
       balances: 26
@@ -166,28 +181,27 @@ core_tools:
       derived_urgency: true
       transactional_outbox_required_as_durable_publish_intent: true
       generic_llm4life_shopping_items_are_not_personal_care_canonical: true
+      stable_notion_event_id_query_before_create: true
     runtime:
-      hosted_service_status: cloudflare_code_ready_deployment_and_verification_pending
-      target_api_runtime: cloudflare_worker
-      target_async_runtime: cloudflare_queue
+      hosted_service_status: production_live
+      worker_version: 0.4.0
+      api_runtime: cloudflare_worker
+      async_runtime: cloudflare_queue
       reconciliation_runtime: cloudflare_scheduled_handler
-      normal_processing_target: event_driven
-      continuous_database_polling_target: false
-      ci:
-        prisma_validate: passed
-        prisma_migrate_test: passed
-        dependency_audit: passed
-        typecheck_and_tests: passed
-        wrangler_dry_run: passed
-      notion_webhook_path_requires_live_verification: true
-    cutover_gate:
-      notion_remains_live_control_surface: true
-      postgres_authoritative_writes: false
-      require_health_read_mutation_webhook_queue_projection_reconciliation_dlq_verification: true
+      database_connectivity: cloudflare_hyperdrive
+      normal_processing: event_driven
+      continuous_database_polling: false
+      reliability_status: live
+      durable_dlq_receipts: live
+      notion_inbound_sync_enabled: false
+      post_cutover_observation_active: true
+    ownership:
+      postgres_authoritative_writes: true
+      notion_role: projection_reference_and_rollback_only
     note: >-
-      The Neon mirror is exact and the Cloudflare Worker/Queue implementation is
-      committed and CI-green, but this is intentionally not a write cutover yet.
-      Deploy and verify the Cloudflare runtime before demoting Notion.
+      Canonical cutover and reliability hardening are complete. The remaining
+      post-cutover observation/staging cleanup is operational closeout, not an
+      ownership blocker.
 
   things3:
     status: user_live
@@ -198,6 +212,14 @@ core_tools:
   obsidian:
     status: partial
     role: canonical_narrative_knowledge_and_relationship_context
+    people_role:
+      owns:
+        - narrative_relationship_memory
+        - long_form_person_context
+        - diary_and_reflections
+      does_not_target_own:
+        - stable_internal_person_identity
+        - structured_cross_system_relationship_machine_state
     current_ai_path:
       github_backup_repo_access: true
       direct_live_local_vault_bridge_verified: false
@@ -205,13 +227,16 @@ core_tools:
 
   google_contacts:
     status: available_unverified
-    role: preferred_canonical_address_book_after_dedup_migration
+    role: target_human_facing_address_book_projection_after_people_dedup_cutover
     current_state: fragmented_with_apple_contacts
+    people_migration_state: phase_0_documented_implementation_not_started
+    target_canonical_backend: neon_people_state_subject_to_phase_1_field_authority_validation
+    runtime_warning: connector_available_does_not_equal_people_cutover
 
   apple_contacts:
     status: user_live
-    role: current_address_book_client
-    target_role: synced_client_after_google_contacts_migration
+    role: current_address_book_client_and_source_during_people_migration
+    target_role: synced_device_client_after_people_google_contacts_migration
 
   jira:
     status: available_unverified
@@ -226,6 +251,7 @@ core_tools:
   gmail:
     status: connected
     role: email_and_intake_source
+    people_role: evidence_or_interaction_source_not_default_message_archive
 
   slack:
     status: connected
@@ -303,17 +329,20 @@ canonical_routing_v2:
   personal_action_backend: neon
   personal_action_client: google_tasks
   personal_action_projection_runtime: cloudflare_worker
-  personal_care_inventory_current_control: notion_until_product_tracker_runtime_cutover
-  personal_care_inventory_target_owner: product_tracker_on_neon
-  personal_care_inventory_target_runtime: cloudflare_worker_and_queue
+  personal_care_inventory_owner: product_tracker_on_neon
+  personal_care_inventory_runtime: cloudflare_worker_queue_and_hyperdrive
+  personal_care_notion_role: projection_reference_and_rollback_only
   engineering_backlog: jira
   code_repository_truth: github
   coding_orchestration: orc
   scheduled_execution: google_calendar
   llm4life_machine_state: neon
   narrative_knowledge: obsidian
-  contact_identity_after_migration: google_contacts
-  relationship_context: obsidian
+  stable_person_identity_after_people_migration: neon
+  structured_relationship_state_after_people_migration: neon
+  relationship_narrative_context: obsidian
+  address_book_client_after_people_cutover: google_contacts
+  apple_contacts_after_people_cutover: synced_device_client
   finance_consolidated: inunity
   finance_chatgpt_interface: inunity_mcp
   work_communication: slack
@@ -326,13 +355,18 @@ runtime_rules:
   - google_tasks_is_live_projection_and_authorized_capture_client_not_canonical_backend
   - google_task_deletion_must_not_delete_canonical_neon_action
   - google_calendar_remains_time_of_day_execution_owner
-  - product_tracker_neon_mirror_does_not_equal_inventory_write_cutover
-  - product_tracker_target_runtime_is_cloudflare_worker_queue_with_neon_canonical
+  - product_tracker_is_production_canonical_for_personal_care_inventory
+  - product_tracker_target_runtime_is_live_on_cloudflare_worker_queue_hyperdrive
   - cloudflare_queue_delivery_is_at_least_once_so_product_tracker_handlers_must_be_idempotent
   - product_tracker_scheduled_relay_is_reconciliation_not_normal_polling
-  - notion_personal_care_inventory_remains_live_until_product_tracker_runtime_is_verified
-  - personal_care_inventory_mutations_must_use_product_tracker_domain_events_after_cutover
+  - notion_personal_care_is_projection_reference_and_rollback_only
+  - personal_care_inventory_mutations_must_use_product_tracker_domain_events
   - do_not_flatten_personal_care_inventory_into_generic_shopping_items
+  - people_phase_0_documentation_does_not_equal_runtime_cutover
+  - people_same_name_only_auto_merge_is_prohibited
+  - people_structured_facts_require_provenance
+  - people_sensitive_model_inference_must_not_be_silently_persisted
+  - people_followups_reuse_existing_personal_action_domain
   - verify_live_connector_before_claiming_access
   - search_before_create
   - use_idempotency_for_repeated_automated_writes
