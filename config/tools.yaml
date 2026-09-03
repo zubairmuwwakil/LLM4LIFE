@@ -106,6 +106,22 @@ core_tools:
       google_tasks_sync_verified: true
       manual_and_cron_v0_2_verified: true
 
+  vercel:
+    status: user_live
+    role: preferred_existing_serverless_runtime_for_product_tracker_and_fitting_web_workloads
+    current_product_tracker_runtime_live: false
+    target_product_tracker_runtime:
+      api: vercel_functions
+      async_processing: vercel_queue_or_workflow_primitive
+      canonical_backend: neon_product_tracker_database
+      normal_processing: event_driven
+      frequent_hobby_cron_polling: false
+    boundary: runtime_not_canonical_data_owner
+    note: >-
+      Product Tracker has not yet been deployed/verified on Vercel. The target
+      deliberately replaces the old permanent polling-worker assumption with an
+      event-driven async runtime while keeping Neon canonical.
+
   google_calendar:
     status: connected
     access:
@@ -165,23 +181,26 @@ core_tools:
       stable_product_keys: true
       event_based_inventory_mutations: true
       derived_urgency: true
-      transactional_outbox: true
+      transactional_outbox_or_equivalent_atomic_dispatch_required: true
       generic_llm4life_shopping_items_are_not_personal_care_canonical: true
     runtime:
-      hosted_service_status: pending_deployment_and_verification
-      free_first_candidate: render_web_service_single_process
-      in_process_worker_supported: true
-      dedicated_worker_path_preserved: true
+      hosted_service_status: pending_vercel_refactor_deployment_and_verification
+      target_api_runtime: vercel_functions
+      target_async_runtime: vercel_queue_or_workflow_primitive
+      normal_processing_target: event_driven
+      old_in_process_worker: transitional_only
+      dedicated_worker_path: transitional_or_future_option_if_justified
       notion_webhook_path_requires_verification: true
+      frequent_cron_polling_target: false
     cutover_gate:
       notion_remains_live_control_surface: true
       postgres_authoritative_writes: false
-      require_hosted_health_read_webhook_outbox_idempotency_verification: true
+      require_hosted_health_read_mutation_webhook_async_projection_reconciliation_verification: true
     note: >-
       The data mirror is exact and live, but this is intentionally not a write
-      cutover yet. Deploy and verify the Product Tracker API plus webhook/outbox
-      runtime first; only then make Postgres/Product Tracker authoritative and
-      demote Notion to projection/rollback.
+      cutover yet. Refactor/deploy/verify the Vercel event-driven runtime first;
+      only then make Product Tracker/Neon authoritative and demote Notion to
+      projection/rollback.
 
   things3:
     status: user_live
@@ -309,6 +328,7 @@ canonical_routing_v2:
   personal_action_projection_runtime: cloudflare_worker
   personal_care_inventory_current_control: notion_until_product_tracker_runtime_cutover
   personal_care_inventory_target_owner: product_tracker_on_neon
+  personal_care_inventory_target_runtime: vercel_event_driven
   engineering_backlog: jira
   code_repository_truth: github
   coding_orchestration: orc
@@ -323,6 +343,7 @@ canonical_routing_v2:
   email_source_context: gmail
 
 runtime_rules:
+  - nothing_is_grandfathered_every_component_must_justify_its_current_role
   - neon_is_canonical_for_personal_action_state_after_2026_09_02_cutover
   - notion_planning_databases_are_rollback_reference_not_live_write_targets
   - google_tasks_is_live_projection_and_authorized_capture_client_not_canonical_backend
@@ -330,6 +351,7 @@ runtime_rules:
   - google_calendar_remains_time_of_day_execution_owner
   - google_tasks_worker_bulk_io_uses_batching_to_respect_cloudflare_free_subrequest_limits
   - product_tracker_neon_mirror_does_not_equal_inventory_write_cutover
+  - product_tracker_target_runtime_is_vercel_event_driven_not_render_polling
   - notion_personal_care_inventory_remains_live_until_product_tracker_runtime_is_verified
   - personal_care_inventory_mutations_must_use_product_tracker_domain_events_after_cutover
   - do_not_flatten_personal_care_inventory_into_generic_shopping_items
