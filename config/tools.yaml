@@ -34,7 +34,7 @@ core_tools:
 
   neon:
     status: connected
-    role: v2_durable_llm4life_machine_state
+    role: v2_durable_llm4life_machine_state_and_domain_database_host
     access:
       project_discovery_verified: true
       production_schema_read_verified: true
@@ -42,11 +42,10 @@ core_tools:
       personal_action_data_read_verified: true
       personal_action_data_write_verified: true
     runtime_note: >-
-      The dedicated llm4life project is connected. The v2 schema was validated
-      on a disposable branch and applied to production. On 2026-09-02 the full
-      transitional Notion task snapshot (15 actions) and Task Execution Log (2
-      executions) were imported with parity verification and stable external
-      references. The live planning automations now treat Neon as canonical.
+      The dedicated llm4life project is connected. Personal actions are canonical
+      in the llm4life schema. A separate product_tracker database now hosts the
+      parity-verified personal-care inventory mirror so domain-specific inventory
+      semantics do not get flattened into generic shopping_items.
     owns:
       - actions
       - action_executions
@@ -56,7 +55,8 @@ core_tools:
       - sync_checkpoints
       - adaptive_rules
       - household_and_vehicle_maintenance
-      - shopping_state
+      - general_shopping_state
+      - database_hosting_for_product_tracker
 
   google_tasks:
     status: connected
@@ -89,10 +89,8 @@ core_tools:
         overlap_minutes: 5
     note: >-
       The first v0.1 bulk production projection exceeded Cloudflare Free's 50
-      external-subrequest limit after partially completing safely. A retry
-      completed without duplicate projections. Worker v0.2.0 is now deployed
-      and verified through both a manual sync and a subsequent scheduled cron;
-      it batches DB and Google mutations and uses incremental Google reads.
+      external-subrequest limit after partially completing safely. Worker v0.2.0
+      is now deployed and verified through manual and scheduled syncs.
 
   cloudflare:
     status: connected
@@ -107,11 +105,6 @@ core_tools:
       schedule: every_15_minutes
       google_tasks_sync_verified: true
       manual_and_cron_v0_2_verified: true
-    note: >-
-      Cloudflare is production-live for the Google Tasks projection. The
-      official ChatGPT app is enabled, but this current session still does not
-      expose a Cloudflare tool namespace; deployment changes therefore require
-      Wrangler until that namespace is available.
 
   google_calendar:
     status: connected
@@ -130,7 +123,7 @@ core_tools:
       current_connector: available
     planning_role: rollback_reference_only
     still_live_domains:
-      - shopping_needs_until_migrated
+      - personal_care_inventory_control_until_product_tracker_runtime_cutover
     migrated_planning_sources:
       - tasks
       - task_execution_log
@@ -138,9 +131,57 @@ core_tools:
       - ai_activity_log_no_longer_live_audit_target
     target_role:
       - optional_dashboard
-      - optional_projection
+      - inventory_projection_after_product_tracker_cutover
+      - rollback_reference
       - ad_hoc_structured_workspace
     rule: do_not_write_migrated_planning_state_as_canonical
+
+  product_tracker:
+    status: partial
+    role: target_canonical_personal_care_inventory_domain_service
+    repository: zubairmuwwakil/Product_Tracker
+    persistence:
+      provider: neon
+      project: llm4life
+      database: product_tracker
+      schema_model:
+        - InventoryNeed
+        - Product
+        - InventoryBalance
+        - InventoryEvent
+        - OutboxEvent
+        - WebhookReceipt
+    mirror:
+      state: production_data_mirror_live_and_verified
+      active_needs: 25
+      active_products: 26
+      balances: 26
+      baseline_events: 26
+      orphan_products: 0
+      orphan_balances: 0
+      baseline_balance_mismatches: 0
+    semantics:
+      stable_need_keys: true
+      stable_product_keys: true
+      event_based_inventory_mutations: true
+      derived_urgency: true
+      transactional_outbox: true
+      generic_llm4life_shopping_items_are_not_personal_care_canonical: true
+    runtime:
+      hosted_service_status: pending_deployment_and_verification
+      free_first_candidate: render_web_service_single_process
+      in_process_worker_supported: true
+      dedicated_worker_path_preserved: true
+      notion_webhook_path_requires_verification: true
+    cutover_gate:
+      notion_remains_live_control_surface: true
+      postgres_authoritative_writes: false
+      require_hosted_health_read_webhook_outbox_idempotency_verification: true
+    note: >-
+      The data mirror is exact and live, but this is intentionally not a write
+      cutover yet. Deploy and verify the Product Tracker API plus webhook/outbox
+      runtime first; only then make Postgres/Product Tracker authoritative and
+      demote Notion to projection/rollback.
 
   things3:
     status: user_live
@@ -232,9 +273,8 @@ core_tools:
       current_session_namespace_visible: false
     runtime_note: >-
       The ChatGPT MCP integration has been completed and successfully exercised.
-      The current connector registry for this specific session is not exposing
-      the InUnity namespace, so re-verify the namespace before a task that needs
-      a live call rather than treating the integration as absent.
+      Re-verify the namespace before a task that needs a live call when it is not
+      surfaced in the current session.
 
   pickme:
     status: domain_application
@@ -267,6 +307,8 @@ canonical_routing_v2:
   personal_action_backend: neon
   personal_action_client: google_tasks
   personal_action_projection_runtime: cloudflare_worker
+  personal_care_inventory_current_control: notion_until_product_tracker_runtime_cutover
+  personal_care_inventory_target_owner: product_tracker_on_neon
   engineering_backlog: jira
   code_repository_truth: github
   coding_orchestration: orc
@@ -287,6 +329,10 @@ runtime_rules:
   - google_task_deletion_must_not_delete_canonical_neon_action
   - google_calendar_remains_time_of_day_execution_owner
   - google_tasks_worker_bulk_io_uses_batching_to_respect_cloudflare_free_subrequest_limits
+  - product_tracker_neon_mirror_does_not_equal_inventory_write_cutover
+  - notion_personal_care_inventory_remains_live_until_product_tracker_runtime_is_verified
+  - personal_care_inventory_mutations_must_use_product_tracker_domain_events_after_cutover
+  - do_not_flatten_personal_care_inventory_into_generic_shopping_items
   - verify_live_connector_before_claiming_access
   - search_before_create
   - use_idempotency_for_repeated_automated_writes
