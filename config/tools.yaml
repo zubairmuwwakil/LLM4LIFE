@@ -59,12 +59,33 @@ core_tools:
       - shopping_state
 
   google_tasks:
-    status: user_live
+    status: partial
     role: preferred_user_facing_personal_action_client
     direct_chatgpt_connector_verified: false
     installed_plugin_found: false
-    target_relationship: projection_client_for_neon_action_state
-    integration_gap: thin_official_google_tasks_api_oauth_adapter_required
+    target_relationship: projection_and_authorized_capture_client_for_neon_action_state
+    adapter:
+      code_committed: true
+      path: integrations/google-tasks-worker
+      runtime: cloudflare_worker
+      schedule: every_15_minutes
+      deployment_status: pending_google_oauth_and_cloudflare_secrets
+      canonical_backend: neon
+      calendar_time_owner: google_calendar
+      deletion_rule: google_task_deletion_never_deletes_canonical_neon_action
+
+  cloudflare:
+    status: partial
+    role: preferred_edge_worker_runtime_for_google_tasks_projection
+    user_stack: existing
+    chatgpt_app_connection: enabled_by_user
+    current_session_namespace_visible: false
+    planned_runtime:
+      - llm4life_google_tasks_sync
+    note: >-
+      The official Cloudflare ChatGPT app was enabled, but this current session
+      does not expose a Cloudflare tool namespace. Worker deployment therefore
+      remains pending even though the implementation is committed.
 
   google_calendar:
     status: connected
@@ -176,8 +197,18 @@ core_tools:
     llm4life_copy_policy: no_by_default
 
   inunity:
-    status: domain_application
+    status: connected
     role: consolidated_user_owned_financial_system
+    mcp:
+      implementation_status: complete
+      recent_read_verified: true
+      verified_operation: get_attention_summary
+      current_session_namespace_visible: false
+    runtime_note: >-
+      The ChatGPT MCP integration has been completed and successfully exercised.
+      The current connector registry for this specific session is not exposing
+      the InUnity namespace, so re-verify the namespace before a task that needs
+      a live call rather than treating the integration as absent.
 
   pickme:
     status: domain_application
@@ -208,7 +239,8 @@ agents:
 
 canonical_routing_v2:
   personal_action_backend: neon
-  personal_action_client: google_tasks_when_adapter_exists
+  personal_action_client: google_tasks_after_worker_deployment
+  personal_action_projection_runtime: cloudflare_worker_after_deployment
   engineering_backlog: jira
   code_repository_truth: github
   coding_orchestration: orc
@@ -218,12 +250,16 @@ canonical_routing_v2:
   contact_identity_after_migration: google_contacts
   relationship_context: obsidian
   finance_consolidated: inunity
+  finance_chatgpt_interface: inunity_mcp
   work_communication: slack
   email_source_context: gmail
 
 runtime_rules:
   - neon_is_canonical_for_personal_action_state_after_2026_09_02_cutover
   - notion_planning_databases_are_rollback_reference_not_live_write_targets
+  - google_tasks_adapter_code_exists_but_runtime_is_not_live_until_oauth_and_cloudflare_deploy_succeed
+  - google_task_deletion_must_not_delete_canonical_neon_action
+  - google_calendar_remains_time_of_day_execution_owner
   - verify_live_connector_before_claiming_access
   - search_before_create
   - use_idempotency_for_repeated_automated_writes
