@@ -7,6 +7,7 @@ on:
       - "scripts/people_inventory.py"
       - "tests/test_people_dedup.py"
       - "tests/test_people_inventory.py"
+      - "tests/test_people_inventory_grouped_vcard.py"
       - "db/migrations/004_people.sql"
       - "db/tests/004_people_phase1.sql"
       - "config/people-phase1.yaml"
@@ -20,6 +21,7 @@ on:
       - "scripts/people_inventory.py"
       - "tests/test_people_dedup.py"
       - "tests/test_people_inventory.py"
+      - "tests/test_people_inventory_grouped_vcard.py"
       - "db/migrations/004_people.sql"
       - "db/tests/004_people_phase1.sql"
       - "config/people-phase1.yaml"
@@ -41,6 +43,6 @@ jobs:
         with:
           python-version: "3.12"
       - name: Run People synthetic tests
-        run: python -m unittest -v tests/test_people_dedup.py tests/test_people_inventory.py
+        run: python -m unittest -v tests/test_people_dedup.py tests/test_people_inventory.py tests/test_people_inventory_grouped_vcard.py
       - name: Verify migration and SQL test artifacts exist
         run: test -s db/migrations/004_people.sql && test -s db/tests/004_people_phase1.sql
