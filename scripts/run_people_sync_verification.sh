@@ -13,6 +13,13 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
   exit 64
 fi
 
+if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
+  echo "Do not run this verifier with sudo/root." >&2
+  echo "macOS Contacts permission is granted to your logged-in user/app context; sudo switches to root and will cause CNErrorDomain Code 100 Access Denied." >&2
+  echo "Run: bash scripts/run_people_sync_verification.sh" >&2
+  exit 77
+fi
+
 if [[ ! -s "${GOOGLE_SNAPSHOT}" ]]; then
   echo "Missing post-cutover Google snapshot: ${GOOGLE_SNAPSHOT}" >&2
   exit 66
