@@ -1,23 +1,25 @@
 # People & Relationships Subsystem
 
-**Status:** Phase 0 architecture accepted; implementation not started  
+**Status:** Phase 1 schema live in production; complete read-only contact inventory and reconciliation still pending  
 **Decision date:** 2026-09-03  
+**Schema deployment:** 2026-09-04  
 **Primary decision:** `docs/decisions/2026-09-03-people-subsystem-architecture.md`  
+**Phase 1 report:** `docs/people/PHASE_1_REPORT.md`  
 **Historical audit:** `docs/inventory/PEOPLE_CONTACTS_AND_RELATIONSHIPS.md`
 
-This document is the implementation contract for future agents working on LLM4LIFE People/Relationships.
+This document is the implementation contract for LLM4LIFE People/Relationships.
 
-It intentionally distinguishes **target architecture** from **live runtime**. Do not claim the People migration is complete merely because this design exists.
+It distinguishes **target architecture** from **live runtime**. The minimum People schema is now live, but no real contact import/dedup cutover has occurred.
 
 ## Agent quick start
 
 Before changing this subsystem:
 
-1. Read `AGENTS.md`, `docs/STATUS.md`, this file, the dated People decision, `config/domains.yaml`, and `system.yaml`.
+1. Read `AGENTS.md`, `docs/STATUS.md`, this file, the dated People decision, `docs/people/PHASE_1_REPORT.md`, `config/domains.yaml`, and `system.yaml`.
 2. Check the current migration phase before writing data or changing ownership.
 3. Prefer read-only inventory and dry-run reconciliation before any import/merge.
 4. Never merge two people solely because their names match.
-5. Use stable internal person IDs and provider external references; display names are not keys.
+5. Use stable internal person IDs and generic provider external references; display names are not keys.
 6. Preserve provenance for structured facts and interactions.
 7. Do not copy relationship narrative or raw private conversations into the public repository.
 8. Do not create a second task system for relationship follow-ups; use the existing LLM4LIFE action domain.
@@ -82,41 +84,45 @@ This subsystem is not intended to:
 
 | Object / field class | Target owner | Notes |
 |---|---|---|
-| Stable internal `person_id` | Neon | Never use display name as identity |
-| Cross-system person mappings | Neon | Google/Apple/Obsidian/message/calendar refs |
-| Structured relationship state | Neon | Type/status/cadence/open operational metadata when justified |
-| Structured durable person facts | Neon | Only when queryable/operationally useful; provenance required |
+| Stable internal `person_id` | Neon | Production schema live; no real People imported yet |
+| Cross-system person mappings | Neon | Uses generic `llm4life.external_refs`; no `person_external_refs` table |
+| Structured relationship state | Neon | Schema live; empty pending import |
+| Structured durable person facts | Neon | Provenance required; schema live |
 | Interaction metadata | Neon | Minimal metadata/source refs; not raw conversation archives |
 | Long-form relationship narrative | Obsidian | Human-readable private notes, diary/reflections, nuanced context |
-| Address-book UI | Google Contacts | Target human-facing contact projection after dedup/cutover |
-| Apple-device contact UX | Apple Contacts | Synced client after migration, not independent truth |
+| Address-book UI | Google Contacts | Target human-facing client; field-authority cutover not yet complete |
+| Apple-device contact UX | Apple Contacts | Current source/client during migration; target synchronized client |
 | Relationship follow-up task | Existing LLM4LIFE action domain | Project to Google Tasks; do not create a separate task backend |
 | Scheduled interaction | Google Calendar | Real time commitment only |
 | Communication history | Original provider | Source/evidence surface; do not copy wholesale by default |
 
 ### Contact-field authority during migration
 
-Apple and Google Contacts are currently fragmented. Until reconciliation/cutover is complete, the current provider records remain live source material.
+Apple and Google Contacts remain fragmented. Existing provider records remain live source material until reconciliation/cutover completes.
 
-**Default target recommendation:** once the import/dedup pipeline is verified, Neon should own the stable person entity and intentionally managed structured contact state, with Google Contacts serving as the primary human-facing address-book projection and Apple Contacts consuming that set.
+**Current conditional recommendation:** Neon owns stable person identity, generic provider refs and structured relationship state, while Google Contacts becomes authoritative for mutable address-book fields only if complete Apple/iCloud inventory demonstrates that required fields and records can be preserved. This is not a production field-ownership cutover yet.
 
-This recommendation is deliberately reviewable in Phase 1. If Google Contacts API semantics or operational reliability make field-level provider authority materially better for phone/email/address data, document that exception explicitly instead of creating silent bidirectional dual truth.
+Do not create long-term bidirectional dual truth.
 
 ## Design principles
 
 ### 1. Stable identity before automation
 
-Every person gets a stable internal ID. Names, emails and phone numbers are attributes/match signals, not primary identity.
+Every person gets a stable internal UUID. Names, emails and phone numbers are attributes/match signals, not primary identity.
 
-External references should be unique within provider/account scope.
+External references are unique within provider/account scope.
 
-### 2. Link, do not copy
+### 2. One generic external-reference model
+
+People reuses `llm4life.external_refs`, the existing cross-domain mapping primitive. Provider refs are keyed by system, account scope, internal type and external ID. Do not introduce a duplicate `person_external_refs` table unless a newer explicit decision proves the generic abstraction inadequate.
+
+### 3. Link, do not copy
 
 Obsidian narrative should reference a stable person identity. Neon should reference the canonical Obsidian note when useful rather than copying the full prose.
 
-Provider messages, Calendar events and Google Contacts records should normally be linked through external references rather than copied wholesale.
+Provider messages, Calendar events and Contacts records should normally be linked through external references rather than copied wholesale.
 
-### 3. Structured signal vs narrative context
+### 4. Structured signal vs narrative context
 
 Use Neon for data that benefits from deterministic querying, deduplication, event processing or automation.
 
@@ -124,7 +130,7 @@ Use Obsidian for nuance, reflections, long-form context, diary history and knowl
 
 A fact does not belong in Neon merely because it can be represented as a column.
 
-### 4. Provenance is first-class
+### 5. Provenance is first-class
 
 A future agent must be able to answer: **Where did this fact come from?**
 
@@ -136,21 +142,21 @@ Structured facts should preserve enough provenance to distinguish at least:
 - interaction-derived observation;
 - model-derived suggestion/inference.
 
-Model inference is not equivalent to user-asserted truth.
+Model inference is not equivalent to user-asserted truth. Sensitive model suggestions are not silently persisted as sensitive facts.
 
-### 5. Conservative identity merging
+### 6. Conservative identity merging
 
 Preferred resolution order:
 
 1. existing exact external reference;
 2. existing stable internal ID supplied by the source;
-3. unique normalized contact point with strong evidence;
+3. unique normalized strong contact point with supporting evidence;
 4. multiple independent matching signals;
 5. user confirmation for ambiguous cases.
 
 **Never auto-merge on same/similar name alone.**
 
-### 6. Reversible migration
+### 7. Reversible migration
 
 Imports, merges and cutovers require:
 
@@ -161,140 +167,58 @@ Imports, merges and cutovers require:
 - reversible merge/audit information;
 - no destructive cleanup until reconciliation passes.
 
-### 7. Minimum useful system
+### 8. Minimum useful system
 
 Do not pre-build every conceivable CRM feature. Add a table/field only when it has a concrete retrieval, routing, automation or integrity purpose.
 
-## Proposed Phase 1 data model
+## Live Phase 1 data model
 
-This is a **starting schema, not frozen implementation**. Future agents may improve it if they preserve the invariants above and document why.
+Migration `db/migrations/004_people.sql` is production-live and adds:
 
 ### `people`
 
-Minimum stable entity:
+Stable internal identity, archive state and reversible merge lineage.
 
-```text
-id UUID PK
-display_name
-preferred_name nullable
-status active|dormant|archived
-created_at
-updated_at
-archived_at nullable
-```
+### Generic `external_refs`
 
-Avoid stuffing every contact field into this table before the contact-authority decision is verified.
-
-### `person_external_refs`
-
-Maps one person to provider/system objects.
-
-```text
-id UUID PK
-person_id FK -> people.id
-system_id
-account_scope nullable
-external_id
-external_url nullable
-ref_type
-is_primary boolean
-first_seen_at
-last_seen_at
-metadata jsonb nullable
-UNIQUE(system_id, account_scope, external_id)
-```
-
-Candidate systems include Google Contacts, Apple Contacts import identifiers, Obsidian canonical notes, Calendar identities and communication-provider identities where technically appropriate.
+People-specific provider mappings use the existing `llm4life.external_refs` table. Phase 1 added `account_scope`, first/last-seen timestamps and archive lifecycle metadata to make provider identity account-safe.
 
 ### `relationships`
 
-Structured operational relationship metadata only.
-
-```text
-id UUID PK
-person_id FK -> people.id
-relationship_type nullable
-status nullable
-started_on nullable
-ended_on nullable
-check_in_cadence_days nullable
-created_at
-updated_at
-```
-
-Do not create a numeric closeness/quality score by default. Add one only if a concrete useful workflow justifies it and the user approves the semantics.
+Small operational relationship state only. Narrative remains in Obsidian.
 
 ### `person_facts`
 
-Flexible structured facts with provenance.
-
-```text
-id UUID PK
-person_id FK -> people.id
-fact_key
-value jsonb
-source_kind
-source_system nullable
-source_ref nullable
-asserted_at nullable
-observed_at nullable
-confidence nullable
-sensitivity_class nullable
-supersedes_id nullable
-created_at
-```
-
-Prefer superseding historical facts when provenance/history matters instead of silently overwriting evidence.
+Flexible structured facts with provenance, confidence, sensitivity classification and supersession.
 
 ### `interactions`
 
-Minimal interaction/event metadata.
-
-```text
-id UUID PK
-occurred_at
-interaction_type
-channel nullable
-source_system nullable
-source_ref nullable
-summary nullable
-created_at
-```
+Minimal interaction/event metadata. `occurred_on` is required and `occurred_at` is optional so date-only history does not invent time-of-day precision.
 
 ### `interaction_people`
 
-```text
-interaction_id FK -> interactions.id
-person_id FK -> people.id
-role nullable
-PRIMARY KEY(interaction_id, person_id)
-```
+Many-person interaction linkage.
 
-Long narrative interaction notes belong in Obsidian. `summary` should stay concise and operationally useful.
+### `action_people`
 
-### Action linkage
-
-Do not create a parallel `relationship_followups` task table unless a real limitation in the existing action model is proven.
-
-Preferred pattern:
-
-```text
-people/person relation
-      |
-      v
-LLM4LIFE action (canonical follow-up)
-      |
-      +--> Google Tasks
-      +--> Google Calendar only when scheduled
-```
-
-If relational querying becomes important, add a small `action_people` join rather than another task lifecycle.
+Relationship/person linkage to the existing canonical personal-action lifecycle. This is not another task backend.
 
 ### Contact points
 
-A `person_contact_points` table may be added after Phase 1 ownership testing if Neon is confirmed as canonical for phone/email/address data.
+`person_contact_points` remains intentionally deferred. Do not duplicate phone/email/address/birthday into Neon until complete inventory and field-authority testing proves the copy is justified.
 
-Do not implement bidirectional contact-field synchronization before conflict policy and cutover semantics are explicit.
+## Runtime state after schema deployment
+
+Verified immediately after production migration on 2026-09-04:
+
+- all six People tables exist;
+- People rows: 0;
+- person facts: 0;
+- interactions: 0;
+- 95 existing generic external refs preserved;
+- no real contacts imported or mutated.
+
+This means the backend structure is live, but **identity migration and provider cutover are not**.
 
 ## Privacy and inference policy
 
@@ -312,11 +236,7 @@ Never commit actual:
 
 Public repo content may include schemas, placeholder examples and non-sensitive architecture only.
 
-### Sensitive facts
-
 Do not automatically persist inferred sensitive facts such as health status, religion, politics, sexuality, criminal history or similarly sensitive attributes merely because a message or model inference suggests them.
-
-Prefer explicit user-provided facts and narrowly necessary operational metadata. When uncertain whether information deserves durable storage, do not persist it automatically.
 
 ## Capture/routing contract
 
@@ -340,69 +260,61 @@ classify information
 
 One input may create more than one linked object when the concepts are genuinely different; avoid copying the same payload into every system.
 
-## Import and dedup strategy
+## Migration sequence
 
 ### Phase 0 — documentation
 
-**Current phase.**
-
-- architecture/ownership documented;
-- old frontmatter-first-only recommendation superseded;
-- no People tables created yet;
-- no contact records migrated yet.
+Complete.
 
 ### Phase 1 — schema + read-only inventory
 
-1. Design migration SQL and tests.
-2. Inspect Google Contacts and available Apple Contacts export/supported access path.
-3. Produce counts by source and normalized candidate identifiers.
-4. Generate a duplicate-candidate report without modifying providers.
-5. Decide contact-field authority after seeing real provider semantics.
-6. Verify public repo contains no private contact payloads.
+**Schema portion complete and production-live. Inventory portion still incomplete.**
 
-**Gate:** schema reviewed, migration test passes, inventory report is reproducible, no production mutations.
+Completed:
+
+1. reviewed migrations `001-003` and production schema drift;
+2. selected generic `external_refs` over a People-specific duplicate;
+3. built and tested `004_people.sql`;
+4. validated synthetic identity/dedup invariants on a disposable Neon branch;
+5. applied the approved schema to production;
+6. verified zero People data and preservation of 95 existing refs;
+7. inspected Google Contacts connector behavior read-only;
+8. defined the Apple vCard / future `CNContactStore` path;
+9. built a deterministic dry-run duplicate-candidate engine.
+
+Still required before real import:
+
+1. complete Google saved-contact inventory through a supported enumeration path;
+2. complete Apple/iCloud inventory privately;
+3. run the candidate engine against the private normalized corpus;
+4. review conflicts and field-preservation semantics;
+5. decide mutable contact-field authority explicitly.
 
 ### Phase 2 — canonical identity import
 
-1. Snapshot/export source contact sets where supported.
-2. Import into Neon with stable `person_id` and external refs.
-3. Re-run import and prove idempotency.
-4. Resolve high-confidence duplicates automatically only under strict rules.
-5. Route ambiguous merges to user review.
-6. Preserve merge audit/rollback data.
+Only after the remaining Phase 1 inventory gates pass and real-contact import is explicitly approved:
 
-**Gate:** source counts reconciled, zero orphan refs, rerun creates zero unintended duplicates.
+1. import stable `people` rows and generic external refs;
+2. rerun and prove idempotency;
+3. route ambiguous duplicates to review;
+4. preserve merge lineage and durable receipts;
+5. reconcile source counts and require zero orphan refs.
 
-### Phase 3 — address-book projection cutover
+### Phase 3 — address-book projection/cutover
 
-1. Choose/verify field authority.
-2. Project canonical address-book state to Google Contacts.
-3. Verify Apple device consumption/sync path.
-4. Run reconciliation in both directions during a bounded migration window if required.
-5. Stop maintaining independent Apple/Google truths.
-
-**Gate:** sampled contacts match canonical state, create/update/delete semantics verified, rollback tested.
+1. finalize field authority;
+2. verify Google create/update/delete/ETag semantics on bounded synthetic contacts;
+3. project/reconcile canonical state;
+4. verify Apple-device consumption/sync;
+5. stop maintaining independent Apple/Google truths.
 
 ### Phase 4 — Obsidian linkage + conversational capture
 
-1. Map canonical person IDs to Obsidian person notes without moving narrative into Neon.
-2. Preserve existing notes and links.
-3. Add safe local-vault write path when available.
-4. Implement classification/person resolution for conversational capture.
-5. Add fact/interaction provenance.
+Map stable person IDs to Obsidian narrative notes without copying prose into Neon, then add conservative conversational fact/interaction capture.
 
 ### Phase 5 — relationship automation
 
-Only after data quality is proven:
-
-- due follow-ups;
-- promised follow-up detection where evidence is explicit;
-- birthdays/important-date preparation;
-- optional “haven't interacted recently” suggestions;
-- interaction-derived `last_interaction`;
-- lightweight reconnection recommendations.
-
-These should start conservative and notification-light. Do not optimize relationships into a gamified score.
+Only after data quality is proven: due follow-ups, explicit promised-follow-up detection, birthday preparation, and lightweight reconnection suggestions. Reuse existing actions and Calendar.
 
 ## Observability and reliability requirements
 
@@ -422,9 +334,9 @@ Do not rely on a long-running chat thread as operational state.
 
 ## Testing expectations
 
-Before a People cutover, tests should cover at minimum:
+Before contact cutover, tests must continue covering:
 
-- external-ref uniqueness;
+- external-ref uniqueness and account scoping;
 - idempotent import rerun;
 - same-name different-person case;
 - renamed contact same-person case;
@@ -433,97 +345,47 @@ Before a People cutover, tests should cover at minimum:
 - ambiguous merge remains unmerged;
 - merge rollback/audit;
 - Obsidian link without narrative duplication;
-- follow-up creates/links an LLM4LIFE action rather than duplicate task state;
+- follow-up links to the existing LLM4LIFE action rather than duplicate task state;
 - sensitive inference is not silently persisted;
 - projection retry does not duplicate provider objects.
 
 ## Agent development contract
 
-Future coding agents generally work best when the task gives them a narrow source of truth, explicit invariants and observable acceptance criteria. For this subsystem:
-
-### Before coding
-
-- restate the current phase;
-- list files/tables you expect to touch;
-- identify destructive or irreversible operations;
-- inspect existing migrations/tests rather than guessing;
-- verify connector/API capabilities before designing around them.
-
-### While coding
-
-- make small cohesive changes;
-- prefer migrations/scripts that are safe to rerun or have explicit rollback;
-- include deterministic tests for identity/dedup logic;
-- add structured logs/receipts for background work;
-- never place secrets or private person data in fixtures committed to this public repo;
-- use synthetic fixtures.
-
-### Before declaring completion
-
-Report:
-
-- commit/PR or migration identifiers;
-- tests/CI run results;
-- before/after counts when data changed;
-- what is deployed vs merely committed;
-- remaining known risks;
-- exact rollback path;
-- next recommended step.
-
-Do not say “done” when only target code or documentation exists.
+Before coding, inspect current runtime state, current migration phase and supported provider interfaces. Use synthetic fixtures in this public repository. Keep changes rerunnable, auditable and reversible. Report what is deployed vs merely committed.
 
 ## Fixed decisions vs open design space
 
-### Accepted defaults
+### Accepted/current
 
-- Neon will own stable internal person identity and structured People machine state.
-- Obsidian remains the narrative relationship-memory system.
-- Google Contacts becomes the preferred address-book projection/client after dedup and verified cutover.
-- Apple Contacts should become a synchronized device client rather than an independent truth.
+- Neon owns stable internal person identity and structured People machine state; schema is now live.
+- People uses generic `llm4life.external_refs`, not a separate People-specific ref table.
+- Obsidian owns narrative relationship memory.
 - relationship follow-ups use the existing personal action system;
 - Calendar owns scheduled interactions;
 - provenance and conservative dedup are required;
 - raw conversation archival is not the default.
 
-### Explicitly open for future recommendations
+### Explicitly open
 
-Future agents should challenge these when evidence supports a materially better design:
-
-- exact contact-field authority between Neon and Google Contacts after real API testing;
-- whether People tables should stay in the existing `llm4life` schema or move to a dedicated private schema/database;
+- final mutable contact-field authority after complete Apple/Google inventory;
 - exact fact taxonomy and sensitivity classes;
-- whether interaction summaries belong in Neon or only references are sufficient;
-- best supported Apple Contacts import/sync path;
-- whether a local Obsidian bridge or another supported interface provides the best write path;
-- how much relationship automation is useful before it becomes noisy;
-- whether additional entity types such as organizations/households deserve first-class models later.
-
-A future agent may recommend changing an accepted default. It must explain the concrete benefit, costs, data migration, rollback, security impact and how the proposal avoids duplicate truth.
+- whether a derived minimal contact-point matching index becomes useful later;
+- best long-term local Apple Contacts bridge implementation;
+- interaction granularity and automation thresholds.
 
 ## Anti-patterns
 
 Do not:
 
-- create `people_v2_final_final` style replacement stores instead of migrating deliberately;
+- create a competing People reference table without a concrete proven need;
 - use names as foreign keys;
 - automatically merge on fuzzy-name similarity;
 - write the same relationship narrative to Neon, Obsidian and Google Contacts notes;
 - create recurring “keep in touch” tasks for everyone without user-value evidence;
 - infer private facts from silence/message tone and store them as truth;
-- add a paid CRM merely because it has a polished UI;
-- introduce long-term bidirectional dual-write without explicit conflict resolution;
+- introduce long-term bidirectional contact-field dual-write;
 - delete legacy Apple/Google/Obsidian state before reconciliation and rollback are verified.
 
 ## Definition of subsystem success
 
-People/Relationships is successful when:
-
-1. one real person resolves to one stable internal identity across systems;
-2. contact projections can be rebuilt/reconciled from deliberate canonical state;
-3. narrative context remains readable and private in Obsidian;
-4. structured facts have source/provenance;
-5. imports and retries are idempotent;
-6. relationship follow-ups use the existing action engine;
-7. scheduled interactions use Calendar without becoming relationship truth;
-8. the system can answer useful relationship questions without storing conversational exhaust;
-9. future agents can determine current phase, owner, invariants, tests and rollback without relying on chat history.
+People/Relationships succeeds when one real person resolves to one stable internal identity across systems; contact reconciliation is deterministic and reversible; narrative remains private/readable in Obsidian; structured facts have provenance; imports and retries are idempotent; relationship follow-ups reuse the action engine; Calendar remains execution-only; and future agents can determine current phase, owner, invariants, tests and rollback without relying on chat history.
