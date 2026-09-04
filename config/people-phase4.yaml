@@ -1,5 +1,5 @@
 version: 1
-status: obsidian_linkage_tooling_ready_live_vault_mapping_pending
+status: obsidian_local_bridge_implemented_live_mapping_pending
 updated: 2026-09-04
 
 phase3_dependency:
@@ -27,7 +27,13 @@ link_contract:
 
 runtime:
   linkage_planner_implemented: true
+  explicit_link_discovery_implemented: true
+  localhost_bridge_implemented: true
+  bridge_bind_scope: loopback_only
+  bridge_bearer_auth_required: true
+  bridge_optimistic_concurrency_required_for_writes: true
   live_vault_bridge_verified: false
+  neon_external_ref_importer_implemented: true
   real_obsidian_person_mappings_imported_to_neon: false
   narrative_copied_to_neon: false
 
@@ -36,22 +42,32 @@ safety:
   explicit_private_mapping_required: true
   conflicting_existing_person_link_overwrite: false
   path_escape_allowed: false
+  hidden_vault_paths_accessible: false
   destructive_obsidian_cleanup_authorized: false
   narrative_may_enter_public_repo: false
   note_paths_may_enter_neon: false
   aggregate_receipts_only_for_public_documentation: true
+  public_or_remote_bridge_exposure_automatic: false
 
 private_runtime:
   manifest: .private/people/obsidian_person_links.json
+  discovered_manifest: .private/people/obsidian_mapping_manifest.json
   external_refs_plan: .private/people/obsidian_external_refs_plan.json
-  receipt: .private/people/obsidian_link_receipt.json
+  linkage_receipt: .private/people/obsidian_link_receipt.json
+  discovery_receipt: .private/people/obsidian_discovery_receipt.json
+  neon_import_receipt: .private/people/obsidian_neon_import_receipt.json
+  bridge_audit: .private/obsidian-bridge/audit.jsonl
   vault_path_env: OBSIDIAN_VAULT_PATH
-  script: scripts/people_obsidian_link.py
+  vault_scope_env: OBSIDIAN_VAULT_SCOPE
+  bridge_token_env: OBSIDIAN_BRIDGE_TOKEN
+  linkage_script: scripts/people_obsidian_link.py
+  discovery_script: scripts/people_obsidian_discover.py
+  bridge_script: scripts/obsidian_local_bridge.py
+  neon_import_script: scripts/import_people_obsidian_refs.py
 
 next_gate:
-  - build_or_verify_least_privilege_live_obsidian_bridge
-  - create_explicit_private_person_to_note_mapping_manifest
+  - run_localhost_bridge_against_live_obsidian_vault
+  - create_or_discover_explicit_private_person_to_note_mapping_manifest
   - apply_managed_frontmatter_non_destructively
-  - validate_person_ids_against_live_neon_before_external_ref_import
-  - import_obsidian_external_refs_idempotently
+  - dry_run_and_then_import_validated_obsidian_external_refs_idempotently
   - keep_held_identity_conflicts_weak_matches_and_note_candidates_separate
