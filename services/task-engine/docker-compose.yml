@@ -1,0 +1,29 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: task_engine
+      POSTGRES_USER: task_engine
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev-only-change-me}
+    volumes:
+      - task_engine_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U task_engine -d task_engine"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    environment:
+      TASK_ENGINE_DATABASE_URL: postgresql+psycopg://task_engine:${POSTGRES_PASSWORD:-dev-only-change-me}@db:5432/task_engine
+      TASK_ENGINE_TIMEZONE: America/Toronto
+      TASK_ENGINE_API_TOKEN: ${TASK_ENGINE_API_TOKEN:-}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8080:8080"
+
+volumes:
+  task_engine_pgdata:

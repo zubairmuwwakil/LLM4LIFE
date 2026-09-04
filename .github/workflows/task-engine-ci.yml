@@ -1,0 +1,27 @@
+name: Task Engine CI
+
+on:
+  pull_request:
+    paths:
+      - "services/task-engine/**"
+      - ".github/workflows/task-engine-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "services/task-engine/**"
+      - ".github/workflows/task-engine-ci.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/task-engine
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - run: uv sync --dev
+      - run: uv run pytest -q
+      - run: uv run python -m compileall -q task_engine migrations tests
