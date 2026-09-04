@@ -130,6 +130,26 @@ class AppleGooglePhase2Tests(unittest.TestCase):
         self.assertNotIn("biographies", body)
         self.assertFalse(photo_safe)
 
+    def test_existing_address_and_org_conflicts_are_held_not_duplicated(self):
+        apple = migration.AppleContact(
+            ordinal=1,
+            fingerprint="f",
+            addresses=[{"streetAddress": "20 New St", "city": "Toronto"}],
+            organizations=[{"name": "Example Inc", "title": "Engineer"}],
+        )
+        current = {
+            "metadata": {"sources": [{"type": "CONTACT", "etag": "e"}]},
+            "addresses": [{"streetAddress": "10 Old St", "city": "Toronto"}],
+            "organizations": [{"name": "Example Inc", "title": "Manager"}],
+        }
+        body, fields, holds, _ = migration.build_update_payload(current, apple)
+        self.assertNotIn("addresses", fields)
+        self.assertNotIn("organizations", fields)
+        self.assertIn("address_requires_review", holds)
+        self.assertIn("organization_requires_review", holds)
+        self.assertNotIn("addresses", body)
+        self.assertNotIn("organizations", body)
+
     def test_create_payload_excludes_notes_and_keeps_standard_fields(self):
         apple = migration.AppleContact(
             ordinal=1,
