@@ -40,8 +40,23 @@ REFRESHED="$PRIVATE/google_people_live_after_apple.json"
 PYTHON="${PYTHON:-python}"
 command -v "$PYTHON" >/dev/null 2>&1 || { echo "Python command '$PYTHON' not found." >&2; exit 2; }
 
+# 0) If an earlier run stopped on an ambiguous 5xx createContact response,
+#    reconcile that receipt against the PREVIOUS source snapshot before we
+#    overwrite the snapshot. This prevents a blind retry from duplicating a
+#    contact that Google may already have committed.
+if [[ -f "$RECEIPT" && -f "$SNAPSHOT" ]]; then
+  echo "Recovering any ambiguous prior createContact result..."
+  "$PYTHON" scripts/apple_google_phase2_resilient.py recover \
+    --apple-vcard "$VCARD" \
+    --google-snapshot "$SNAPSHOT" \
+    --receipt "$RECEIPT" \
+    --client-secret "$CLIENT" \
+    --token "$TOKEN"
+fi
+
 # 1) Refresh the complete saved-contact snapshot immediately before planning so
 #    Apple-only records are not created from stale provider state.
+echo "Refreshing Google Contacts snapshot..."
 "$PYTHON" scripts/google_people_phase2.py enumerate \
   --account-scope google-primary \
   --client-secret "$CLIENT" \
@@ -50,13 +65,15 @@ command -v "$PYTHON" >/dev/null 2>&1 || { echo "Python command '$PYTHON' not fou
 
 # 2) Regenerate the deterministic private plan from the exact current provider
 #    snapshot and Apple export.
+echo "Regenerating migration plan..."
 "$PYTHON" scripts/apple_google_phase2.py plan \
   --apple-vcard "$VCARD" \
   --google-snapshot "$SNAPSHOT" \
   --output "$PLAN"
 
 # 3) Validate source digests and the plan with no provider writes.
-"$PYTHON" scripts/apple_google_phase2.py apply \
+echo "Validating migration plan..."
+"$PYTHON" scripts/apple_google_phase2_resilient.py apply \
   --plan "$PLAN" \
   --apple-vcard "$VCARD" \
   --google-snapshot "$SNAPSHOT" \
@@ -66,9 +83,10 @@ command -v "$PYTHON" >/dev/null 2>&1 || { echo "Python command '$PYTHON' not fou
   --refreshed-snapshot "$REFRESHED"
 
 # 4) Apply only the migration helper's non-destructive create/update operations.
-#    The helper has no provider-contact delete endpoint and writes a resumable
-#    private receipt after each operation.
-"$PYTHON" scripts/apple_google_phase2.py apply \
+#    New creates use deterministic temporary markers so transient 5xx/network
+#    failures can be resolved before any retry. No provider delete endpoint exists.
+echo "Applying migration (resumable; this can take several minutes)..."
+"$PYTHON" scripts/apple_google_phase2_resilient.py apply \
   --plan "$PLAN" \
   --apple-vcard "$VCARD" \
   --google-snapshot "$SNAPSHOT" \
