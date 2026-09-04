@@ -1,0 +1,57 @@
+version: 1
+status: obsidian_linkage_tooling_ready_live_vault_mapping_pending
+updated: 2026-09-04
+
+phase3_dependency:
+  apple_sync_verification_complete: false
+  google_contact_field_authority_cutover_complete: false
+  user_chose_to_move_on_without_passing_sync_gate: true
+  interpretation: proceed_with_phase4_in_parallel_without_declaring_phase3_complete
+
+ownership:
+  stable_person_identity: neon
+  cross_system_refs: llm4life.external_refs
+  narrative_relationship_context: obsidian
+  mutable_contact_field_authority_candidate: google_contacts
+
+link_contract:
+  version: obsidian_frontmatter_v1
+  internal_type: person
+  system_id: obsidian
+  ref_kind: narrative
+  external_id_format: note:<llm4life_note_id>
+  account_scope: explicit_private_vault_scope
+  managed_frontmatter:
+    - llm4life_person_id
+    - llm4life_note_id
+
+runtime:
+  linkage_planner_implemented: true
+  live_vault_bridge_verified: false
+  real_obsidian_person_mappings_imported_to_neon: false
+  narrative_copied_to_neon: false
+
+safety:
+  name_only_auto_matching: false
+  explicit_private_mapping_required: true
+  conflicting_existing_person_link_overwrite: false
+  path_escape_allowed: false
+  destructive_obsidian_cleanup_authorized: false
+  narrative_may_enter_public_repo: false
+  note_paths_may_enter_neon: false
+  aggregate_receipts_only_for_public_documentation: true
+
+private_runtime:
+  manifest: .private/people/obsidian_person_links.json
+  external_refs_plan: .private/people/obsidian_external_refs_plan.json
+  receipt: .private/people/obsidian_link_receipt.json
+  vault_path_env: OBSIDIAN_VAULT_PATH
+  script: scripts/people_obsidian_link.py
+
+next_gate:
+  - build_or_verify_least_privilege_live_obsidian_bridge
+  - create_explicit_private_person_to_note_mapping_manifest
+  - apply_managed_frontmatter_non_destructively
+  - validate_person_ids_against_live_neon_before_external_ref_import
+  - import_obsidian_external_refs_idempotently
+  - keep_held_identity_conflicts_weak_matches_and_note_candidates_separate
