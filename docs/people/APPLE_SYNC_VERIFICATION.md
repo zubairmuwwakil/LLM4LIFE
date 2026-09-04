@@ -53,7 +53,18 @@ A passing local receipt is evidence that Apple Contacts is consuming the reconci
 
 ## Local permissions
 
-The first run may prompt macOS for Contacts access. Full read access is required for verification. The exporter is read-only and does not create, update or delete contacts.
+Full Contacts access is required because the verifier must enumerate the complete synchronized container. Modern Apple platforms can grant **Limited Access** to only a selected subset of contacts; Limited Access is insufficient for whole-address-book reconciliation.
+
+If the exporter reports `authorization_status` of `limited` or `denied`:
+
+1. Open **System Settings → Privacy & Security → Contacts**.
+2. Find the terminal app used to run the verifier (for example Terminal, iTerm, Warp, or whichever host macOS lists for the request).
+3. Enable Contacts access and choose **Full Access** if macOS offers an access-level choice.
+4. Rerun `bash scripts/run_people_sync_verification.sh`.
+
+The exporter re-checks the authorization state after the permission prompt and refuses to continue unless the effective state is full/authorized. Permission failures are emitted as compact structured errors rather than Swift stack dumps.
+
+The exporter is read-only and does not create, update or delete contacts.
 
 ## CI coverage
 
