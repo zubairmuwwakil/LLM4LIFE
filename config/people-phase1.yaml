@@ -1,5 +1,5 @@
 version: 1
-status: phase_1_schema_live_inventory_incomplete
+status: phase_1_inventory_complete_provider_refs_pending
 updated: 2026-09-04
 
 scope:
@@ -38,7 +38,7 @@ schema:
     purpose: relational_link_to_existing_personal_action_lifecycle
   person_contact_points:
     status: intentionally_deferred
-    reason: contact_field_authority_should_be_proven_before_copying_provider_fields
+    reason: google_contacts_will_own_mutable_standard_address_book_fields_after_cutover
 
 production_verification:
   people_rows_after_deploy: 0
@@ -46,25 +46,65 @@ production_verification:
   interaction_rows_after_deploy: 0
   preexisting_external_refs_preserved: 95
 
+private_inventory_receipt:
+  google_saved_contacts: 753
+  apple_icloud_contacts: 451
+  combined_source_records: 1204
+  stable_export_ids: 0
+  snapshot_only_ids: 1204
+  google:
+    with_name: 747
+    with_email: 118
+    with_phone: 714
+    with_address: 75
+    with_birthday: 55
+    with_organization: 100
+    with_notes: 74
+  apple:
+    with_name: 450
+    with_email: 93
+    with_phone: 354
+    with_address: 46
+    with_birthday: 94
+    with_organization: 90
+    with_notes: 31
+  duplicate_candidates:
+    high: 239
+    conflict: 33
+    weak_name_only: 32
+    high_cross_source_one_to_one: 239
+    high_cross_source_one_to_many: 0
+    provisional_distinct_identities_if_only_high_pairs_merge: 965
+    automatic_merge: false
+  privacy: aggregate_counts_only_publicly
+
 contact_field_authority:
-  status: conditional_recommendation_pending_complete_apple_inventory_and_cutover_approval
+  status: accepted_target_not_cut_over
   stable_person_identity: neon
   relationship_machine_state: neon
   narrative_relationship_context: obsidian
-  mutable_address_book_fields_recommended_owner: google_contacts
-  apple_contacts: synchronized_device_client_after_reconciliation
-  neon_contact_points: derived_matching_cache_only_if_later_justified
+  mutable_standard_address_book_fields: google_contacts_after_cutover
+  apple_contacts: synchronized_device_client_after_cutover
+  neon_contact_points: not_required_by_default
   google_other_contacts: evidence_only_not_automatic_canonical_contacts
-  preconditions:
-    - complete_apple_icloud_inventory
-    - verify_google_preserves_required_apple_contact_fields
-    - verify_real_contact_counts_and_duplicate_candidates
-    - explicit_cutover_approval
-  reason:
-    - google_people_api_has_supported_full_enumeration_and_incremental_sync
-    - google_people_api_has_etag_conflict_detection_for_updates
-    - provider_authority_avoids_bidirectional_field_level_dual_truth
-    - minimizes_private_contact_field_duplication_in_neon
+  apple_extension_mapping:
+    photos: google_people_update_contact_photo
+    job_titles: google_people_organizations
+    custom_dates: google_people_events
+    urls: google_people_urls
+    social_profiles: google_people_urls_when_semantic_url_exists_otherwise_user_defined
+    notes: classify_contact_note_vs_relationship_narrative_before_projection
+  rationale:
+    - complete_real_export_inventory_now_exists
+    - standard_google_people_fields_cover_core_mutable_contact_data
+    - google_people_api_supports_events_urls_user_defined_organizations_relations_and_photos
+    - provider_field_authority_avoids_bidirectional_dual_truth
+    - neon_should_not_duplicate_private_contact_points_without_operational_need
+  cutover_preconditions:
+    - obtain_stable_google_people_resource_names
+    - obtain_scoped_apple_cncontact_identifiers_if_needed_for_migration_receipts
+    - preserve_apple_specific_extensions_and_photos_before_retiring_independent_apple_truth
+    - explicit_real_contact_import_and_cutover_approval
 
 inventory:
   google_contacts_connector:
@@ -76,19 +116,16 @@ inventory:
       - connector_result_limit
       - search_can_mix_saved_contacts_and_other_contacts
       - read_contact_does_not_read_other_contacts_results
-    recommended_complete_path: google_people_api_connections_list_with_pagination_and_sync_token
-    complete_inventory_rules:
-      - request_contact_source_only_for_saved_contacts
-      - include_metadata_in_person_fields
-      - process_deleted_markers_on_incremental_sync
-      - fall_back_to_full_sync_when_sync_token_expires
+    export_inventory_completed: true
+    stable_provider_ref_path_required: google_people_api_connections_list
   apple_contacts:
-    phase_1_recommended_inventory: local_vcard_export_processed_privately
+    private_vcard_inventory_completed: true
+    export_has_uid_fields: false
     eventual_runtime_bridge: macos_contacts_framework_cncontactstore
     rules:
       - do_not_use_ui_automation_when_supported_export_or_framework_exists
       - cncontact_identifier_is_device_local_not_global_identity
-      - inspect_unified_and_unified_false_views_during_reconciliation
+      - store_device_or_account_scope_with_apple_identifier
 
 identity_resolution:
   order:
@@ -119,3 +156,6 @@ remaining_approval_gates:
     - google_or_apple_field_ownership_cutover
     - destructive_obsidian_cleanup
     - new_credentials_or_permissions
+  technical_blocker_before_phase_2_import:
+    - stable_google_people_resource_names_not_present_in_csv_export
+    - apple_vcard_contains_no_uid_provider_refs
