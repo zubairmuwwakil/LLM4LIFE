@@ -1,10 +1,10 @@
 version: 1
-status: proposed_phase_1_not_production_applied
+status: phase_1_schema_live_inventory_incomplete
 updated: 2026-09-04
 
 scope:
   public_repo_contains_private_people_payloads: false
-  production_people_schema_applied: false
+  production_people_schema_applied: true
   provider_contacts_mutated: false
 
 external_references:
@@ -23,6 +23,7 @@ external_references:
   known_tradeoff: polymorphic_internal_id_has_no_database_foreign_key_to_people
 
 schema:
+  runtime_status: production_live_empty
   people:
     purpose: stable_internal_identity_and_merge_lineage
   relationships:
@@ -38,6 +39,12 @@ schema:
   person_contact_points:
     status: intentionally_deferred
     reason: contact_field_authority_should_be_proven_before_copying_provider_fields
+
+production_verification:
+  people_rows_after_deploy: 0
+  person_fact_rows_after_deploy: 0
+  interaction_rows_after_deploy: 0
+  preexisting_external_refs_preserved: 95
 
 contact_field_authority:
   status: conditional_recommendation_pending_complete_apple_inventory_and_cutover_approval
@@ -105,9 +112,8 @@ privacy:
   inferred_sensitive_facts: never_auto_persist
   model_suggestion_sensitive_fact_database_guard: true
 
-phase_2_gate:
+remaining_approval_gates:
   requires_explicit_approval_before:
-    - production_schema_application
     - real_contact_import
     - real_contact_merge_update_or_delete
     - google_or_apple_field_ownership_cutover
