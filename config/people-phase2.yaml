@@ -1,0 +1,58 @@
+version: 1
+status: google_stable_id_bootstrap_pending_local_oauth_consent
+updated: 2026-09-04
+
+approvals:
+  real_people_import: true
+  automatic_merge_clean_one_to_one_high_confidence_only: true
+  non_destructive_contact_editing: true
+  google_people_api_contacts_scope: true
+  macos_contacts_read_access: true
+  provider_contact_deletion: false
+  destructive_obsidian_cleanup: false
+
+runtime:
+  production_people_schema_live: true
+  real_people_rows_imported: false
+  provider_contacts_mutated_by_phase_2: false
+  google_stable_provider_refs_acquired: false
+  apple_stable_provider_refs_required_for_initial_import: false
+
+provider_strategy:
+  stable_person_identity: neon
+  mutable_standard_address_book_fields_after_cutover: google_contacts
+  apple_contacts_after_cutover: synchronized_device_client
+  obsidian: narrative_relationship_context
+
+bootstrap:
+  google:
+    required_scope: https://www.googleapis.com/auth/contacts
+    enumeration: people.connections.list
+    source_filter: READ_SOURCE_TYPE_CONTACT
+    page_size: 1000
+    stable_ref: people_resource_name
+    concurrency_guard: etag
+    private_client_secret: .private/people/google-oauth-client.json
+    private_token: .private/people/google-people-token.json
+    private_snapshot: .private/people/google_people_live.json
+    script: scripts/google_people_phase2.py
+  apple:
+    stable_ids_not_required_for_first_canonical_import: true
+    rationale: apple_only_records_can_be_created_in_google_and_receive_google_people_refs
+    export_row_hashes_are_durable_refs: false
+
+safety:
+  contacts_scope_can_delete_but_deletion_authorized: false
+  bootstrap_performs_provider_writes: false
+  export_hashes_may_enter_external_refs: false
+  ambiguous_candidates_auto_merge: false
+  private_payloads_may_enter_public_repo: false
+
+next_gate:
+  - run_local_google_oauth_consent
+  - obtain_complete_google_people_stable_id_snapshot
+  - rerun_stable_ref_reconciliation
+  - build_deterministic_google_create_update_plan
+  - apply_approved_non_destructive_provider_writes
+  - import_canonical_people_and_google_external_refs_into_neon
+  - prove_idempotent_rerun_and_zero_orphan_refs
