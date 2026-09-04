@@ -1,26 +1,26 @@
 # LLM4LIFE Task Engine
 
-A small coordination-state service for LLM4LIFE. It fixes a specific failure mode: Calendar blocks are useful for execution, but Calendar is a poor database for task identity, completion state, retries, deduplication, and behavioral evidence.
+A small execution-coordination service for LLM4LIFE. Calendar is useful for scheduled execution, but it is a poor database for durable execution identity, retries, follow-up due state, deduplication, and behavioral evidence.
 
 ## Ownership boundary
 
-The Task Engine **does not replace** Things, Jira, or other canonical sources.
+The Task Engine **does not replace** canonical action systems.
 
-- Things / Jira / another source owns the task's real backlog content.
+- Neon `llm4life.actions` owns canonical personal action/backlog state.
+- Google Tasks is the human-facing projection/capture client for personal actions.
+- Jira owns engineering backlog/work.
 - Google Calendar owns scheduled execution time.
-- Task Engine owns cross-system orchestration metadata: source identity, execution lifecycle, attempts/misses, Calendar bindings, follow-up due state, idempotency, reschedule recommendations, and an outbound event queue.
+- Task Engine may own only execution coordination metadata: source identity, attempts/misses, Calendar bindings, follow-up due state, idempotency, reschedule recommendations, and an outbound event queue.
 - The AI orchestrator owns reasoning and routing.
 
-This keeps `one owner per responsibility` while giving the orchestrator durable state that Calendar and chat automations cannot reliably provide.
+This preserves one owner per responsibility while giving the orchestrator deterministic execution state that Calendar scanning alone cannot reliably provide.
 
 ## Why this prevents missed follow-ups
 
-The old approach asks an LLM to scan Calendar for events that "look like tasks" and ended "about an hour ago." That is inherently fuzzy.
-
-The engine instead creates an explicit Calendar binding whenever a task is scheduled:
+Instead of scanning Calendar for events that merely "look like tasks," the engine creates an explicit Calendar binding whenever a canonical action is scheduled:
 
 ```text
-canonical task -> Task Engine task ID -> Calendar event ID
+canonical action -> Task Engine task ID -> Calendar event ID
                                       -> followup_due_at = event_end + 60m
 ```
 
@@ -30,17 +30,17 @@ The follow-up worker queries only:
 followup_status = pending AND followup_due_at <= now
 ```
 
-No attendee heuristics. No title parsing. No one-hour fuzzy search window. No duplicate follow-up after resolution.
+No attendee heuristics. No title parsing. No fuzzy one-hour search window. No duplicate follow-up after resolution.
 
 ## API flow
 
-### 1. Idempotently register/sync a canonical task
+### 1. Idempotently register/sync a canonical action
 
 ```http
 POST /v1/tasks/sync
 ```
 
-Use `(source_system, source_id)` as the stable idempotency key. Repeated syncs update the same coordination record.
+Use `(source_system, source_id)` as the stable idempotency key. For personal actions, the source should resolve back to the canonical Neon action identity rather than treating Google Tasks as canonical.
 
 ### 2. Schedule it on Calendar, then bind the external event
 
@@ -69,7 +69,7 @@ or
 {"result":"missed"}
 ```
 
-A resolved binding cannot be resolved again.
+A resolved binding cannot be resolved again. Canonical personal-action state still needs to be reconciled back to Neon `llm4life.actions`.
 
 ### 5. If missed, ask the planner for the best realistic slot
 
@@ -77,7 +77,7 @@ A resolved binding cannot be resolved again.
 POST /v1/tasks/{task_id}/plan
 ```
 
-Pass already-open Calendar windows. The engine rejects impossible windows, respects the movable-work window and 7-day horizon, scores urgency/consequence/retry pressure, and stops blindly rescheduling low-value work after repeated misses.
+Pass already-open Calendar windows. The engine rejects impossible windows, respects the movable-work window and planning horizon, scores urgency/consequence/retry pressure, and stops blindly rescheduling low-value work after repeated misses.
 
 ### 6. Consume durable domain events
 
@@ -124,9 +124,10 @@ TASK_ENGINE_DATABASE_URL='postgresql+psycopg://...' alembic upgrade head
 
 ## Deliberate v1 limits
 
-- No direct Google OAuth implementation. The orchestrator already has Calendar connectivity and supplies event IDs/open windows. This avoids a second broad Calendar credential path.
-- No LLM inside the service. Planning is deterministic and auditable; higher-level AI can add reasoning before submitting candidate windows.
+- No direct Google OAuth implementation. Existing authorized orchestration supplies Calendar event IDs/open windows.
+- No LLM inside the service. Planning is deterministic and auditable.
 - No automatic deletion of source tasks or fixed commitments.
-- No shadow copy of full Jira/Things backlog state.
+- No shadow copy of full canonical action/Jira state.
+- No authority over Google Tasks; Google Tasks remains a projection/client of the personal action domain.
 
-These limits are intentional: make the durable state machine reliable first, then add thin provider adapters only where they remove real friction.
+These limits are intentional: make execution coordination reliable without creating another source of truth.
