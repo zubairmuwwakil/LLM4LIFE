@@ -7,12 +7,15 @@ on:
       - "scripts/people_inventory.py"
       - "scripts/google_people_phase2.py"
       - "scripts/apple_google_phase2.py"
+      - "scripts/apple_google_phase2_resilient.py"
+      - "scripts/apple_google_phase2_cleanup_markers.py"
       - "scripts/run_apple_google_phase2.sh"
       - "tests/test_people_dedup.py"
       - "tests/test_people_inventory.py"
       - "tests/test_people_inventory_grouped_vcard.py"
       - "tests/test_google_people_phase2.py"
       - "tests/test_apple_google_phase2.py"
+      - "tests/test_apple_google_phase2_resilient.py"
       - "requirements-people-phase2.txt"
       - "db/migrations/004_people.sql"
       - "db/tests/004_people_phase1.sql"
@@ -30,12 +33,15 @@ on:
       - "scripts/people_inventory.py"
       - "scripts/google_people_phase2.py"
       - "scripts/apple_google_phase2.py"
+      - "scripts/apple_google_phase2_resilient.py"
+      - "scripts/apple_google_phase2_cleanup_markers.py"
       - "scripts/run_apple_google_phase2.sh"
       - "tests/test_people_dedup.py"
       - "tests/test_people_inventory.py"
       - "tests/test_people_inventory_grouped_vcard.py"
       - "tests/test_google_people_phase2.py"
       - "tests/test_apple_google_phase2.py"
+      - "tests/test_apple_google_phase2_resilient.py"
       - "requirements-people-phase2.txt"
       - "db/migrations/004_people.sql"
       - "db/tests/004_people_phase1.sql"
@@ -61,9 +67,9 @@ jobs:
         with:
           python-version: "3.12"
       - name: Run People synthetic tests
-        run: python -m unittest -v tests/test_people_dedup.py tests/test_people_inventory.py tests/test_people_inventory_grouped_vcard.py tests/test_google_people_phase2.py tests/test_apple_google_phase2.py
+        run: python -m unittest -v tests/test_people_dedup.py tests/test_people_inventory.py tests/test_people_inventory_grouped_vcard.py tests/test_google_people_phase2.py tests/test_apple_google_phase2.py tests/test_apple_google_phase2_resilient.py
       - name: Compile People migration helpers
-        run: python -m compileall -q scripts/people_dedup.py scripts/people_inventory.py scripts/google_people_phase2.py scripts/apple_google_phase2.py
+        run: python -m compileall -q scripts/people_dedup.py scripts/people_inventory.py scripts/google_people_phase2.py scripts/apple_google_phase2.py scripts/apple_google_phase2_resilient.py scripts/apple_google_phase2_cleanup_markers.py
       - name: Validate cutover wrapper shell syntax
         run: bash -n scripts/run_apple_google_phase2.sh
       - name: Verify migration and SQL test artifacts exist
