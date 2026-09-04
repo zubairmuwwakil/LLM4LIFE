@@ -50,7 +50,6 @@ def discover(vault_root: Path, *, vault_scope: str) -> tuple[dict[str, Any], dic
         raise ValueError("vault_scope is required")
 
     links: list[dict[str, str]] = []
-    person_paths: dict[str, str] = {}
     note_owners: dict[str, str] = {}
     markdown_seen = 0
 
@@ -65,11 +64,6 @@ def discover(vault_root: Path, *, vault_scope: str) -> tuple[dict[str, Any], dic
             continue
         person_id = _uuid(raw_person, PERSON_KEY)
         normalized_path = relative.as_posix()
-
-        prior_path = person_paths.get(person_id)
-        if prior_path is not None and prior_path != normalized_path:
-            raise ValueError("One People identity is explicitly linked from multiple notes; review manually")
-        person_paths[person_id] = normalized_path
 
         raw_note = managed.get(NOTE_KEY)
         if raw_note:
