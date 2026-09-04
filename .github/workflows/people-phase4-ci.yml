@@ -4,16 +4,30 @@ on:
   push:
     paths:
       - "scripts/people_obsidian_link.py"
+      - "scripts/people_obsidian_discover.py"
+      - "scripts/obsidian_local_bridge.py"
+      - "scripts/import_people_obsidian_refs.py"
+      - "scripts/run_obsidian_bridge.sh"
       - "tests/test_people_obsidian_link.py"
+      - "tests/test_obsidian_live_bridge.py"
       - "docs/people/OBSIDIAN_LINKAGE.md"
       - "config/people-phase4.yaml"
+      - "requirements-people-phase4.txt"
+      - ".env.example"
       - ".github/workflows/people-phase4-ci.yml"
   pull_request:
     paths:
       - "scripts/people_obsidian_link.py"
+      - "scripts/people_obsidian_discover.py"
+      - "scripts/obsidian_local_bridge.py"
+      - "scripts/import_people_obsidian_refs.py"
+      - "scripts/run_obsidian_bridge.sh"
       - "tests/test_people_obsidian_link.py"
+      - "tests/test_obsidian_live_bridge.py"
       - "docs/people/OBSIDIAN_LINKAGE.md"
       - "config/people-phase4.yaml"
+      - "requirements-people-phase4.txt"
+      - ".env.example"
       - ".github/workflows/people-phase4-ci.yml"
 
 permissions:
@@ -28,7 +42,18 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Run Obsidian linkage synthetic tests
-        run: python -m unittest -v tests/test_people_obsidian_link.py
-      - name: Compile linkage helper
-        run: python -m compileall -q scripts/people_obsidian_link.py
+      - name: Run Obsidian Phase 4 synthetic tests
+        run: python -m unittest -v tests/test_people_obsidian_link.py tests/test_obsidian_live_bridge.py
+      - name: Compile Phase 4 Python helpers
+        run: >-
+          python -m compileall -q
+          scripts/people_obsidian_link.py
+          scripts/people_obsidian_discover.py
+          scripts/obsidian_local_bridge.py
+          scripts/import_people_obsidian_refs.py
+      - name: Validate local bridge wrapper syntax
+        run: bash -n scripts/run_obsidian_bridge.sh
+      - name: Verify localhost-only bind remains explicit
+        run: grep -F 'ObsidianBridgeServer(("127.0.0.1", args.port), state)' scripts/obsidian_local_bridge.py
+      - name: Verify private runtime path remains ignored
+        run: grep -Fx '.private/' .gitignore
