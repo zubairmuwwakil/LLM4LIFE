@@ -96,6 +96,16 @@ echo "Applying migration (resumable; this can take several minutes)..."
   --refreshed-snapshot "$REFRESHED" \
   --apply
 
+# 5) After durable receipt success, remove only our temporary migration markers
+#    while preserving every real userDefined field, then refresh the final snapshot.
+echo "Cleaning temporary migration markers..."
+"$PYTHON" scripts/apple_google_phase2_cleanup_markers.py \
+  --apple-vcard "$VCARD" \
+  --receipt "$RECEIPT" \
+  --client-secret "$CLIENT" \
+  --token "$TOKEN" \
+  --refreshed-snapshot "$REFRESHED"
+
 echo
 echo "Apple -> Google Contacts migration apply completed."
 echo "Private receipt: $RECEIPT"
