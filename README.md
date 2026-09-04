@@ -35,7 +35,7 @@ Current major runtime facts:
 - InUnity remains the consolidated finance owner.
 - Product Tracker/Neon is the **production canonical** personal-care inventory owner.
 - Product Tracker Worker `v0.4.0`, Queue, Hyperdrive, durable reliability status/DLQ receipts and stable Notion event-idempotency hardening are live.
-- The next subsystem is **People / Relationships**, currently **Phase 0 documentation only**: target architecture is accepted, but the People Neon schema/contact migration has not been implemented.
+- People / Relationships has advanced to **Phase 1 schema live**: the production Neon People schema exists, but no real contacts have been imported, merged, or cut over yet.
 
 Always use `docs/STATUS.md` for verified runtime state rather than inferring live status from target architecture.
 
@@ -76,8 +76,8 @@ Cloudflare = shared event/runtime layer where workloads fit
 | Time commitments / execution schedule | **Google Calendar** |
 | Shared event/runtime infrastructure | **Cloudflare** where workload fits; runtime only, not data owner |
 | Personal-care inventory | **Product Tracker / Neon**; Notion projection/reference/rollback |
-| Stable person identity | **Neon target after People migration** |
-| Structured relationship machine state | **Neon target after People migration** |
+| Stable person identity | **Neon**; schema live, real identity import pending |
+| Structured relationship machine state | **Neon**; schema live, real data import pending |
 | Address-book human client | **Google Contacts** after People dedup/cutover |
 | Apple-device contacts | **Apple Contacts** as synchronized client after migration |
 | Knowledge, reasoning, learning | **Obsidian** |
@@ -91,7 +91,7 @@ Cloudflare = shared event/runtime layer where workloads fit
 
 ## Why PostgreSQL exists
 
-Neon/PostgreSQL is used for **machine-readable state LLM4LIFE or user-owned domain services need to operate reliably**, including stable IDs/references, actions, jobs/runs, events, idempotency, receipts, checkpoints, scheduling telemetry, maintenance state, structured shopping state where useful, Product Tracker, and the target structured People layer.
+Neon/PostgreSQL is used for **machine-readable state LLM4LIFE or user-owned domain services need to operate reliably**, including stable IDs/references, actions, jobs/runs, events, idempotency, receipts, checkpoints, scheduling telemetry, maintenance state, structured shopping state where useful, Product Tracker, and the structured People layer.
 
 It is **not** a dumping ground for narrative knowledge, full conversations, health records, credentials, or provider-owned official records.
 
@@ -138,15 +138,15 @@ The system includes durable retry/reconciliation, DLQ observability and a stable
 
 A short post-cutover observation/staging-cleanup step remains operational closeout, not an ownership blocker.
 
-## People / Contacts / Relationships — next subsystem
+## People / Contacts / Relationships — Phase 1
 
-**Current phase: Phase 0 architecture/documentation. No canonical data migration has happened yet.**
+**Current phase: production People schema live; read-only inventory/reconciliation incomplete.**
 
-Target:
+Live structured layer:
 
 ```text
                      Neon People state
-        stable person_id + external references
+        stable person_id + generic external_refs
       structured relationship/fact/interaction state
               /              |              \
              v               v               v
@@ -160,20 +160,23 @@ Obsidian = narrative relationship memory
 Google Calendar = scheduled interactions
 ```
 
-Key invariants:
+Key runtime facts:
 
-- display name is not a primary identity key;
+- `004_people.sql` is deployed to production Neon;
+- People uses generic `llm4life.external_refs`, not a second `person_external_refs` table;
+- existing external refs were preserved through migration;
+- no real People/contact rows have been imported yet;
 - same-name-only auto-merge is prohibited;
 - structured facts require provenance;
 - sensitive model inference is not silently persisted;
 - raw private conversations are not archived by default;
 - relationship follow-ups reuse the existing action system;
-- Obsidian remains the narrative/reflective layer rather than being replaced with database blobs;
-- Google Contacts becomes the human-facing address-book projection only after dedup and verified cutover.
+- Obsidian remains the narrative/reflective layer;
+- Google/Apple field ownership has not been cut over.
 
-The exact phone/email/address/birthday field authority remains a Phase 1 validation question. The default recommendation is Neon-owned structured state projected to Google Contacts, but future agents are explicitly allowed to recommend a materially better provider-authority model if they document tradeoffs, conflict semantics, migration and rollback.
+Current evidence conditionally favors Google Contacts as the mutable address-book field owner after reconciliation, but complete Apple/iCloud inventory and explicit cutover approval are still required.
 
-See [`docs/PEOPLE.md`](docs/PEOPLE.md).
+See [`docs/PEOPLE.md`](docs/PEOPLE.md) and [`docs/people/PHASE_1_REPORT.md`](docs/people/PHASE_1_REPORT.md).
 
 ## Obsidian
 
@@ -250,7 +253,7 @@ The runtime is replaceable. Important LLM4LIFE-owned jobs require durable identi
 6. Update `docs/STATUS.md` only when runtime reality changes.
 7. Update roadmap/decisions when the target changes.
 8. Preserve superseded decisions/inventories as historical context.
-9. For People, use read-only inventory/dedup analysis before source mutations.
+9. For People, complete read-only inventory/dedup analysis before real source mutations.
 
 ## Repository map
 
@@ -261,6 +264,7 @@ system.yaml                         Machine architecture/policy
 config/                             Domain/tool/automation/scheduling registries
 db/                                 PostgreSQL migrations/contracts
 docs/PEOPLE.md                      People subsystem implementation contract
+docs/people/PHASE_1_REPORT.md       People Phase 1 receipts and remaining gates
 docs/LONG_TERM_ROADMAP.md           North star + migration scoreboard
 docs/STATUS.md                      Verified live state
 docs/TOOL_REGISTRY.md               Human tool/runtime registry
