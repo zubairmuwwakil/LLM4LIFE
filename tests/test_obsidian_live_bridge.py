@@ -1,6 +1,5 @@
 import importlib.util
 import json
-import os
 import tempfile
 import unittest
 import uuid
@@ -139,12 +138,28 @@ class ObsidianExplicitDiscoveryTests(unittest.TestCase):
             self.assertNotIn("Explicit.md", serialized)
             self.assertNotIn("Private prose", serialized)
 
-    def test_conflicting_duplicate_person_links_are_refused(self):
+    def test_multiple_notes_may_explicitly_link_to_same_person(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             person = str(uuid.uuid4())
             (root / "One.md").write_text(f'---\nllm4life_person_id: "{person}"\n---\n')
             (root / "Two.md").write_text(f'---\nllm4life_person_id: "{person}"\n---\n')
+            manifest, receipt = DISCOVER.discover(root, vault_scope="primary-vault")
+            self.assertEqual(len(manifest["links"]), 2)
+            self.assertEqual(receipt["explicit_people_links_found"], 2)
+
+    def test_duplicate_note_id_for_different_people_is_refused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            note_id = str(uuid.uuid4())
+            p1 = str(uuid.uuid4())
+            p2 = str(uuid.uuid4())
+            (root / "One.md").write_text(
+                f'---\nllm4life_person_id: "{p1}"\nllm4life_note_id: "{note_id}"\n---\n'
+            )
+            (root / "Two.md").write_text(
+                f'---\nllm4life_person_id: "{p2}"\nllm4life_note_id: "{note_id}"\n---\n'
+            )
             with self.assertRaises(ValueError):
                 DISCOVER.discover(root, vault_scope="primary-vault")
 
