@@ -10,7 +10,7 @@ LLM4LIFE v2 is live with Neon as durable machine state, Google Tasks as the huma
 
 Product Tracker Phase 2 reliability and write cutover are complete. Production is on Worker `v0.4.0`, Notion inbound inventory sync is disabled, durable reliability status/DLQ receipts are live, and the stable Product Tracker Event ID query-before-create hardening is deployed.
 
-The **People / Relationships Phase 1 schema is now live in production Neon**. The schema and generic account-scoped external-reference model are deployed, but no real People records have been imported yet, no contacts have been merged or mutated, and Google/Apple field ownership has not been cut over.
+The **People / Relationships canonical identity layer is now live in production Neon**, and the approved non-destructive Apple → Google Contacts provider migration has completed. Production currently has 885 active People rows and 889 Google person external refs with zero orphans. Google Contacts is the intended mutable standard address-book field owner, but Apple-device sync verification is still required before that field-authority cutover is declared fully live.
 
 ## Current architecture
 
@@ -126,9 +126,9 @@ All human/agent personal-care inventory mutations must route through Product Tra
 
 The 24-hour post-cutover observation window and temporary reliability staging cleanup remain. These are operational closeout tasks, not ownership blockers.
 
-## People / Relationships Phase 1
+## People / Relationships — canonical identity live
 
-The production Neon schema now includes:
+The production Neon schema includes:
 
 - `llm4life.people`
 - `llm4life.relationships`
@@ -137,34 +137,75 @@ The production Neon schema now includes:
 - `llm4life.interaction_people`
 - `llm4life.action_people`
 
-The existing generic `llm4life.external_refs` model was reused rather than creating a separate `person_external_refs` table. It now supports provider `account_scope`, first/last-seen timestamps and archive lifecycle metadata.
+The generic `llm4life.external_refs` model is reused for People mappings. It supports provider `account_scope`, first/last-seen timestamps and archive lifecycle metadata.
 
-**Verified immediately after deployment:**
+### Canonical Google identity import
 
-- 0 People rows;
-- 0 person facts;
-- 0 interactions;
-- 95 pre-existing external refs preserved.
+The initial complete Google saved-contact inventory contained 753 contacts. After conservative person/service filtering and collapse of three previously reviewed clean duplicate clusters, the initial canonical import established:
 
-**Still not live:**
+- 720 Google person external refs;
+- 716 canonical active People rows;
+- 3 clean duplicate clusters collapsed;
+- 7 source refs participating in those duplicate clusters;
+- zero orphan Google person refs;
+- no raw phone/email/address/birthday/note payload copied into Neon.
 
-- no real Apple/Google contact import;
-- no canonical dedup/merge of real contacts;
-- no Google Contacts field-authority cutover;
-- no Apple Contacts synchronized-client cutover;
-- no Obsidian People migration;
-- no automatic People capture/relationship automation.
+### Apple → Google provider cutover
 
-Current private contact/relationship material remains in existing systems during migration. Do not destructively clean or rewrite it based on target docs alone.
+The approved non-destructive Apple → Google migration completed against 451 Apple contacts.
 
-Read `docs/PEOPLE.md`, `docs/people/PHASE_1_REPORT.md`, and `docs/decisions/2026-09-03-people-subsystem-architecture.md` before People work.
+Reconciliation before writes identified:
+
+- 246 one-to-one high-confidence existing-contact matches;
+- 181 Apple-only contacts planned for create;
+- 12 identity conflicts held;
+- 11 name-only weak matches held;
+- 1 empty Apple export record held;
+- 31 Apple notes held for classification rather than auto-write.
+
+The final private refreshed Google snapshot verifies:
+
+- 934 saved Google contacts;
+- 934 unique provider-stable IDs;
+- all original 753 Google provider IDs retained;
+- exactly 181 new provider IDs created from Apple-only records;
+- zero original provider IDs lost;
+- no provider deletion performed.
+
+The 181 new provider records were classified conservatively before Neon import. 169 person-like refs were imported, while 12 obvious demo/test/non-person/service records remain provider-only.
+
+### Current production People totals
+
+Verified after cutover:
+
+- 885 People rows;
+- 885 active People rows;
+- 889 Google person external refs;
+- zero orphan Google person refs;
+- zero archived Google person refs.
+
+The 4-ref difference between active People and Google person refs is expected from the previously reviewed duplicate clusters.
+
+For the 169 newly imported refs, Neon metadata contains only `etag`, `external_id_stability`, `snapshot_generated_at`, and `source`. Raw contact values remain provider-authoritative and were not copied into Neon.
+
+### Field authority
+
+Neon is live as the stable person-identity and structured People machine-state owner.
+
+Google Contacts is now the canonical provider address book after the Apple → Google migration, but **mutable standard contact-field authority is not yet declared fully live** until Apple Contacts is verified to consume/sync the Google-canonical address book on the user’s devices.
+
+Apple Contacts remains the device client during this final verification step. Obsidian remains the narrative relationship-context owner.
+
+Provider deletion and destructive legacy cleanup remain out of scope without new approval.
+
+Read `docs/PEOPLE.md`, `docs/people/PHASE_2_PRODUCTION_RECEIPT.md`, `config/people-phase2.yaml`, and the historical `docs/people/PHASE_1_REPORT.md` before People work.
 
 ## Runtime paths
 
 | System | Status | Role |
 |---|---|---|
 | ChatGPT / LLM4LIFE | Live | Control plane / orchestration |
-| Neon | Live | Durable machine state + Product Tracker canonical inventory database + deployed People schema |
+| Neon | Live | Durable machine state + Product Tracker canonical inventory + canonical People identity state |
 | Google Tasks | Production-live | Human action projection/capture |
 | Google Calendar | Live | Execution schedule and commitments |
 | Cloudflare | Production-live | Google Tasks sync + Product Tracker Worker/Queue/Hyperdrive runtime |
@@ -172,29 +213,29 @@ Read `docs/PEOPLE.md`, `docs/people/PHASE_1_REPORT.md`, and `docs/decisions/2026
 | Notion | Auxiliary | Planning rollback + personal-care projection/reference |
 | InUnity | MCP live/read-verified | Finance domain |
 | Obsidian | Partial | Narrative knowledge/relationship context; live bridge pending |
-| Google Contacts | Connector read-verified; full inventory path incomplete | Target address-book client; no field-authority cutover yet |
-| Apple Contacts | Current device/source during People migration | Target synchronized device client |
+| Google Contacts | Provider migration complete | Canonical provider address book; mutable-field authority pending Apple sync verification |
+| Apple Contacts | Sync verification pending | Target synchronized device client |
 | Jira / ORC / GitHub | Live by domain | Engineering backlog / coding orchestration / code truth |
 
 ## Next priorities
 
+### P0 — Verify Apple Contacts sync and close People field authority
+
+1. Verify Apple Contacts on the user’s devices is consuming/syncing the Google-canonical address book as intended.
+2. If verified, declare Google Contacts the live mutable standard contact-field authority and Apple Contacts the synchronized client.
+3. Keep Neon as stable identity / structured People machine state; do not copy raw address-book payloads into Neon.
+
+### P0 — Review held People migration candidates
+
+Review separately, without broad auto-merge or destructive cleanup:
+
+- 12 identity conflicts;
+- 11 name-only weak matches;
+- 31 Apple note candidates for Obsidian-vs-structured-fact routing.
+
 ### P0 — Observe and close Product Tracker staging
 
 Run the 24-hour post-cutover check. If health, durable retry state and projection remain clean, remove the temporary reliability Worker/Queues and temporary Neon reliability branch.
-
-### P0 — People Phase 1: complete read-only inventory
-
-The schema portion of Phase 1 is live. Continue with read-only inventory before any real contact mutation:
-
-1. Obtain a complete Google saved-contact inventory using a supported enumeration path rather than query-only search.
-2. Inventory Apple/iCloud contacts via a private local vCard export or supported local Contacts bridge.
-3. Run the deterministic duplicate-candidate engine against private/transient normalized data.
-4. Review field-preservation semantics before finalizing Google-vs-Neon mutable contact-field authority.
-5. Keep public-repo fixtures synthetic only.
-
-### P1 — People canonical identity import
-
-Only after inventory/reconciliation gates pass: import stable person IDs and external refs idempotently, then review duplicate candidates conservatively.
 
 ### P1 — Live Obsidian bridge
 
