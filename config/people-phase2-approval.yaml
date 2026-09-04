@@ -1,0 +1,42 @@
+version: 1
+updated: 2026-09-04
+status: approved_but_provider_ref_path_blocked
+
+user_approval:
+  approved:
+    - real_contact_import
+    - conservative_high_confidence_merge
+    - non_destructive_contact_edit
+  not_included:
+    - provider_contact_delete
+    - destructive_obsidian_cleanup
+    - new_credentials_or_permissions
+
+safety_invariants:
+  - stable_provider_refs_required_before_canonical_import
+  - never_persist_export_row_hashes_as_external_refs
+  - conflict_candidates_require_review
+  - name_only_candidates_never_auto_merge
+  - preserve_apple_specific_fields_before_cutover
+  - keep_rollback_until_projection_and_sync_verified
+
+technical_blockers:
+  google_contacts_connector:
+    installed: true
+    supports_targeted_read: true
+    supports_complete_enumeration: false
+    supports_contact_write: false
+  google_export:
+    stable_people_resource_names_present: false
+  apple_export:
+    stable_uid_present: false
+  required_next_capability:
+    - supported_google_people_api_enumeration_for_people_resource_names
+    - supported_google_people_api_write_path_for_contact_updates
+    - scoped_apple_cncontact_identifiers_if_needed_for_migration_receipts
+
+execution_policy:
+  import_when_provider_refs_are_available: true
+  auto_merge_high_confidence_one_to_one_only: true
+  auto_merge_conflict_or_name_only: false
+  provider_deletes_require_separate_approval: true
