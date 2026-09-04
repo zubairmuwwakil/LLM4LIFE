@@ -1,20 +1,13 @@
 #!/usr/bin/env python3
 """Normalize private Google/Apple contact exports for dry-run People reconciliation.
 
-This script never writes to Neon or provider APIs. It converts local exports into
-the JSON contract consumed by ``scripts/people_dedup.py`` and prints only aggregate
-counts to stdout. Real normalized payloads should stay under ``.private/people/``,
-which is git-ignored.
+This tool is read-only with respect to Neon/provider APIs. It writes only local
+JSON files. Keep real outputs under .private/people/ or another private path.
 
-Google CSV exports are useful for complete saved-contact counts/field-preservation
-checks but do not expose the People API ``resourceName``. Their generated
-``external_id`` values are therefore snapshot-only and MUST NOT be persisted to
-``llm4life.external_refs``.
-
-vCard ``UID`` values are preserved when present, but are still treated as export
-identifiers unless their provider/device semantics have been independently proven.
+Google CSV row IDs are snapshot-only and MUST NOT be persisted as provider refs.
+vCard UID values are export identifiers until provider/device semantics are
+independently verified.
 """
-
 from __future__ import annotations
 
 import argparse
@@ -78,7 +71,6 @@ def _google_display_name(row: dict[str, str]) -> str | None:
         value = _clean(row.get(key))
         if value:
             return value
-
     parts = [
         _clean(row.get("First Name") or row.get("Given Name")),
         _clean(row.get("Middle Name") or row.get("Additional Name")),
@@ -89,21 +81,13 @@ def _google_display_name(row: dict[str, str]) -> str | None:
 
 
 def parse_google_csv(path: Path, *, account_scope: str) -> list[dict[str, Any]]:
-    """Parse an official Google Contacts CSV export into dedup inventory rows.
-
-    Google CSV does not provide the People API resourceName. The generated ID is
-    intentionally snapshot-only and is safe for candidate generation, not provider
-    reference persistence.
-    """
     with path.open("r", encoding="utf-8-sig", newline="") as handle:
         reader = csv.DictReader(handle)
         if not reader.fieldnames:
             raise ValueError("Google CSV has no header row")
-
         email_headers = [h for h in reader.fieldnames if h and EMAIL_HEADER_RE.match(h)]
         phone_headers = [h for h in reader.fieldnames if h and PHONE_HEADER_RE.match(h)]
         records: list[dict[str, Any]] = []
-
         for ordinal, row in enumerate(reader, start=1):
             if not any(_clean(v) for v in row.values() if isinstance(v, str)):
                 continue
@@ -113,13 +97,11 @@ def parse_google_csv(path: Path, *, account_scope: str) -> list[dict[str, Any]]:
                 for key, value in row.items()
                 if key and key.lower().startswith("address ") and isinstance(value, str)
             )
-            birthday_present = bool(_clean(row.get("Birthday")))
             organization_present = any(
                 _clean(value)
                 for key, value in row.items()
                 if key and "organization" in key.lower() and isinstance(value, str)
             )
-            notes_present = bool(_clean(row.get("Notes")))
             records.append(
                 {
                     "source": "google_contacts_export",
@@ -130,10 +112,10 @@ def parse_google_csv(path: Path, *, account_scope: str) -> list[dict[str, Any]]:
                     "emails": _unique_nonempty(row.get(h, "") for h in email_headers),
                     "phones": _unique_nonempty(row.get(h, "") for h in phone_headers),
                     "field_presence": {
-                        "address": address_present,
-                        "birthday": birthday_present,
-                        "organization": organization_present,
-                        "notes": notes_present,
+                        "address": bool(address_present),
+                        "birthday": bool(_clean(row.get("Birthday"))),
+                        "organization": bool(organization_present),
+                        "notes": bool(_clean(row.get("Notes"))),
                     },
                     "archived": False,
                 }
@@ -161,19 +143,29 @@ def _decode_vcard_value(raw: str, params: str) -> str:
             value = quopri.decodestring(value).decode("utf-8")
         except (UnicodeDecodeError, ValueError):
             value = quopri.decodestring(value).decode("latin-1", errors="replace")
-    value = (
+    return (
         value.replace(r"\n", "\n")
         .replace(r"\N", "\n")
         .replace(r"\,", ",")
         .replace(r"\;", ";")
         .replace(r"\\", "\\")
+        .strip()
     )
-    return value.strip()
+
+
+def _vcard_property_key(head: str) -> str:
+    """Return base property name, handling Apple grouped properties.
+
+    Apple exports commonly use grouped properties such as item1.EMAIL,
+    item1.ADR and item1.TEL. The group prefix is metadata; the base property
+    after the last dot controls parsing.
+    """
+    raw_key = head.split(";", 1)[0]
+    return raw_key.rsplit(".", 1)[-1].upper()
 
 
 def _name_from_n(value: str) -> str | None:
     parts = value.split(";")
-    # vCard N = family;given;additional;prefix;suffix
     family = parts[0] if len(parts) > 0 else ""
     given = parts[1] if len(parts) > 1 else ""
     additional = parts[2] if len(parts) > 2 else ""
@@ -184,7 +176,6 @@ def _name_from_n(value: str) -> str | None:
 
 
 def parse_vcard(path: Path, *, source: str, account_scope: str) -> list[dict[str, Any]]:
-    """Parse a multi-contact vCard export without retaining photos/notes."""
     text = path.read_text(encoding="utf-8", errors="replace")
     blocks = list(VCARD_BLOCK_RE.finditer(text))
     if not blocks:
@@ -198,20 +189,15 @@ def parse_vcard(path: Path, *, source: str, account_scope: str) -> list[dict[str
         uid: str | None = None
         emails: list[str] = []
         phones: list[str] = []
-        field_presence = {
-            "address": False,
-            "birthday": False,
-            "organization": False,
-            "notes": False,
-        }
+        field_presence = {"address": False, "birthday": False, "organization": False, "notes": False}
 
         for line in _unfold_vcard_lines(match.group("body")):
             if ":" not in line:
                 continue
             head, raw_value = line.split(":", 1)
-            key, *param_parts = head.split(";")
-            key = key.upper()
-            params = ";".join(param_parts)
+            key = _vcard_property_key(head)
+            params = ";".join(head.split(";")[1:])
+
             if key in {"ADR", "BDAY", "ORG", "NOTE"}:
                 presence_key = {
                     "ADR": "address",
@@ -221,10 +207,8 @@ def parse_vcard(path: Path, *, source: str, account_scope: str) -> list[dict[str
                 }[key]
                 if raw_value.strip():
                     field_presence[presence_key] = True
-                # Do not retain values for these fields in the normalized
-                # matching corpus. Phase 1 only needs aggregate preservation
-                # counts; keeping the raw payload would expand privacy surface.
                 continue
+
             if key not in {"FN", "N", "UID", "EMAIL", "TEL"}:
                 continue
             value = _decode_vcard_value(raw_value, params)
@@ -334,7 +318,6 @@ def build_parser() -> argparse.ArgumentParser:
 
     summary = sub.add_parser("summarize", help="print aggregate counts only")
     summary.add_argument("input", type=Path)
-
     return parser
 
 
