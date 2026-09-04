@@ -1,0 +1,121 @@
+version: 1
+status: phase_1_schema_live_inventory_incomplete
+updated: 2026-09-04
+
+scope:
+  public_repo_contains_private_people_payloads: false
+  production_people_schema_applied: true
+  provider_contacts_mutated: false
+
+external_references:
+  canonical_table: llm4life.external_refs
+  create_person_external_refs_table: false
+  rationale:
+    - reuse_existing_cross_system_primitive
+    - preserve_one_reference_model_across_domains
+    - avoid_duplicate_sync_and_idempotency_semantics
+  phase_1_generic_extensions:
+    - account_scope
+    - first_seen_at
+    - last_seen_at
+    - archived_at
+  uniqueness: system_id_account_scope_internal_type_external_id
+  known_tradeoff: polymorphic_internal_id_has_no_database_foreign_key_to_people
+
+schema:
+  runtime_status: production_live_empty
+  people:
+    purpose: stable_internal_identity_and_merge_lineage
+  relationships:
+    purpose: one_small_operational_relationship_state_per_person
+  person_facts:
+    purpose: structured_provenance_aware_facts_only
+  interactions:
+    purpose: minimal_interaction_metadata_with_date_only_support
+  interaction_people:
+    purpose: multi_person_interaction_linkage
+  action_people:
+    purpose: relational_link_to_existing_personal_action_lifecycle
+  person_contact_points:
+    status: intentionally_deferred
+    reason: contact_field_authority_should_be_proven_before_copying_provider_fields
+
+production_verification:
+  people_rows_after_deploy: 0
+  person_fact_rows_after_deploy: 0
+  interaction_rows_after_deploy: 0
+  preexisting_external_refs_preserved: 95
+
+contact_field_authority:
+  status: conditional_recommendation_pending_complete_apple_inventory_and_cutover_approval
+  stable_person_identity: neon
+  relationship_machine_state: neon
+  narrative_relationship_context: obsidian
+  mutable_address_book_fields_recommended_owner: google_contacts
+  apple_contacts: synchronized_device_client_after_reconciliation
+  neon_contact_points: derived_matching_cache_only_if_later_justified
+  google_other_contacts: evidence_only_not_automatic_canonical_contacts
+  preconditions:
+    - complete_apple_icloud_inventory
+    - verify_google_preserves_required_apple_contact_fields
+    - verify_real_contact_counts_and_duplicate_candidates
+    - explicit_cutover_approval
+  reason:
+    - google_people_api_has_supported_full_enumeration_and_incremental_sync
+    - google_people_api_has_etag_conflict_detection_for_updates
+    - provider_authority_avoids_bidirectional_field_level_dual_truth
+    - minimizes_private_contact_field_duplication_in_neon
+
+inventory:
+  google_contacts_connector:
+    authenticated_account_verified: true
+    safe_sample_read_verified: true
+    full_inventory_sufficient: false
+    limitations:
+      - query_oriented_search_only
+      - connector_result_limit
+      - search_can_mix_saved_contacts_and_other_contacts
+      - read_contact_does_not_read_other_contacts_results
+    recommended_complete_path: google_people_api_connections_list_with_pagination_and_sync_token
+    complete_inventory_rules:
+      - request_contact_source_only_for_saved_contacts
+      - include_metadata_in_person_fields
+      - process_deleted_markers_on_incremental_sync
+      - fall_back_to_full_sync_when_sync_token_expires
+  apple_contacts:
+    phase_1_recommended_inventory: local_vcard_export_processed_privately
+    eventual_runtime_bridge: macos_contacts_framework_cncontactstore
+    rules:
+      - do_not_use_ui_automation_when_supported_export_or_framework_exists
+      - cncontact_identifier_is_device_local_not_global_identity
+      - inspect_unified_and_unified_false_views_during_reconciliation
+
+identity_resolution:
+  order:
+    - exact_provider_external_ref
+    - explicit_internal_person_id
+    - unique_normalized_strong_contact_point_with_supporting_evidence
+    - multiple_independent_matching_signals
+    - manual_review
+  same_or_similar_name_only: never_auto_merge
+  candidate_output_only: true
+  automatic_merge_in_phase_1: false
+  normalization:
+    email: unicode_normalize_casefold_domain_idna_no_provider_alias_guessing
+    phone: conservative_e164_or_north_american_normalization
+    name: unicode_nfkc_casefold_whitespace_only
+
+privacy:
+  raw_contact_exports: private_transient_only
+  public_fixtures: synthetic_only
+  full_message_archival: false
+  inferred_sensitive_facts: never_auto_persist
+  model_suggestion_sensitive_fact_database_guard: true
+
+remaining_approval_gates:
+  requires_explicit_approval_before:
+    - real_contact_import
+    - real_contact_merge_update_or_delete
+    - google_or_apple_field_ownership_cutover
+    - destructive_obsidian_cleanup
+    - new_credentials_or_permissions

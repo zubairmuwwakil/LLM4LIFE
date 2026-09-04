@@ -1,5 +1,5 @@
 version: 2
-updated: 2026-09-03
+updated: 2026-09-04
 status: migration_in_progress
 
 principles:
@@ -55,8 +55,8 @@ domains:
       - action_receipts
       - sync_checkpoints
       - adaptive_rules
-      - stable_person_identity_after_people_migration
-      - relationship_machine_state_after_people_migration
+      - stable_person_identity
+      - relationship_machine_state
 
   knowledge_and_reasoning:
     owner: obsidian
@@ -69,30 +69,33 @@ domains:
 
   contact_identity:
     owner: neon
-    migration_state: phase_0_documented_implementation_not_started
-    current_state: fragmented_apple_and_google_contacts
+    migration_state: phase_1_schema_live_inventory_incomplete
+    current_state: people_schema_live_contacts_still_fragmented_apple_and_google
     target_human_address_book_client: google_contacts
     apple_contacts_role: synced_client_after_migration
     includes:
       - stable_person_id
       - cross_system_person_refs
-      - structured_contact_state_when_field_authority_is_verified
+      - structured_contact_state_only_if_field_authority_later_justifies_it
+    external_ref_model: llm4life.external_refs
     field_authority_note: >-
-      Phase 1 must validate Google Contacts API and conflict semantics before
-      finalizing phone/email/address/birthday field authority. Default target is
-      Neon canonical structured state projected to Google Contacts; exceptions
-      require an explicit newer decision.
+      Phase 1 schema is live. Complete Apple/iCloud and Google inventory before
+      finalizing phone/email/address/birthday field authority. Current evidence
+      conditionally favors Google Contacts as mutable address-book field owner,
+      with Neon retaining stable identity and refs; no ownership cutover is live.
     decision: docs/decisions/2026-09-03-people-subsystem-architecture.md
     implementation_contract: docs/PEOPLE.md
+    phase_1_report: docs/people/PHASE_1_REPORT.md
 
   relationship_machine_state:
     owner: neon
-    migration_state: phase_0_documented_implementation_not_started
+    migration_state: phase_1_schema_live_inventory_incomplete
+    runtime_schema_live: true
     includes:
       - structured_relationship_metadata
       - structured_person_facts_with_provenance
       - interaction_metadata_when_operationally_useful
-      - person_external_references
+      - generic_external_references_for_people
     action_output: personal_actions
     task_projection: google_tasks
     scheduled_output: google_calendar
@@ -102,6 +105,7 @@ domains:
       - structured_facts_require_provenance
       - raw_conversation_archival_not_default
       - sensitive_model_inference_not_silently_persisted
+      - no_real_contact_mutation_before_reconciliation_gate
     decision: docs/decisions/2026-09-03-people-subsystem-architecture.md
     implementation_contract: docs/PEOPLE.md
 

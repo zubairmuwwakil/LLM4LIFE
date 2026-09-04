@@ -1,6 +1,6 @@
 # Runtime Status
 
-_Last updated: 2026-09-03_
+_Last updated: 2026-09-04_
 
 This file describes **what is actually live now**. Long-term target ownership is defined by `config/domains.yaml`, `system.yaml`, domain contracts such as `docs/PEOPLE.md`, and `docs/LONG_TERM_ROADMAP.md`.
 
@@ -10,7 +10,7 @@ LLM4LIFE v2 is live with Neon as durable machine state, Google Tasks as the huma
 
 Product Tracker Phase 2 reliability and write cutover are complete. Production is on Worker `v0.4.0`, Notion inbound inventory sync is disabled, durable reliability status/DLQ receipts are live, and the stable Product Tracker Event ID query-before-create hardening is deployed.
 
-The next subsystem is **People / Relationships**, currently **Phase 0 documentation only**. Its target architecture is accepted, but no People Neon schema, contact import, dedup cutover or Google Contacts projection migration has been completed yet.
+The **People / Relationships Phase 1 schema is now live in production Neon**. The schema and generic account-scoped external-reference model are deployed, but no real People records have been imported yet, no contacts have been merged or mutated, and Google/Apple field ownership has not been cut over.
 
 ## Current architecture
 
@@ -126,45 +126,45 @@ All human/agent personal-care inventory mutations must route through Product Tra
 
 The 24-hour post-cutover observation window and temporary reliability staging cleanup remain. These are operational closeout tasks, not ownership blockers.
 
-## People / Relationships Phase 0
+## People / Relationships Phase 1
 
-Accepted target:
+The production Neon schema now includes:
 
-```text
-Neon
-  stable person_id
-  external references
-  structured relationship machine state
-  structured facts + provenance
-  minimal interaction metadata
-      |
-      +--> Google Contacts address-book projection/client after dedup cutover
-      +--> LLM4LIFE actions -> Google Tasks for follow-ups
-      +--> Google Calendar for scheduled interactions
+- `llm4life.people`
+- `llm4life.relationships`
+- `llm4life.person_facts`
+- `llm4life.interactions`
+- `llm4life.interaction_people`
+- `llm4life.action_people`
 
-Obsidian
-  narrative relationship memory
-  diary/reflections
-  long-form person/interaction context
-```
+The existing generic `llm4life.external_refs` model was reused rather than creating a separate `person_external_refs` table. It now supports provider `account_scope`, first/last-seen timestamps and archive lifecycle metadata.
 
-**Not live yet:**
+**Verified immediately after deployment:**
 
-- no People Neon tables have been created;
-- Apple/Google Contacts have not been canonically reconciled/imported;
-- Google Contacts has not been cut over as a projection/client;
-- no automatic People capture or relationship automation is active from this new architecture.
+- 0 People rows;
+- 0 person facts;
+- 0 interactions;
+- 95 pre-existing external refs preserved.
+
+**Still not live:**
+
+- no real Apple/Google contact import;
+- no canonical dedup/merge of real contacts;
+- no Google Contacts field-authority cutover;
+- no Apple Contacts synchronized-client cutover;
+- no Obsidian People migration;
+- no automatic People capture/relationship automation.
 
 Current private contact/relationship material remains in existing systems during migration. Do not destructively clean or rewrite it based on target docs alone.
 
-Read `docs/PEOPLE.md` and `docs/decisions/2026-09-03-people-subsystem-architecture.md` before People work.
+Read `docs/PEOPLE.md`, `docs/people/PHASE_1_REPORT.md`, and `docs/decisions/2026-09-03-people-subsystem-architecture.md` before People work.
 
 ## Runtime paths
 
 | System | Status | Role |
 |---|---|---|
 | ChatGPT / LLM4LIFE | Live | Control plane / orchestration |
-| Neon | Live | Durable machine state + Product Tracker canonical inventory database |
+| Neon | Live | Durable machine state + Product Tracker canonical inventory database + deployed People schema |
 | Google Tasks | Production-live | Human action projection/capture |
 | Google Calendar | Live | Execution schedule and commitments |
 | Cloudflare | Production-live | Google Tasks sync + Product Tracker Worker/Queue/Hyperdrive runtime |
@@ -172,7 +172,7 @@ Read `docs/PEOPLE.md` and `docs/decisions/2026-09-03-people-subsystem-architectu
 | Notion | Auxiliary | Planning rollback + personal-care projection/reference |
 | InUnity | MCP live/read-verified | Finance domain |
 | Obsidian | Partial | Narrative knowledge/relationship context; live bridge pending |
-| Google Contacts | Connector available; People migration incomplete | Target address-book client/projection after dedup |
+| Google Contacts | Connector read-verified; full inventory path incomplete | Target address-book client; no field-authority cutover yet |
 | Apple Contacts | Current device/source during People migration | Target synchronized device client |
 | Jira / ORC / GitHub | Live by domain | Engineering backlog / coding orchestration / code truth |
 
@@ -182,19 +182,19 @@ Read `docs/PEOPLE.md` and `docs/decisions/2026-09-03-people-subsystem-architectu
 
 Run the 24-hour post-cutover check. If health, durable retry state and projection remain clean, remove the temporary reliability Worker/Queues and temporary Neon reliability branch.
 
-### P0 — People Phase 1: schema + read-only inventory
+### P0 — People Phase 1: complete read-only inventory
 
-Do **not** begin with destructive contact edits.
+The schema portion of Phase 1 is live. Continue with read-only inventory before any real contact mutation:
 
-1. Design/test the minimum People schema from `docs/PEOPLE.md`.
-2. Inspect Google Contacts and the supported Apple Contacts export/integration path.
-3. Build a read-only inventory and duplicate-candidate report.
-4. Validate contact-field authority/conflict semantics.
-5. Use synthetic fixtures only in this public repo.
+1. Obtain a complete Google saved-contact inventory using a supported enumeration path rather than query-only search.
+2. Inventory Apple/iCloud contacts via a private local vCard export or supported local Contacts bridge.
+3. Run the deterministic duplicate-candidate engine against private/transient normalized data.
+4. Review field-preservation semantics before finalizing Google-vs-Neon mutable contact-field authority.
+5. Keep public-repo fixtures synthetic only.
 
 ### P1 — People canonical identity import
 
-Only after Phase 1 gates pass: stable person IDs, external refs, idempotent import, conservative merge workflow and rollback.
+Only after inventory/reconciliation gates pass: import stable person IDs and external refs idempotently, then review duplicate candidates conservatively.
 
 ### P1 — Live Obsidian bridge
 

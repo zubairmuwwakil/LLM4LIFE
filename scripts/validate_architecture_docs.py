@@ -28,6 +28,7 @@ REQUIRED_FILES = [
     ROOT / "docs" / "TOOL_REGISTRY.md",
     ROOT / "docs" / "PEOPLE.md",
     ROOT / "docs" / "decisions" / "2026-09-03-people-subsystem-architecture.md",
+    ROOT / "docs" / "people" / "PHASE_1_REPORT.md",
 ]
 
 YAML_PATHS = [ROOT / "system.yaml", *sorted((ROOT / "config").glob("*.yaml"))]
@@ -100,13 +101,21 @@ def validate_people_contract() -> None:
     relationship_machine = domains.get("domains", {}).get("relationship_machine_state", {})
 
     if people_identity.get("owner") != "neon":
-        fail("config/domains.yaml contact_identity target owner must be neon")
+        fail("config/domains.yaml contact_identity owner must be neon")
     if relationship_machine.get("owner") != "neon":
-        fail("config/domains.yaml relationship_machine_state target owner must be neon")
-    if people_identity.get("migration_state") != "phase_0_documented_implementation_not_started":
-        fail("People migration state changed; update docs/PEOPLE.md and this validation intentionally")
+        fail("config/domains.yaml relationship_machine_state owner must be neon")
 
-    print("People Phase 0 contract OK")
+    expected_state = "phase_1_schema_live_inventory_incomplete"
+    if people_identity.get("migration_state") != expected_state:
+        fail(f"People identity migration state must be {expected_state}")
+    if relationship_machine.get("migration_state") != expected_state:
+        fail(f"People relationship migration state must be {expected_state}")
+    if relationship_machine.get("runtime_schema_live") is not True:
+        fail("People relationship runtime_schema_live must be true after schema deployment")
+    if people_identity.get("external_ref_model") != "llm4life.external_refs":
+        fail("People must reuse llm4life.external_refs rather than a duplicate person ref table")
+
+    print("People Phase 1 schema-live contract OK")
 
 
 def main() -> None:
