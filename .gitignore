@@ -8,6 +8,9 @@ client_secret*.json
 credentials*.json
 token*.json
 
+# Private local reconciliation/export payloads
+.private/
+
 # JavaScript / Worker local state
 node_modules/
 .wrangler/
