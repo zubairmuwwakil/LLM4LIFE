@@ -1,5 +1,5 @@
 version: 1
-status: google_stable_id_bootstrap_pending_local_oauth_consent
+status: google_canonical_people_import_live_apple_migration_pending
 updated: 2026-09-04
 
 approvals:
@@ -13,10 +13,25 @@ approvals:
 
 runtime:
   production_people_schema_live: true
-  real_people_rows_imported: false
+  real_people_rows_imported: true
   provider_contacts_mutated_by_phase_2: false
-  google_stable_provider_refs_acquired: false
+  google_stable_provider_refs_acquired: true
+  google_canonical_import_live: true
   apple_stable_provider_refs_required_for_initial_import: false
+
+production_receipt:
+  google_saved_contacts_enumerated: 753
+  clear_non_person_or_service_records_held_out: 33
+  google_person_external_refs_imported: 720
+  canonical_active_people: 716
+  clean_duplicate_clusters_collapsed: 3
+  source_refs_in_duplicate_clusters: 7
+  orphan_google_person_refs: 0
+  non_active_people_after_import: 0
+  private_contact_values_copied_to_neon: false
+  provider_contacts_created_updated_or_deleted_during_neon_import: false
+  pre_import_neon_snapshot_created: true
+  idempotent_rerun_verified: true
 
 provider_strategy:
   stable_person_identity: neon
@@ -43,16 +58,16 @@ bootstrap:
 
 safety:
   contacts_scope_can_delete_but_deletion_authorized: false
-  bootstrap_performs_provider_writes: false
   export_hashes_may_enter_external_refs: false
   ambiguous_candidates_auto_merge: false
   private_payloads_may_enter_public_repo: false
+  contact_values_remain_provider_authoritative: true
 
 next_gate:
-  - run_local_google_oauth_consent
-  - obtain_complete_google_people_stable_id_snapshot
-  - rerun_stable_ref_reconciliation
-  - build_deterministic_google_create_update_plan
-  - apply_approved_non_destructive_provider_writes
-  - import_canonical_people_and_google_external_refs_into_neon
-  - prove_idempotent_rerun_and_zero_orphan_refs
+  - reconcile_apple_export_against_live_google_stable_refs
+  - build_deterministic_apple_to_google_create_update_plan
+  - preserve_apple_only_contact_points_photos_titles_dates_social_profiles_and_notes
+  - apply_approved_non_destructive_google_contact_creates_and_updates
+  - acquire_google_people_refs_for_newly_created_apple_only_contacts
+  - import_new_google_refs_into_neon_idempotently
+  - verify_apple_migration_and_prepare_google_field_authority_cutover
