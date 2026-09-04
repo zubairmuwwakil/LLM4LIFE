@@ -62,39 +62,40 @@ Only aggregate counts are recorded publicly.
 
 Apple's `X-APPLE-OMIT-YEAR=1604` convention is converted to a month/day Google `Date` without persisting 1604 as a real year.
 
-## Commands
+## Local private inputs
 
-The local private Apple export should be placed at:
+The Apple export should be placed at:
 
 ```text
 .private/people/apple_contacts.vcf
 ```
 
-The stable Google snapshot and OAuth files from the earlier bootstrap remain:
+If that exact filename is absent, the cutover wrapper will accept exactly one `.vcf` file in `.private/people/`.
+
+The Google OAuth files from the earlier bootstrap remain:
 
 ```text
-.private/people/google_people_live.json
 .private/people/google-oauth-client.json
 .private/people/google-people-token.json
 ```
 
-Generate/re-generate the private plan:
+## Recommended one-command cutover
+
+After pulling the latest `main`, run:
 
 ```bash
-python scripts/apple_google_phase2.py plan
+bash scripts/run_apple_google_phase2.sh --apply
 ```
 
-Validate the plan and source digests without provider writes:
+The wrapper is fail-fast and deliberately performs these steps in order:
 
-```bash
-python scripts/apple_google_phase2.py apply
-```
+1. re-enumerate current Google saved contacts into `.private/people/google_people_live.json`;
+2. regenerate the deterministic Apple→Google plan against that fresh snapshot;
+3. validate the exact source SHA-256 digests and plan with **no writes**;
+4. apply the already-approved non-destructive create/update operations;
+5. refresh the stable Google snapshot after successful provider apply.
 
-Perform the already-approved non-destructive provider writes:
-
-```bash
-python scripts/apple_google_phase2.py apply --apply
-```
+Refreshing Google immediately before re-planning reduces the risk of creating duplicates from a stale snapshot.
 
 The apply step writes/resumes:
 
@@ -102,11 +103,24 @@ The apply step writes/resumes:
 .private/people/apple_google_apply_receipt.json
 ```
 
-and, after successful completion, refreshes the stable Google snapshot to:
+and produces the post-migration stable snapshot:
 
 ```text
 .private/people/google_people_live_after_apple.json
 ```
+
+## Lower-level commands
+
+For debugging or controlled dry runs, the same flow is available directly:
+
+```bash
+python scripts/google_people_phase2.py enumerate --account-scope google-primary
+python scripts/apple_google_phase2.py plan
+python scripts/apple_google_phase2.py apply
+python scripts/apple_google_phase2.py apply --apply
+```
+
+Provider writes still require the explicit `--apply` flag.
 
 ## After provider apply
 

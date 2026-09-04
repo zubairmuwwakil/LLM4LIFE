@@ -21,6 +21,7 @@ runtime:
   apple_google_reconciliation_complete: true
   apple_google_provider_write_plan_ready: true
   apple_google_provider_writes_applied: false
+  apple_google_one_command_cutover_ready: true
 
 production_receipt:
   google_saved_contacts_enumerated: 753
@@ -72,8 +73,10 @@ bootstrap:
     rationale: apple_only_records_can_be_created_in_google_and_receive_google_people_refs
     export_row_hashes_are_durable_refs: false
     migration_script: scripts/apple_google_phase2.py
+    cutover_wrapper: scripts/run_apple_google_phase2.sh
     private_plan: .private/people/apple_google_plan.json
     private_apply_receipt: .private/people/apple_google_apply_receipt.json
+    refreshed_google_snapshot: .private/people/google_people_live_after_apple.json
 
 safety:
   contacts_scope_can_delete_but_deletion_authorized: false
@@ -87,10 +90,11 @@ safety:
   updates_require_fresh_google_get_and_additive_merge: true
   conflicting_existing_birthdays_addresses_and_organizations_are_held: true
   existing_non_default_contact_photos_overwritten: false
+  cutover_refreshes_google_before_replanning: true
+  cutover_requires_explicit_apply_flag: true
 
 next_gate:
-  - run_private_plan_against_user_local_oauth_state
-  - apply_approved_non_destructive_google_contact_creates_and_updates
+  - run_one_command_local_provider_cutover
   - refresh_google_people_stable_id_snapshot
   - acquire_google_people_refs_for_newly_created_apple_only_contacts
   - import_new_person_like_google_refs_into_neon_idempotently

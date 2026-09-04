@@ -7,6 +7,7 @@ on:
       - "scripts/people_inventory.py"
       - "scripts/google_people_phase2.py"
       - "scripts/apple_google_phase2.py"
+      - "scripts/run_apple_google_phase2.sh"
       - "tests/test_people_dedup.py"
       - "tests/test_people_inventory.py"
       - "tests/test_people_inventory_grouped_vcard.py"
@@ -29,6 +30,7 @@ on:
       - "scripts/people_inventory.py"
       - "scripts/google_people_phase2.py"
       - "scripts/apple_google_phase2.py"
+      - "scripts/run_apple_google_phase2.sh"
       - "tests/test_people_dedup.py"
       - "tests/test_people_inventory.py"
       - "tests/test_people_inventory_grouped_vcard.py"
@@ -62,5 +64,7 @@ jobs:
         run: python -m unittest -v tests/test_people_dedup.py tests/test_people_inventory.py tests/test_people_inventory_grouped_vcard.py tests/test_google_people_phase2.py tests/test_apple_google_phase2.py
       - name: Compile People migration helpers
         run: python -m compileall -q scripts/people_dedup.py scripts/people_inventory.py scripts/google_people_phase2.py scripts/apple_google_phase2.py
+      - name: Validate cutover wrapper shell syntax
+        run: bash -n scripts/run_apple_google_phase2.sh
       - name: Verify migration and SQL test artifacts exist
         run: test -s db/migrations/004_people.sql && test -s db/tests/004_people_phase1.sql
