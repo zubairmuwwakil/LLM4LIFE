@@ -1,7 +1,7 @@
 # People / Relationships Phase 1 Report
 
 **Date:** 2026-09-04  
-**Status:** Phase 1 implementation proposal validated on a disposable Neon branch; **not applied to production**.  
+**Status:** Phase 1 schema is **live in production Neon**; complete Apple/Google inventory and real-contact reconciliation are still pending.  
 **Privacy:** No real names, contact fields, provider IDs, birthdays, relationship notes, or message content are recorded here.
 
 ## Executive decision: reuse `external_refs`
@@ -18,9 +18,9 @@ People exposed one real generic gap: provider IDs need explicit account scope. `
 
 Tradeoff: the generic table is polymorphic, so `internal_id` cannot have a normal FK to every internal object table. People import/reconciliation code must therefore reject orphan `internal_type='person'` refs. Splitting the model solely to regain that FK is not worth fragmenting the established abstraction.
 
-## Proposed minimum schema
+## Production schema
 
-`004_people.sql` adds:
+`004_people.sql` is now deployed and adds:
 
 - `people` — stable UUID identity plus archive/merge lineage. `display_name` is nullable because provider records can be phone/email-only.
 - `relationships` — one small operational relationship-state row per person; narrative stays in Obsidian.
@@ -35,20 +35,20 @@ Intentionally omitted:
 - `person_contact_points` — deferred until field-authority testing proves a canonical/derived copy is justified.
 - CRM scoring, raw message archives, or another task/calendar lifecycle.
 
-Merge lineage keeps the losing person row as `status='merged'` with `merged_into_person_id`. Phase 2 merges should also emit the existing durable event/action-receipt audit so moved refs are reversible; no separate merge-history subsystem is needed yet.
+Merge lineage keeps the losing person row as `status='merged'` with `merged_into_person_id`. Future merges should also emit the existing durable event/action-receipt audit so moved refs are reversible; no separate merge-history subsystem is needed yet.
 
 ## Validation receipts
 
-### Production read-only inspection
+### Before deployment
 
-- No People tables exist in production.
-- `llm4life.external_refs` is live across Google Calendar, Google Tasks, and Notion mappings.
-- 95 existing external refs were present at validation time.
-- Production has one ad-hoc Google Calendar uniqueness index not represented in migrations `001-003`; the proposed migration removes it in favor of the generic account-scoped uniqueness rule.
+Production was inspected read-only first:
 
-### Disposable Neon branch
+- no People tables existed;
+- `llm4life.external_refs` was already live across Google Calendar, Google Tasks, and Notion mappings;
+- 95 existing external refs were present;
+- production had one ad-hoc Google Calendar uniqueness index not represented in migrations `001-003`.
 
-The proposed migration was applied only to a temporary Neon branch.
+The migration was then validated on a disposable Neon branch using synthetic data only.
 
 Synthetic SQL validation passed for:
 
@@ -64,7 +64,19 @@ Synthetic SQL validation passed for:
 - `action_people` rerun idempotency;
 - People/action linkage creates no Google Task or Calendar ref as a side effect.
 
-After cleanup: zero People/fact/interaction rows and all 95 pre-existing external refs still present.
+### Production deployment receipt
+
+On 2026-09-04, the approved migration was applied to the production `llm4life` Neon branch.
+
+Immediate verification showed:
+
+- all six People tables exist;
+- `people` rows: **0**;
+- `person_facts` rows: **0**;
+- `interactions` rows: **0**;
+- pre-existing `external_refs`: **95**, all preserved.
+
+No real contacts were imported, merged, modified, or deleted as part of schema deployment.
 
 ### Dedup engine
 
@@ -95,42 +107,19 @@ The current connector is **not sufficient for complete reconciliation inventory*
 
 Use the supported People API for complete inventory instead. `people.connections.list` supports pagination, field masks, total counts, sync tokens, and deleted-resource markers. Full saved-contact inventory should request the contact source specifically, include `metadata`, and treat an expired sync token as a reason for another full sync. `people.updateContact` uses source ETags for conflict detection and recommends sequential mutations for the same user.
 
-Official references:
-
-- https://developers.google.com/people/api/rest/v1/people.connections/list
-- https://developers.google.com/people/api/rest/v1/people/updateContact
-- https://developers.google.com/people/api/rest/v1/otherContacts/list
-
 Google `Other Contacts` are evidence/candidate input only; do not silently promote auto-collected correspondents into the intentional address book.
 
 ## Apple Contacts findings
 
-### Phase 1 inventory
-
 Use a local vCard export first, process it privately/transiently, and never commit the export or normalized rows. Apple supports vCard export from Contacts/iCloud; this is deterministic, free, user-controlled, and avoids adding a new background service or permission just for initial inventory.
 
-Official references:
-
-- https://support.apple.com/en-ca/guide/icloud/mmfba748b2/icloud
-- https://support.apple.com/en-us/108306
-
-### Eventual runtime bridge
-
-Use a small trusted macOS bridge based on `CNContactStore`, not UI automation. The framework supports contact enumeration, containers/groups, change-history tokens, save requests, and store-change notifications.
-
-`CNContact.identifier` is only unique on the current device. It may be persisted across app launches but must **not** become the cross-device canonical person ID. Apple refs therefore need device/container account scope while Neon `person_id` stays canonical.
+Longer-term, use a small trusted macOS bridge based on `CNContactStore`, not UI automation. `CNContact.identifier` is only unique on the current device, so Apple refs need device/container account scope while Neon `person_id` stays canonical.
 
 During reconciliation inspect both the unified human-visible view and `CNContactFetchRequest.unifyResults = false` when individual linked source records must remain distinguishable.
 
-Official references:
-
-- https://developer.apple.com/documentation/contacts/cncontactstore
-- https://developer.apple.com/documentation/contacts/cncontact/identifier
-- https://developer.apple.com/documentation/contacts/cncontactfetchrequest/unifyresults
-
 ## Contact-field authority recommendation
 
-Current **conditional recommendation** for Phase 2/3:
+Current **conditional recommendation**:
 
 ```text
 Neon
@@ -169,11 +158,11 @@ Why Google is currently the stronger candidate:
 - Real provider IDs/account scopes: private runtime state.
 - No full conversation archival by default.
 - Contact notes must not become a duplicate of Obsidian relationship narrative.
-- Sensitive model inference must not become durable truth; schema adds a guard against persisting model-suggested sensitive facts as sensitive records.
+- Sensitive model inference must not become durable truth.
 - Direct People API inventory needs an authorized read scope; do not create credentials/scopes without approval.
 - A future macOS Contacts bridge needs Contacts permission; do not request it until that work is approved.
 
-## Exact Phase 2 plan
+## Next migration plan
 
 1. Obtain complete read-only snapshots:
    - Google saved contacts via `people.connections.list`, contact source only;
@@ -183,18 +172,17 @@ Why Google is currently the stronger candidate:
 3. Run deterministic normalization and candidate generation.
 4. Review all ambiguous/conflict candidates; never merge by name alone.
 5. Verify Apple fields/contacts can be preserved under the proposed Google-field-authority model; revise authority if evidence says otherwise.
-6. Apply `004_people.sql` to production **only after explicit approval**.
-7. Import `people` plus generic `external_refs` transactionally with deterministic import keys.
-8. Re-run the same import and require zero unintended new people/refs.
-9. For approved merges, keep the losing person row, move refs transactionally, and emit a reversible durable receipt/event containing before/after mappings.
-10. Reconcile counts and require zero orphan person refs.
-11. Before Google write-back, test create/update/delete/ETag conflict behavior on a bounded synthetic contact set.
-12. Only then approve/cut mutable field authority and verify Apple sync.
-13. Link Obsidian notes to stable `person_id` later without moving narrative into Neon.
+6. Import `people` plus generic `external_refs` transactionally with deterministic import keys only after explicit approval for real-contact import.
+7. Re-run the same import and require zero unintended new people/refs.
+8. For approved merges, keep the losing person row, move refs transactionally, and emit a reversible durable receipt/event containing before/after mappings.
+9. Reconcile counts and require zero orphan person refs.
+10. Before Google write-back, test create/update/delete/ETag conflict behavior on a bounded synthetic contact set.
+11. Only then approve/cut mutable field authority and verify Apple sync.
+12. Link Obsidian notes to stable `person_id` later without moving narrative into Neon.
 
-## Current blockers / approval gates
+## Remaining blockers / approval gates
 
-Safe Phase 1 engineering is complete as far as currently authorized interfaces allow, but a **complete real contact inventory has not been performed** because:
+The schema portion of Phase 1 is complete and production-live, but a **complete real contact inventory has not been performed** because:
 
 - the current Google connector cannot exhaustively enumerate saved + other contacts;
 - direct Google People API scope/credentials have not been created;
@@ -202,7 +190,6 @@ Safe Phase 1 engineering is complete as far as currently authorized interfaces a
 
 Stop before:
 
-- applying `004_people.sql` to production Neon;
 - importing, merging, modifying, or deleting real contacts;
 - changing Google/Apple contact ownership in production;
 - destructive Obsidian cleanup;
