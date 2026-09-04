@@ -1,0 +1,56 @@
+name: People Phase 1 CI
+
+on:
+  push:
+    paths:
+      - "scripts/people_dedup.py"
+      - "scripts/people_inventory.py"
+      - "scripts/google_people_phase2.py"
+      - "tests/test_people_dedup.py"
+      - "tests/test_people_inventory.py"
+      - "tests/test_people_inventory_grouped_vcard.py"
+      - "tests/test_google_people_phase2.py"
+      - "requirements-people-phase2.txt"
+      - "db/migrations/004_people.sql"
+      - "db/tests/004_people_phase1.sql"
+      - "config/people-phase1.yaml"
+      - "docs/people/PHASE_1_REPORT.md"
+      - "docs/people/PRIVATE_INVENTORY_RUNBOOK.md"
+      - "docs/people/PHASE_2_GOOGLE_BOOTSTRAP.md"
+      - ".gitignore"
+      - ".github/workflows/people-phase1-ci.yml"
+  pull_request:
+    paths:
+      - "scripts/people_dedup.py"
+      - "scripts/people_inventory.py"
+      - "scripts/google_people_phase2.py"
+      - "tests/test_people_dedup.py"
+      - "tests/test_people_inventory.py"
+      - "tests/test_people_inventory_grouped_vcard.py"
+      - "tests/test_google_people_phase2.py"
+      - "requirements-people-phase2.txt"
+      - "db/migrations/004_people.sql"
+      - "db/tests/004_people_phase1.sql"
+      - "config/people-phase1.yaml"
+      - "docs/people/PHASE_1_REPORT.md"
+      - "docs/people/PRIVATE_INVENTORY_RUNBOOK.md"
+      - "docs/people/PHASE_2_GOOGLE_BOOTSTRAP.md"
+      - ".gitignore"
+      - ".github/workflows/people-phase1-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-dedup-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run People synthetic tests
+        run: python -m unittest -v tests/test_people_dedup.py tests/test_people_inventory.py tests/test_people_inventory_grouped_vcard.py tests/test_google_people_phase2.py
+      - name: Verify migration and SQL test artifacts exist
+        run: test -s db/migrations/004_people.sql && test -s db/tests/004_people_phase1.sql

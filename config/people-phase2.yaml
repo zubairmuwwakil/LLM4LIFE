@@ -1,0 +1,73 @@
+version: 1
+status: google_canonical_people_import_live_apple_migration_pending
+updated: 2026-09-04
+
+approvals:
+  real_people_import: true
+  automatic_merge_clean_one_to_one_high_confidence_only: true
+  non_destructive_contact_editing: true
+  google_people_api_contacts_scope: true
+  macos_contacts_read_access: true
+  provider_contact_deletion: false
+  destructive_obsidian_cleanup: false
+
+runtime:
+  production_people_schema_live: true
+  real_people_rows_imported: true
+  provider_contacts_mutated_by_phase_2: false
+  google_stable_provider_refs_acquired: true
+  google_canonical_import_live: true
+  apple_stable_provider_refs_required_for_initial_import: false
+
+production_receipt:
+  google_saved_contacts_enumerated: 753
+  clear_non_person_or_service_records_held_out: 33
+  google_person_external_refs_imported: 720
+  canonical_active_people: 716
+  clean_duplicate_clusters_collapsed: 3
+  source_refs_in_duplicate_clusters: 7
+  orphan_google_person_refs: 0
+  non_active_people_after_import: 0
+  private_contact_values_copied_to_neon: false
+  provider_contacts_created_updated_or_deleted_during_neon_import: false
+  pre_import_neon_snapshot_created: true
+  idempotent_rerun_verified: true
+
+provider_strategy:
+  stable_person_identity: neon
+  mutable_standard_address_book_fields_after_cutover: google_contacts
+  apple_contacts_after_cutover: synchronized_device_client
+  obsidian: narrative_relationship_context
+
+bootstrap:
+  google:
+    required_scope: https://www.googleapis.com/auth/contacts
+    enumeration: people.connections.list
+    source_filter: READ_SOURCE_TYPE_CONTACT
+    page_size: 1000
+    stable_ref: people_resource_name
+    concurrency_guard: etag
+    private_client_secret: .private/people/google-oauth-client.json
+    private_token: .private/people/google-people-token.json
+    private_snapshot: .private/people/google_people_live.json
+    script: scripts/google_people_phase2.py
+  apple:
+    stable_ids_not_required_for_first_canonical_import: true
+    rationale: apple_only_records_can_be_created_in_google_and_receive_google_people_refs
+    export_row_hashes_are_durable_refs: false
+
+safety:
+  contacts_scope_can_delete_but_deletion_authorized: false
+  export_hashes_may_enter_external_refs: false
+  ambiguous_candidates_auto_merge: false
+  private_payloads_may_enter_public_repo: false
+  contact_values_remain_provider_authoritative: true
+
+next_gate:
+  - reconcile_apple_export_against_live_google_stable_refs
+  - build_deterministic_apple_to_google_create_update_plan
+  - preserve_apple_only_contact_points_photos_titles_dates_social_profiles_and_notes
+  - apply_approved_non_destructive_google_contact_creates_and_updates
+  - acquire_google_people_refs_for_newly_created_apple_only_contacts
+  - import_new_google_refs_into_neon_idempotently
+  - verify_apple_migration_and_prepare_google_field_authority_cutover

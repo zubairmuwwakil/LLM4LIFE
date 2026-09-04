@@ -1,0 +1,161 @@
+version: 1
+status: phase_1_inventory_complete_provider_refs_pending
+updated: 2026-09-04
+
+scope:
+  public_repo_contains_private_people_payloads: false
+  production_people_schema_applied: true
+  provider_contacts_mutated: false
+
+external_references:
+  canonical_table: llm4life.external_refs
+  create_person_external_refs_table: false
+  rationale:
+    - reuse_existing_cross_system_primitive
+    - preserve_one_reference_model_across_domains
+    - avoid_duplicate_sync_and_idempotency_semantics
+  phase_1_generic_extensions:
+    - account_scope
+    - first_seen_at
+    - last_seen_at
+    - archived_at
+  uniqueness: system_id_account_scope_internal_type_external_id
+  known_tradeoff: polymorphic_internal_id_has_no_database_foreign_key_to_people
+
+schema:
+  runtime_status: production_live_empty
+  people:
+    purpose: stable_internal_identity_and_merge_lineage
+  relationships:
+    purpose: one_small_operational_relationship_state_per_person
+  person_facts:
+    purpose: structured_provenance_aware_facts_only
+  interactions:
+    purpose: minimal_interaction_metadata_with_date_only_support
+  interaction_people:
+    purpose: multi_person_interaction_linkage
+  action_people:
+    purpose: relational_link_to_existing_personal_action_lifecycle
+  person_contact_points:
+    status: intentionally_deferred
+    reason: google_contacts_will_own_mutable_standard_address_book_fields_after_cutover
+
+production_verification:
+  people_rows_after_deploy: 0
+  person_fact_rows_after_deploy: 0
+  interaction_rows_after_deploy: 0
+  preexisting_external_refs_preserved: 95
+
+private_inventory_receipt:
+  google_saved_contacts: 753
+  apple_icloud_contacts: 451
+  combined_source_records: 1204
+  stable_export_ids: 0
+  snapshot_only_ids: 1204
+  google:
+    with_name: 747
+    with_email: 118
+    with_phone: 714
+    with_address: 75
+    with_birthday: 55
+    with_organization: 100
+    with_notes: 74
+  apple:
+    with_name: 450
+    with_email: 93
+    with_phone: 354
+    with_address: 46
+    with_birthday: 94
+    with_organization: 90
+    with_notes: 31
+  duplicate_candidates:
+    high: 239
+    conflict: 33
+    weak_name_only: 32
+    high_cross_source_one_to_one: 239
+    high_cross_source_one_to_many: 0
+    provisional_distinct_identities_if_only_high_pairs_merge: 965
+    automatic_merge: false
+  privacy: aggregate_counts_only_publicly
+
+contact_field_authority:
+  status: accepted_target_not_cut_over
+  stable_person_identity: neon
+  relationship_machine_state: neon
+  narrative_relationship_context: obsidian
+  mutable_standard_address_book_fields: google_contacts_after_cutover
+  apple_contacts: synchronized_device_client_after_cutover
+  neon_contact_points: not_required_by_default
+  google_other_contacts: evidence_only_not_automatic_canonical_contacts
+  apple_extension_mapping:
+    photos: google_people_update_contact_photo
+    job_titles: google_people_organizations
+    custom_dates: google_people_events
+    urls: google_people_urls
+    social_profiles: google_people_urls_when_semantic_url_exists_otherwise_user_defined
+    notes: classify_contact_note_vs_relationship_narrative_before_projection
+  rationale:
+    - complete_real_export_inventory_now_exists
+    - standard_google_people_fields_cover_core_mutable_contact_data
+    - google_people_api_supports_events_urls_user_defined_organizations_relations_and_photos
+    - provider_field_authority_avoids_bidirectional_dual_truth
+    - neon_should_not_duplicate_private_contact_points_without_operational_need
+  cutover_preconditions:
+    - obtain_stable_google_people_resource_names
+    - obtain_scoped_apple_cncontact_identifiers_if_needed_for_migration_receipts
+    - preserve_apple_specific_extensions_and_photos_before_retiring_independent_apple_truth
+    - explicit_real_contact_import_and_cutover_approval
+
+inventory:
+  google_contacts_connector:
+    authenticated_account_verified: true
+    safe_sample_read_verified: true
+    full_inventory_sufficient: false
+    limitations:
+      - query_oriented_search_only
+      - connector_result_limit
+      - search_can_mix_saved_contacts_and_other_contacts
+      - read_contact_does_not_read_other_contacts_results
+    export_inventory_completed: true
+    stable_provider_ref_path_required: google_people_api_connections_list
+  apple_contacts:
+    private_vcard_inventory_completed: true
+    export_has_uid_fields: false
+    eventual_runtime_bridge: macos_contacts_framework_cncontactstore
+    rules:
+      - do_not_use_ui_automation_when_supported_export_or_framework_exists
+      - cncontact_identifier_is_device_local_not_global_identity
+      - store_device_or_account_scope_with_apple_identifier
+
+identity_resolution:
+  order:
+    - exact_provider_external_ref
+    - explicit_internal_person_id
+    - unique_normalized_strong_contact_point_with_supporting_evidence
+    - multiple_independent_matching_signals
+    - manual_review
+  same_or_similar_name_only: never_auto_merge
+  candidate_output_only: true
+  automatic_merge_in_phase_1: false
+  normalization:
+    email: unicode_normalize_casefold_domain_idna_no_provider_alias_guessing
+    phone: conservative_e164_or_north_american_normalization
+    name: unicode_nfkc_casefold_whitespace_only
+
+privacy:
+  raw_contact_exports: private_transient_only
+  public_fixtures: synthetic_only
+  full_message_archival: false
+  inferred_sensitive_facts: never_auto_persist
+  model_suggestion_sensitive_fact_database_guard: true
+
+remaining_approval_gates:
+  requires_explicit_approval_before:
+    - real_contact_import
+    - real_contact_merge_update_or_delete
+    - google_or_apple_field_ownership_cutover
+    - destructive_obsidian_cleanup
+    - new_credentials_or_permissions
+  technical_blocker_before_phase_2_import:
+    - stable_google_people_resource_names_not_present_in_csv_export
+    - apple_vcard_contains_no_uid_provider_refs

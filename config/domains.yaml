@@ -1,0 +1,228 @@
+version: 2
+updated: 2026-09-04
+status: migration_in_progress
+
+principles:
+  - one_canonical_owner_per_object
+  - nothing_is_grandfathered_every_component_must_justify_its_current_role
+  - provider_execution_state_stays_with_provider_when_authoritative
+  - neon_for_llm4life_machine_state
+  - obsidian_for_narrative_knowledge
+  - projection_clients_are_not_automatically_sources_of_truth
+  - link_external_objects_instead_of_copying_them
+  - event_driven_over_polling_when_reliable
+  - free_or_already_paid_first
+  - minimum_useful_system
+  - replacement_requires_material_improvement_not_novelty
+
+# `owner` is the canonical state owner after v2 migration.
+# `interfaces` are user-facing or execution surfaces and may be replaced.
+domains:
+  personal_actions:
+    owner: neon
+    interfaces:
+      - google_tasks
+      - chatgpt
+    schedule_projection: google_calendar
+    transitional_sources:
+      - notion_tasks
+      - things3
+    migration_rule: do_not_disable_transitional_source_until_reconciled
+
+  execution_schedule:
+    owner: google_calendar
+    backend_metadata: neon
+
+  engineering_backlog:
+    owner: jira
+    interfaces:
+      - chatgpt
+      - orc
+    repository_links: github
+
+  code_and_repository_truth:
+    owner: github
+    coding_orchestrator: orc
+
+  llm4life_machine_state:
+    owner: neon
+    includes:
+      - system_registry
+      - external_references
+      - jobs
+      - job_runs
+      - events
+      - action_receipts
+      - sync_checkpoints
+      - adaptive_rules
+      - stable_person_identity
+      - relationship_machine_state
+
+  knowledge_and_reasoning:
+    owner: obsidian
+    includes:
+      - learning
+      - reasoning
+      - durable_knowledge
+      - diary_and_reflections
+      - research_context
+
+  contact_identity:
+    owner: neon
+    migration_state: phase_1_schema_live_inventory_incomplete
+    current_state: people_schema_live_contacts_still_fragmented_apple_and_google
+    target_human_address_book_client: google_contacts
+    apple_contacts_role: synced_client_after_migration
+    includes:
+      - stable_person_id
+      - cross_system_person_refs
+      - structured_contact_state_only_if_field_authority_later_justifies_it
+    external_ref_model: llm4life.external_refs
+    field_authority_note: >-
+      Phase 1 schema is live. Complete Apple/iCloud and Google inventory before
+      finalizing phone/email/address/birthday field authority. Current evidence
+      conditionally favors Google Contacts as mutable address-book field owner,
+      with Neon retaining stable identity and refs; no ownership cutover is live.
+    decision: docs/decisions/2026-09-03-people-subsystem-architecture.md
+    implementation_contract: docs/PEOPLE.md
+    phase_1_report: docs/people/PHASE_1_REPORT.md
+
+  relationship_machine_state:
+    owner: neon
+    migration_state: phase_1_schema_live_inventory_incomplete
+    runtime_schema_live: true
+    includes:
+      - structured_relationship_metadata
+      - structured_person_facts_with_provenance
+      - interaction_metadata_when_operationally_useful
+      - generic_external_references_for_people
+    action_output: personal_actions
+    task_projection: google_tasks
+    scheduled_output: google_calendar
+    rules:
+      - do_not_create_parallel_relationship_task_lifecycle
+      - do_not_auto_merge_on_name_similarity_alone
+      - structured_facts_require_provenance
+      - raw_conversation_archival_not_default
+      - sensitive_model_inference_not_silently_persisted
+      - no_real_contact_mutation_before_reconciliation_gate
+    decision: docs/decisions/2026-09-03-people-subsystem-architecture.md
+    implementation_contract: docs/PEOPLE.md
+
+  relationship_context:
+    owner: obsidian
+    scope: narrative_only
+    includes:
+      - long_form_person_notes
+      - diary_and_reflections
+      - nuanced_relationship_context
+      - narrative_interaction_context
+    structured_machine_state_owner: neon
+    task_output: google_tasks
+    scheduled_output: google_calendar
+    rule: link_to_stable_person_identity_instead_of_copying_narrative_into_neon
+
+  household_assets_and_maintenance:
+    owner: neon
+    task_output: google_tasks
+    scheduled_output: google_calendar
+
+  vehicle_maintenance:
+    owner: neon
+    model: shared_assets_and_maintenance_tables
+    task_output: google_tasks
+    scheduled_output: google_calendar
+
+  personal_care_inventory:
+    owner: product_tracker
+    canonical_database: neon_product_tracker
+    canonical_runtime:
+      api: cloudflare_worker
+      async_processing: cloudflare_queue
+      reconciliation: cloudflare_scheduled_handler_for_pending_delivery_ledger_only
+      database_connectivity: cloudflare_hyperdrive
+      processing_model: event_driven_with_reconciliation_safety_net
+    interfaces:
+      - chatgpt
+      - notion_projection_and_rollback
+      - future_mobile_capture
+    notion_role: projection_reference_and_rollback_only
+    notion_inbound_mutations_enabled: false
+    migration_state: canonical_cutover_complete_post_cutover_observation_active
+    rule: do_not_flatten_into_generic_shopping_items
+
+  grocery_and_general_shopping_list:
+    owner: neon_when_structured_automation_is_justified
+    interfaces:
+      - chatgpt
+      - future_mobile_capture
+    retailer_apps: provider_execution_only
+    rule: no_new_paid_list_app_by_default
+
+  finance_consolidated:
+    owner: inunity
+    feeds:
+      - pickme
+      - marketlens
+    notes:
+      - moneytalks_is_inunity
+      - looply_functionality_is_absorbed_into_inunity
+
+  official_financial_provider_state:
+    owner: respective_provider
+    examples:
+      - bank
+      - card_issuer
+      - brokerage
+
+  files:
+    preferred_owner: google_drive
+    onedrive_role: secondary_or_exception_after_audit
+    time_machine_role: disaster_recovery
+
+  professional_profile:
+    canonical_model: to_be_implemented
+    proof: github
+    distribution:
+      - linkedin
+      - indeed
+      - purpose_driven_social_channels
+
+  communication_email:
+    owner: gmail
+    role: source_and_communication_surface
+
+  communication_work:
+    owner: slack
+    role: communication_surface
+
+  communication_personal:
+    owner: provider_channel
+    preferred_ai_channel_history: discord
+    channels:
+      - discord
+      - whatsapp
+      - imessage
+
+  health_aggregation:
+    owner: apple_health
+    llm4life_database_default: do_not_copy
+
+  media:
+    owner: respective_provider
+    durable_llm4life_state: none_by_default
+
+  travel_and_mobility:
+    owner: provider_specific
+    planning_context: llm4life_when_needed
+    clients:
+      - google_maps
+      - waze
+      - uber
+      - lyft
+      - go_transit
+      - presto
+
+  commerce_edge:
+    owner: provider_specific
+    optimization_rule: compare_total_value_not_vendor_loyalty

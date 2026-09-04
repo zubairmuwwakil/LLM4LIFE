@@ -19,6 +19,7 @@ Do not copy the same information into every file. Update the narrowest authorita
 | How may AI learn/change low-risk rules? | `ADAPTATION.md` |
 | How should missing workflows be detected/built? | `GAP_DETECTION.md` |
 | What gets captured from conversations into Obsidian? | `KNOWLEDGE_CAPTURE.md` |
+| How should People/Contacts/Relationships be designed or migrated? | `PEOPLE.md`, `decisions/2026-09-03-people-subsystem-architecture.md` |
 | How should connectors/bridges be designed? | `INTEGRATIONS.md` |
 | What can be public / what must remain private? | `SECURITY.md` |
 | Why was a choice made? | `DECISIONS.md`, `decisions/` |
@@ -43,22 +44,22 @@ Runtime truth can change without changing the architecture.
 
 Examples:
 
-- Things owns the personal backlog;
-- Notion owns structured life state;
+- Neon owns LLM4LIFE machine state;
+- Calendar owns scheduled execution, not backlog;
 - AI is the scheduler/router;
-- Calendar is execution, not backlog.
+- People structured machine state has a target owner even while migration is incomplete.
 
-Use `system.yaml`, `CURRENT_STATE.md`, and domain policy docs.
+Use `system.yaml`, `CURRENT_STATE.md`, domain policy docs such as `PEOPLE.md`, and dated decisions.
 
 ### Authorization/policy truth
 
 Examples:
 
-- AI may autonomously merge Obsidian notes;
+- AI may autonomously merge low-risk Obsidian notes when the correct write path exists;
 - purchases are not pre-approved;
 - low-risk scheduling changes are pre-approved.
 
-Use `AUTONOMY.md`, `ADAPTATION.md`, `KNOWLEDGE_CAPTURE.md`, `SECURITY.md`.
+Use `AUTONOMY.md`, `ADAPTATION.md`, `KNOWLEDGE_CAPTURE.md`, `PEOPLE.md`, `SECURITY.md`.
 
 ### Historical truth
 
@@ -66,9 +67,9 @@ Examples:
 
 - why Notion was narrowed to personal operations;
 - why monthly tool audits were rejected;
-- why the planner uses a 1–9 PM default.
+- why an earlier People audit favored Obsidian frontmatter before a newer architecture decision changed the target.
 
-Use decision records.
+Use decision records and inventory/audit documents.
 
 Historical decisions explain the path; they do not automatically override a newer explicit current policy.
 
@@ -83,7 +84,7 @@ When documentation appears to conflict:
 5. current policy/config docs;
 6. older narrative/historical notes.
 
-A runtime limitation does not change canonical ownership. Example: lack of a Things connector does not make Calendar the personal backlog.
+A runtime limitation does not change target canonical ownership. Conversely, a target owner does not prove its migration is live.
 
 ## Documentation update rule
 
@@ -113,9 +114,11 @@ Update:
 Update:
 
 - `../system.yaml`
+- `../config/domains.yaml`
 - `CURRENT_STATE.md`
 - `TOOL_REGISTRY.md`
 - `ROUTING.md`
+- domain contract when one exists (for example `PEOPLE.md`)
 - dated decision record
 
 ### Scheduling preference changes

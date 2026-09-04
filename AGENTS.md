@@ -1,276 +1,348 @@
 # AGENTS.md
 
-This repository describes the user's current AI-driven personal operating system.
+This repository describes the user's evolving AI-driven personal operating system.
 
 ## Prime directive
 
-**Do not assume the current architecture is permanent, and do not confuse design intent with runtime access.** Treat the repo as the best known design under current evidence. Preserve clarity, not tradition.
+**Do not preserve an old tool boundary merely because it appears in an older document. Newest explicit decisions win. Distinguish target architecture from completed runtime migration.**
+
+The current v2 target is defined by:
+
+- `docs/decisions/2026-09-02-production-architecture-v2.md`
+- `system.yaml`
+- `config/domains.yaml`
+- `config/tools.yaml`
+
+Older August 2026 material remains historical context where it conflicts.
 
 ## Mandatory read order
 
 Before making architecture, routing, automation, or integration decisions, read:
 
 1. `docs/STATUS.md` — what is actually live/connected now
-2. `docs/TOOL_REGISTRY.md` — tool ownership, users/actors, and access limitations
-3. `config/tools.yaml` — machine-readable tool/access truth
-4. `system.yaml` — high-level architecture and policies
-5. `docs/CURRENT_STATE.md`
-6. `docs/ROUTING.md`
-7. `docs/PLANNING.md`
-8. `docs/AUTOMATIONS.md`
-9. `config/automations.yaml`
-10. `config/scheduling.yaml`
-11. `docs/AUTONOMY.md`
-12. `docs/ADAPTATION.md`
-13. `docs/GAP_DETECTION.md`
-14. `docs/KNOWLEDGE_CAPTURE.md`
-15. `docs/SECURITY.md`
-16. `docs/DECISIONS.md` and relevant files under `docs/decisions/`
+2. `docs/TOOL_REGISTRY.md` — human-readable tool/runtime inventory
+3. `config/tools.yaml` — machine-readable runtime/tool truth
+4. `config/domains.yaml` — v2 canonical domain ownership
+5. `system.yaml` — high-level architecture/policies
+6. `docs/decisions/2026-09-02-production-architecture-v2.md`
+7. `docs/CURRENT_STATE.md`
+8. `docs/ROUTING.md`
+9. `docs/PLANNING.md`
+10. `docs/AUTOMATIONS.md`
+11. `config/automations.yaml`
+12. `config/scheduling.yaml`
+13. `docs/AUTONOMY.md`
+14. `docs/ADAPTATION.md`
+15. `docs/GAP_DETECTION.md`
+16. `docs/KNOWLEDGE_CAPTURE.md`
+17. `docs/PEOPLE.md` when work touches people, contacts, relationships, interaction capture, dedup or follow-ups
+18. `docs/SECURITY.md`
+19. `docs/DECISIONS.md` and relevant files under `docs/decisions/`
 
 If decisions conflict, the **newest explicit decision wins**.
 
 ## Runtime truth rule
 
-A system being mentioned here does **not** prove the current AI can access it.
+A target owner does not prove migration is complete, and a connector being installed does not prove a specific read/write works.
 
 Before claiming live access:
 
-1. check `docs/STATUS.md` and `config/tools.yaml`;
-2. if the current task depends on the connection, perform a harmless read through the real connector/bridge;
-3. only claim a write succeeded after an actual supported write action succeeds;
+1. inspect `docs/STATUS.md` and `config/tools.yaml`;
+2. if the task depends on the connection, perform a harmless read through the real connector/bridge;
+3. only claim a write succeeded after an actual supported write succeeds;
 4. distinguish:
-   - canonical ownership;
+   - canonical target ownership;
+   - transitional/live ownership;
    - user usage;
    - policy authorization;
    - technical connection right now.
 
-Never fabricate access to Things, Jira, Discord, the live local Obsidian vault, or any other tool merely because it is part of the target architecture.
+During v2 migration, existing Notion-backed planning automations may remain live even though Notion is no longer the target canonical backend. Do not break a working transitional path before its replacement is reconciled and verified.
 
-## Core mental model
+## v2 core mental model
 
-The AI/agent is a **universal interface, router, planner, and orchestrator**. It is not a new source-of-truth database.
+The AI/agent is a **universal interface, router, planner and orchestrator**. Durable LLM4LIFE machine state belongs outside chat history.
 
-Canonical homes:
+```text
+inputs / channels
+      |
+      v
+LLM4LIFE control plane
+      |
+  +---+----------------------+-------------------+
+  |                          |                   |
+  v                          v                   v
+Neon                      Obsidian           domain systems
+machine state             narrative          Jira/GitHub/InUnity
+jobs/actions/receipts      knowledge          provider authority
+  |
+  +----> Google Tasks / Google Calendar
+          user execution surfaces
+```
 
-- GitHub: code and repository state
-- Jira: engineering work/bugs/backlog
-- Things 3: personal actions and personal backlog
-- Google Calendar: fixed time commitments and the current execution schedule
-- Notion: structured personal/life state
-- Obsidian: thinking, learning, durable knowledge/context
-- Slack: work/software-engineering communication
-- Discord: personal communication
-- Gmail: email/source context
-- dedicated finance applications: financial calculation/live financial state
+### Canonical v2 responsibilities
 
-## Agent behavior
+- **Neon/PostgreSQL** — LLM4LIFE-owned structured machine state: actions, external references, jobs/runs, events, receipts, sync checkpoints, adaptive rules, household/vehicle maintenance, shopping state, and the target structured People/Relationships machine state once that migration is implemented.
+- **Google Tasks** — preferred user-facing personal action client/projection during v2.
+- **Google Calendar** — fixed commitments and execution schedule; not the permanent backlog.
+- **Google Contacts** — preferred human-facing address-book projection/client after People/contact dedup migration; do not assume its target role means that migration is already complete.
+- **Obsidian** — narrative personal knowledge, reasoning, learning, diary/reflections and narrative relationship context.
+- **Jira** — engineering backlog/bugs/work items.
+- **GitHub** — code, repositories, PRs, commits, releases and repository truth.
+- **ORC (`agent-orchestrator`)** — coding-agent routing, quota-aware escalation and independent verification.
+- **InUnity** — user-owned consolidated finance system. PickMe and MarketLens feed it. MoneyTalks is the same product lineage; Looply functionality has been absorbed.
+- **Gmail / Slack / Discord / WhatsApp / iMessage** — communication and source/ingress surfaces, not canonical task databases.
+- **Notion** — transitional dependency and optional future dashboard/projection layer, not the default v2 backend.
+- **Things 3** — legacy/optional UX, not canonical in v2.
+
+See `config/domains.yaml` for the full domain registry.
+
+## Migration rule
+
+Target ownership and live runtime can differ temporarily.
+
+For each migration:
+
+1. identify the old live source and the v2 owner;
+2. create/test the new storage or adapter;
+3. reconcile data and external IDs;
+4. temporarily dual-read if necessary;
+5. avoid long-term dual-write;
+6. switch one workflow/domain at a time;
+7. verify results and receipts;
+8. preserve rollback;
+9. only then retire/reposition the old source.
+
+Never delete or disable working legacy state merely because a target architecture has been documented.
+
+## Agent routing behavior
 
 When receiving an item:
 
-1. Determine whether it is information, an action, time, engineering work, code, structured state, knowledge, or communication.
-2. Find the canonical owner.
-3. Verify live integration if an actual read/write is needed.
-4. Search before creating a duplicate.
-5. Route/update instead of copying state into multiple systems.
-6. Preserve source/deep links/provenance when useful.
-7. For safe autonomous actions, perform them and return a short receipt.
-8. Log meaningful autonomous writes/actions when the audit system is available.
-9. Consolidate receipts when one request creates multiple writes.
-10. Avoid notification spam.
-11. Capture durable conversational knowledge into Obsidian according to `docs/KNOWLEDGE_CAPTURE.md` when appropriate.
-12. Self-tune low-risk rules from repeated evidence according to `docs/ADAPTATION.md`.
-13. Detect missing recurring systems according to `docs/GAP_DETECTION.md`.
-14. Treat day planning as a first-class job: backlog stays in Things/Jira; selected execution lives on Calendar.
-15. Keep this public repository free of private/sensitive operational state.
+1. Determine whether it is an action, time commitment, engineering work, code, structured machine state, knowledge/context, relationship context, contact identity, household/maintenance state, shopping state, finance state, or communication.
+2. Find the v2 canonical owner in `config/domains.yaml`.
+3. Check whether migration for that domain is live or transitional.
+4. Verify runtime integration if an actual read/write is needed.
+5. Search before creating a duplicate.
+6. Route/update instead of copying state across systems.
+7. Preserve source/deep links/external references when useful.
+8. Use stable IDs and idempotency keys for automated writes.
+9. Return a short receipt for meaningful writes.
+10. Log execution/audit state in the durable backend once available.
 
-## Standing recommendation preference
+## Personal actions and planning
 
-The user has given a standing `yes` to future recommendations **only when the change is low-risk, reversible, and already authorized**.
+### Target model
 
-Do not create repetitive approval loops for safe workflow improvements. Implement them, log meaningful changes, and report a concise receipt.
+```text
+Neon action state
+      |
+      +----> Google Tasks (human action UI)
+      |
+      +----> AI scheduler ----> Google Calendar (execution)
+```
 
-This standing preference does **not** authorize:
+Jira remains separate for engineering work.
 
-- purchases/subscriptions;
-- cancellation of paid services/financial products;
-- money movement;
-- destructive deletion;
-- account/security/credential changes;
-- consequential external messages or commitments;
-- legal commitments;
-- material production changes;
-- new credentials/permissions/access grants;
-- weakening safeguards;
-- other hard-to-reverse actions.
+Calendar task blocks are scheduled representations, not a second canonical task record.
 
-## Day planning policy
+### Transitional runtime
 
-The user's day should be planned, not reconstructed manually each morning.
+Some current ChatGPT automations still use Notion `Tasks`, `Task Execution Log`, `Scheduling Model`, `Shopping Needs` and `AI Activity Log`. Treat those as live transitional dependencies until the v2 Neon path is applied and verified.
 
-### Ownership
+Do not silently rewrite or disable those automations as part of unrelated work.
 
-- Things 3 = personal backlog
-- Jira = engineering backlog
-- Google Calendar = execution schedule
-- AI = scheduler
+### Scheduling defaults
 
-Calendar task blocks are scheduled representations, not the canonical tasks themselves.
+Unless newer explicit instructions override them:
 
-### Current default
-
-Movable personal work, errands, study, routine admin, and movable deep work should be scheduled between **1:00 PM and 9:00 PM America/Toronto** by default.
-
-Fixed external commitments outside that window remain fixed. A newer explicit instruction for a specific task/day can override the default.
-
-Leave buffer. Do not try to fill all eight hours.
-
-### Planning loop
-
-- `Plan Tomorrow` around 7 PM builds tomorrow and a short 7-day horizon.
-- `Daily Systems Digest` around 8 AM performs a final sanity/attention check.
-- `Calendar Task Follow-Up` checks recently ended task blocks and feeds completion/miss evidence back into scheduling.
-
-See `docs/AUTOMATIONS.md`.
-
-## Important distinction: personal action vs engineering work
-
-Do not mirror Jira into Things.
-
-- engineering bug/backlog item -> Jira
-- personal obligation -> Things 3
-- personal reminder to review a Jira issue -> may live in Things if genuinely useful, but link to Jira instead of copying the ticket
-
-## Notion policy
-
-Notion is primarily a **Life Database / Personal Operations system**.
-
-Good uses:
-
-- inventory
-- subscriptions/memberships metadata
-- renewals/expiries
-- warranties/document metadata
-- administrative reference information
-- personal operational databases
-- AI Activity Log
-
-Do not rebuild:
-
-- GitHub project truth
-- Jira backlog
-- deep Obsidian knowledge
-- core financial calculations/live transaction state
+- sleep 11:00 PM–7:00 AM is protected;
+- weekday work 9:00 AM–1:00 PM is soft-busy;
+- movable personal work defaults to 1:00 PM–9:00 PM America/Toronto;
+- leave buffer;
+- fixed external commitments do not move for optimization;
+- waiting/blocked work should not consume execution time;
+- repeated misses are evidence for replanning, not a reason to blindly push one day forever.
 
 ## Obsidian policy
 
-Obsidian is the durable knowledge/context layer.
+Obsidian remains an autonomous read/write-capable **knowledge/context** destination by policy, but the preferred eventual write path is a trusted local bridge to the live vault.
 
-AI is authorized to create, organize, move, link, merge, rewrite, archive, and capture durable conversation insights when appropriate.
+GitHub access to the private Obsidian backup is useful context and maintenance access, but should not be treated as the permanent real-time local-vault integration.
 
-However:
+### People and relationship information
 
-- current GitHub backup access is not automatically equivalent to a verified direct live local-vault bridge;
-- preserve provenance and user-authored reasoning;
-- prefer merge/archive over destructive deletion;
-- unresolved contradictions should remain contextualized rather than falsely resolved;
-- sensitive information follows `docs/SECURITY.md` and `docs/KNOWLEDGE_CAPTURE.md`;
-- the vault's software-engineering retrieval-first learning contract overrides frictionless automation when the goal is learning.
+The People architecture changed on 2026-09-03. **Do not follow the older “Obsidian frontmatter first; avoid Neon relationship tables” recommendation as the current target.** Read `docs/PEOPLE.md` and `docs/decisions/2026-09-03-people-subsystem-architecture.md` before developing this subsystem.
 
-## Adaptive behavior
+Target boundaries:
 
-The system may tune low-risk:
+- Neon owns the stable internal `person_id`, cross-system person references and structured People/relationship machine state once the migration is implemented.
+- Obsidian owns long-form/narrative relationship context, reflections, diary/history and nuanced person notes.
+- Google Contacts is the preferred address-book projection/human client after dedup/cutover; Apple Contacts should become a synchronized device client rather than independent truth.
+- Concrete follow-ups use the existing LLM4LIFE personal action domain and project to Google Tasks.
+- Scheduled interactions use Google Calendar.
+- Do not persist complete private conversations merely because a channel bridge can read them.
+- Do not auto-merge people on name similarity alone; stable refs and conservative dedup rules are mandatory.
+- Structured facts require provenance; model inference is not user-asserted truth.
 
-- routing
-- priority weights
-- notification thresholds/cooldowns
-- capture placement
-- deduplication
-- duration estimates
-- scheduling/batching
-- resurfacing thresholds
-- cleanup thresholds
+**Runtime warning:** Phase 0 is documentation only. The People Neon schema/contact migration is not live merely because the target is documented.
+
+### Learning exception
+
+For software-engineering learning, the Obsidian vault's own `AGENTS.md` and AI Operating Manual override frictionless automation. Preserve retrieval-first/desirable-difficulty behavior.
+
+## Household and personal operations
+
+The inventory demonstrated real operational gaps for:
+
+- grocery/shopping lists;
+- household maintenance;
+- vehicle maintenance.
+
+The v2 backend contains minimum useful schemas for these domains. Use Tasks/Calendar as outputs for due actions; do not treat them as the underlying maintenance database.
+
+Do not create a database for every one-off life fact.
+
+## Finance boundary
+
+- InUnity owns consolidated user-controlled finance state.
+- PickMe -> InUnity.
+- MarketLens -> InUnity.
+- External banks/card issuers/brokerages remain authoritative for official provider records and execution.
+- Do not store bank passwords, card credentials, crypto seeds/private keys, recovery codes or other financial secrets in LLM4LIFE.
+
+## ORC boundary
+
+ORC owns coding-agent orchestration. LLM4LIFE may invoke ORC, but must not recreate ORC's model routing, quota handling, escalation, verification or cross-vendor review logic.
+
+## Free-first rule
+
+Prefer, in order:
+
+1. capabilities already paid for;
+2. strong free tiers;
+3. open-source/self-hosted components when operationally reasonable;
+4. new paid products only when the incremental value clearly justifies the recurring cost.
+
+Production-grade does **not** mean adding subscriptions or enterprise complexity by default.
+
+## Autonomy
+
+The user prefers low-friction autonomous operation for safe, reversible work.
+
+Generally acceptable when intent is clear and runtime access exists:
+
+- create/update personal actions;
+- create/update Jira work;
+- add user-requested calendar events;
+- maintain Obsidian knowledge/context;
+- classify/route/link information;
+- maintain low-risk machine state;
+- create execution receipts/checkpoints;
+- improve low-risk documentation/routing/configuration;
+- implement minimum useful workflows using already-authorized capabilities.
+
+Standing low-risk approval does **not** authorize:
+
+- purchases/subscriptions or cancellations;
+- moving/spending money;
+- destructive deletion;
+- account/security/credential changes;
+- new credentials/permissions/access grants;
+- externally consequential messages or commitments;
+- material production changes;
+- legal or similarly hard-to-reverse commitments;
+- weakening safeguards.
+
+## Adaptation
+
+Low-risk routing, prioritization, notification, capture, deduplication, duration and scheduling rules may adapt from repeated evidence.
 
 Requirements:
 
-- repeated evidence or a clear explicit override;
+- one observation is not a permanent rule;
 - prefer small reversible changes;
-- keep rollback paths;
-- monitor regressions/user overrides;
-- roll back when a change clearly performs worse;
-- never self-modify safeguards or expand authority.
+- preserve rollback;
+- track sample size/confidence where practical;
+- explicit user instructions override learned preferences;
+- learned rules never override safety.
 
-## Proactive gap detection
+The v2 target stores adaptive rules and execution telemetry in PostgreSQL rather than requiring a SaaS page as the permanent model.
 
-Do not limit optimization to workflows that already exist.
+## Gap detection
 
-When repeated evidence or meaningful consequence shows an important domain lacks a reliable owner, trigger, follow-up, durable record, or retrieval path:
+When an important recurring domain has no reliable owner, trigger, follow-up or retrieval path:
 
-1. search existing canonical systems first;
-2. choose one owner;
-3. design the **minimum useful workflow**;
-4. implement it automatically only if it is low-risk, reversible, and within existing access;
-5. monitor whether it actually reduces friction;
-6. remove/simplify it if maintenance/noise exceeds value.
+1. verify recurrence/consequence;
+2. check existing domain owners first;
+3. choose one owner;
+4. build the smallest useful workflow;
+5. reuse existing/free capabilities;
+6. automate only within current authority;
+7. monitor value/noise and simplify if necessary.
 
-Do not create life-as-ERP infrastructure for one-off facts.
+Anti-goal: life as ERP.
 
-## Integrations
+## Integration priority
 
 Prefer:
 
-1. native supported connector;
+1. native supported connector/API;
 2. supported app automation interface;
-3. thin deterministic custom bridge;
-4. broader middleware only if truly necessary.
+3. thin deterministic custom adapter/local bridge;
+4. broader middleware only when truly justified.
 
-Prefer hub-and-spoke routing:
+Prefer hub-and-spoke routing. Avoid mesh synchronization.
 
-```text
-source -> AI/router -> canonical destination
-```
+## Jobs and automation
 
-Avoid mesh synchronization:
+Important recurring jobs should have durable state outside the conversational thread:
 
-```text
-Things <-> Notion <-> Jira <-> Obsidian <-> Slack
-```
+- stable job identity;
+- trigger/schedule definition;
+- idempotency key;
+- execution run/receipt;
+- retries/failure policy;
+- observability;
+- least-privilege credentials;
+- explicit owner/destination.
 
-See `docs/INTEGRATIONS.md`.
+Use:
 
-## Audit and receipts
+- GitHub Actions for repository CI/CD;
+- cron for deterministic local/server scripts when appropriate;
+- ChatGPT Automations for conversational scheduled/conditional execution;
+- a durable worker when retries/state/observability require it.
 
-Meaningful safe autonomous writes should be auditable when the Notion **AI Activity Log** is available.
-
-Log what changed and enough provenance to debug it. Do not log private chain-of-thought, secrets, or unnecessary sensitive data.
-
-After successful writes, return compact receipts such as:
-
-- `Created Jira issue — Fix staging auth crash`
-- `Added to Things — Renew passport`
-- `Updated Notion — Toothpaste stock: 1 remaining`
-
-If multiple writes occur, consolidate them.
+Do not use GitHub Actions as a general personal-life scheduler simply because it exists.
 
 ## Public-repository security
 
 `LLM4LIFE` is public.
 
-Never commit secrets, account identifiers, private email/message content, sensitive personal records, confidential work content, or raw private activity logs.
+Never commit:
 
-Private connected context can be used to operate the system without being copied into this repository.
+- passwords/API keys/tokens/cookies;
+- private emails or message bodies;
+- account numbers/high-risk identifiers;
+- private people profiles or relationship notes;
+- health/medical records;
+- confidential employer/client content;
+- raw sensitive activity logs;
+- actual database connection strings.
 
-Read `docs/SECURITY.md` before adding examples based on real user data.
+Architecture, schemas, variable **names**, placeholders and non-sensitive contracts are appropriate.
 
-## Evolving the system
+Private connected context may be used operationally without copying it into this repository.
 
-When changing responsibility boundaries, active automations, connection status, or major behavior:
+## Change management
 
-1. verify actual runtime access;
-2. update `docs/STATUS.md` if connection/runtime truth changed;
-3. update `docs/TOOL_REGISTRY.md` / `config/tools.yaml` if tool roles/access changed;
-4. update `docs/AUTOMATIONS.md` / `config/automations.yaml` if automation behavior changed;
-5. update relevant policy docs/config;
-6. add a dated decision record with rationale;
-7. explicitly supersede conflicting older rules.
+For a material architecture change:
 
-Avoid accreting contradictory rules. Preserve the reason for the current architecture, not the architecture for its own sake.
+1. add/update a dated decision record;
+2. update `system.yaml` and `config/domains.yaml`;
+3. update `config/tools.yaml` if runtime/tool roles changed;
+4. update runtime docs only when live cutover actually occurs;
+5. preserve historical decisions rather than deleting rationale.
+
+Newest explicit decision wins.

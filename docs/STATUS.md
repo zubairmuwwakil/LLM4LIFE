@@ -1,153 +1,219 @@
 # Runtime Status
 
-_Last verified: 2026-08-27_
+_Last updated: 2026-09-04_
 
-This file describes **what is actually live/connected now**, not just what the architecture wants.
+This file describes **what is actually live now**. Long-term target ownership is defined by `config/domains.yaml`, `system.yaml`, domain contracts such as `docs/PEOPLE.md`, and `docs/LONG_TERM_ROADMAP.md`.
 
-It is a point-in-time operational snapshot. Runtime connections can change independently of design decisions, so agents should verify live access before depending on it.
+## Headline
 
-## Current headline
+LLM4LIFE v2 is live with Neon as durable machine state, Google Tasks as the human action projection, Google Calendar as the execution schedule, and Product Tracker/Neon as the canonical personal-care inventory service.
 
-The core architecture is usable today, but the AI still has three important integration gaps:
+Product Tracker Phase 2 reliability and write cutover are complete. Production is on Worker `v0.4.0`, Notion inbound inventory sync is disabled, durable reliability status/DLQ receipts are live, and the stable Product Tracker Event ID query-before-create hardening is deployed.
 
-1. **Things 3** — canonical personal backlog, but no verified direct AI bridge.
-2. **Obsidian live vault** — AI can read/maintain the GitHub-backed vault, but a direct local-vault write bridge is not yet verified.
-3. **Discord** — personal communication is user-live, but there is no direct ChatGPT Discord connector in the current runtime.
+The **People / Relationships Phase 1 schema is now live in production Neon**. The schema and generic account-scoped external-reference model are deployed, but no real People records have been imported yet, no contacts have been merged or mutated, and Google/Apple field ownership has not been cut over.
 
-Jira is also canonical for engineering work, but a direct Jira/Atlassian read/write path should be verified before an agent claims access.
-
-## Directly verified in the current ChatGPT environment
-
-| System | Read | Write | Current use |
-|---|---:|---:|---|
-| GitHub | Yes | Yes | LLM4LIFE policy/docs, repository/code access |
-| Notion | Yes | Yes | Structured life state and AI Activity Log |
-| Google Calendar | Yes | Yes | Life calendar, execution schedule, task blocks |
-| Gmail | Yes | Connector exposes writes; not all actions tested this pass | Email intake/source context |
-| Slack | Yes | Connector exposes writes; not all actions tested this pass | Work communication/context |
-| ChatGPT Automations | Yes | Yes | Daily planning, digest, follow-up, inventory checks |
-
-`Write` means the current integration exposes supported write actions; it does not mean every write is authorized by LLM4LIFE policy.
-
-## User-live but not fully connected to the AI router
-
-| System | User usage | AI situation |
-|---|---|---|
-| Things 3 | Personal backlog, reminders, next actions | No verified direct bridge; planner must not pretend to see it |
-| Jira | Engineering bugs/backlog | Canonical by policy; direct runtime connector is not assumed without verification |
-| Obsidian | Personal knowledge/context vault | GitHub backup/repo is accessible; live local-vault bridge remains a gap |
-| Discord | Personal/life communication | No direct ChatGPT connector assumed; custom/OpenClaw bridge is the intended direction if needed |
-| Claude / Claude Code | Coding specialist | Reads repo policy when used; not a connected life-OS runtime here |
-| OpenClaw | Optional integration plumbing | Provisional; deployment/config should be verified before use |
-
-## Active automation state
-
-The active LLM4LIFE automation set is documented in `docs/AUTOMATIONS.md` and `config/automations.yaml`.
-
-Current high-level loop:
+## Current architecture
 
 ```text
-~7 PM  Plan Tomorrow
-           |
-           v
-       Calendar plan
-           |
-~8 AM  Daily Systems Digest / schedule sanity check
-           |
-           v
-    execute 1 PM–9 PM movable-work window
-           |
- hourly Calendar Task Follow-Up checks recently ended task blocks
+                         ChatGPT / LLM4LIFE
+                                |
+            +-------------------+-------------------+
+            |                   |                   |
+            v                   v                   v
+         Neon             Google Calendar      Domain systems
+   durable machine state     execution time    Jira/GitHub/ORC,
+            |                                     InUnity, etc.
+            |
+      +-----+-------------------+
+      |                         |
+      v                         v
+Google Tasks              Product Tracker
+human action UI           personal-care inventory
+      |                         |
+Cloudflare Worker         Cloudflare Worker
+sync runtime              + Queue + Hyperdrive
+                                |
+                                v
+                              Neon
+                     canonical inventory/events
+                                |
+                                v
+                         Notion projection/UI
 ```
 
-Separate weekly personal-care inventory checks are also active.
+## Verified planning state
 
-## Current planning policy
+- Neon `llm4life.actions` is canonical personal action/backlog state.
+- Google Tasks is production-live as the human-facing task projection/capture surface.
+- Google Calendar owns scheduled execution and fixed commitments.
+- Notion planning databases are rollback/reference only.
+- Personal-care inventory is canonical in Neon database `product_tracker`, owned through the Product Tracker domain service.
 
-- Personal backlog: **Things 3**
-- Engineering backlog: **Jira**
-- Execution schedule: **Google Calendar**
-- Scheduler/orchestrator: **AI**
-- Default movable-work window: **1:00 PM–9:00 PM America/Toronto**
-- Rolling planning horizon: **7 days for high-confidence important work**
-- Fixed external commitments are not moved merely to optimize the plan.
+## Product Tracker production state
 
-## Highest-priority gaps
+### Baseline
 
-### P0 — Things 3 bridge
+Verified at migration baseline:
 
-Why it matters: the day planner cannot be complete if it cannot inspect the canonical personal backlog.
+- 25 active Needs;
+- 26 active Products;
+- 26 balances;
+- 26 baseline inventory events;
+- zero orphan Product/balance relationships;
+- zero balance-vs-baseline mismatches;
+- derived inventory health: 5 `BUY_NOW`, 1 `RESTOCK`, 19 `STOCKED`.
 
-Preferred supported bridge options:
+The 25/26 relationship is expected because one functional Need has two active SKUs.
 
-- Apple Shortcuts
-- Things URL scheme
-- AppleScript on macOS
-- thin deterministic adapter using supported Things interfaces
+### Runtime
 
-Anti-goal: modifying Things' internal database or private cloud credentials directly.
+Live Worker:
+
+```text
+llm4life-product-tracker
+```
+
+Production path:
+
+```text
+ChatGPT / clients
+      |
+      v
+Cloudflare Worker
+ authenticated API
+      |
+      v
+  Hyperdrive
+      |
+      v
+     Neon
+ canonical inventory/events
+ outbox + webhook receipts
+ dead-letter receipts
+      |
+      v
+Cloudflare Queue
+ retries + reconciliation
+      |
+      v
+Notion projection
+```
+
+Verified cutover/reliability behavior:
+
+- `GET /health` succeeds and reports Product Tracker `v0.4.0` with `notionInboundSyncEnabled=false`;
+- authenticated reliability status reports zero failed/overdue/dead-letter work when clean;
+- protected `/internal/relay` is clean when no durable work is pending;
+- duplicate/retried API mutations create exactly one canonical InventoryEvent;
+- outbound Neon → Notion projection works;
+- application-side failures use durable backoff and become terminal `FAILED` at attempt 8;
+- reconciliation recovered deliberately pending durable work without duplicate Notion side effects;
+- deliberate staging queue-handler crashes were retried by Cloudflare and delivered to the DLQ;
+- durable `DeadLetterEvent` persistence and reliability status are live;
+- Worker database access uses Hyperdrive and the dedicated least-privilege Neon runtime role;
+- Prisma/pg clients are invocation-scoped in Workers after a cross-request I/O bug was caught during staging;
+- Notion Inventory Events now carries `Product Tracker Event ID`, and projection queries that stable ID before create to close the known create-then-pointer retry window for future events.
+
+### Ownership boundary
+
+Product Tracker/Neon is the **canonical personal-care inventory owner**.
+
+Production sets `NOTION_INBOUND_SYNC_ENABLED=false`. Signed Notion webhook calls remain authenticated/acknowledged but do not mutate Neon. Notion Shopping Needs, Products and Inventory Events are projection/reference/rollback surfaces only.
+
+All human/agent personal-care inventory mutations must route through Product Tracker domain events. Do not silently dual-write or fall back to Notion when Product Tracker/Neon is unavailable.
+
+### Remaining closeout
+
+The 24-hour post-cutover observation window and temporary reliability staging cleanup remain. These are operational closeout tasks, not ownership blockers.
+
+## People / Relationships Phase 1
+
+The production Neon schema now includes:
+
+- `llm4life.people`
+- `llm4life.relationships`
+- `llm4life.person_facts`
+- `llm4life.interactions`
+- `llm4life.interaction_people`
+- `llm4life.action_people`
+
+The existing generic `llm4life.external_refs` model was reused rather than creating a separate `person_external_refs` table. It now supports provider `account_scope`, first/last-seen timestamps and archive lifecycle metadata.
+
+**Verified immediately after deployment:**
+
+- 0 People rows;
+- 0 person facts;
+- 0 interactions;
+- 95 pre-existing external refs preserved.
+
+**Still not live:**
+
+- no real Apple/Google contact import;
+- no canonical dedup/merge of real contacts;
+- no Google Contacts field-authority cutover;
+- no Apple Contacts synchronized-client cutover;
+- no Obsidian People migration;
+- no automatic People capture/relationship automation.
+
+Current private contact/relationship material remains in existing systems during migration. Do not destructively clean or rewrite it based on target docs alone.
+
+Read `docs/PEOPLE.md`, `docs/people/PHASE_1_REPORT.md`, and `docs/decisions/2026-09-03-people-subsystem-architecture.md` before People work.
+
+## Runtime paths
+
+| System | Status | Role |
+|---|---|---|
+| ChatGPT / LLM4LIFE | Live | Control plane / orchestration |
+| Neon | Live | Durable machine state + Product Tracker canonical inventory database + deployed People schema |
+| Google Tasks | Production-live | Human action projection/capture |
+| Google Calendar | Live | Execution schedule and commitments |
+| Cloudflare | Production-live | Google Tasks sync + Product Tracker Worker/Queue/Hyperdrive runtime |
+| Product Tracker | Production canonical v0.4.0 | Specialized personal-care inventory owner |
+| Notion | Auxiliary | Planning rollback + personal-care projection/reference |
+| InUnity | MCP live/read-verified | Finance domain |
+| Obsidian | Partial | Narrative knowledge/relationship context; live bridge pending |
+| Google Contacts | Connector read-verified; full inventory path incomplete | Target address-book client; no field-authority cutover yet |
+| Apple Contacts | Current device/source during People migration | Target synchronized device client |
+| Jira / ORC / GitHub | Live by domain | Engineering backlog / coding orchestration / code truth |
+
+## Next priorities
+
+### P0 — Observe and close Product Tracker staging
+
+Run the 24-hour post-cutover check. If health, durable retry state and projection remain clean, remove the temporary reliability Worker/Queues and temporary Neon reliability branch.
+
+### P0 — People Phase 1: complete read-only inventory
+
+The schema portion of Phase 1 is live. Continue with read-only inventory before any real contact mutation:
+
+1. Obtain a complete Google saved-contact inventory using a supported enumeration path rather than query-only search.
+2. Inventory Apple/iCloud contacts via a private local vCard export or supported local Contacts bridge.
+3. Run the deterministic duplicate-candidate engine against private/transient normalized data.
+4. Review field-preservation semantics before finalizing Google-vs-Neon mutable contact-field authority.
+5. Keep public-repo fixtures synthetic only.
+
+### P1 — People canonical identity import
+
+Only after inventory/reconciliation gates pass: import stable person IDs and external refs idempotently, then review duplicate candidates conservatively.
 
 ### P1 — Live Obsidian bridge
 
-Why it matters: policy authorizes autonomous note creation/maintenance, but GitHub backup access may lag the actual open vault and is not the ideal write mechanism.
-
-Desired end state:
-
 ```text
-AI -> safe local bridge -> live Obsidian vault -> normal vault sync/backup
+AI/router -> authenticated local adapter -> live vault -> normal vault backup/sync
 ```
 
-Do not treat GitHub as the permanent editor for local knowledge if a safer live-vault interface becomes available.
+People narrative linkage should build on this when practical rather than treating the private backup repository as the permanent real-time application API.
 
-### P1 — Jira direct connector verification
+### P1 — Remaining Notion cleanup
 
-Why it matters: engineering planning should pull from Jira without copying tickets into another backlog.
+Retain useful Product Tracker dashboard/rollback views but do not restore Notion to source-of-truth responsibilities.
 
-Desired end state: AI can read/update Jira items and link them into schedule/receipts while Jira remains canonical.
+### P1 — Household operations
 
-### P1 — Discord AI bridge
+Populate generic household/vehicle asset + maintenance state while keeping personal-care inventory inside Product Tracker.
 
-Why it matters: Discord is the preferred personal communication/notification surface, but current ChatGPT direct access is absent.
-
-Potential solution: OpenClaw or another thin channel bridge. Do not add a large middleware stack only to solve one message route.
-
-### P2 — Channel delivery of proactive output
-
-Current automations exist, but agents should not assume every automated report is being delivered to Slack or Discord. Channel-specific delivery should be configured and verified separately.
-
-## Current cleanup / resolved conflicts
-
-- The Calendar Task Follow-Up automation has been aligned with the planner: unfinished tasks now seek a realistic future slot within the 1–9 PM default window rather than blindly copying to the same time tomorrow.
-- Two stale duplicate one-time Discord warning reminders from January 2026 were disabled after they had already fired.
-- Calendar planning now treats overlaps between movable task blocks as defects to resolve, not as acceptable scheduling.
+See `docs/LONG_TERM_ROADMAP.md` for the broader sequence.
 
 ## Public repository constraint
 
-`LLM4LIFE` is currently a **public GitHub repository**.
-
-Therefore this repo should contain architecture and operational policy, but **not**:
-
-- passwords, API keys, tokens, cookies, auth material;
-- account numbers or high-risk identifiers;
-- private email contents;
-- private diary/relationship/health details;
-- confidential work data;
-- raw activity logs containing sensitive data.
-
-Store only the minimum non-sensitive metadata needed to explain the system.
-
-See `docs/SECURITY.md`.
-
-## How to update this file
-
-Update `STATUS.md` when one of these materially changes:
-
-- connector becomes available/unavailable;
-- read/write capability changes;
-- a bridge is deployed;
-- a major automation is enabled/disabled;
-- canonical ownership changes;
-- a major integration gap is resolved;
-- the default planning window or execution model changes.
-
-Do **not** edit status just because a vendor advertises a feature. Verify the actual runtime path first.
+Public repositories contain architecture, contracts, schemas, synthetic examples and non-sensitive runtime metadata only. Never commit database URLs, passwords, OAuth credentials, refresh tokens, API tokens, webhook secrets, private inventory/task payloads, private relationship/contact details, health records, financial identifiers, confidential work content, or private message bodies.
