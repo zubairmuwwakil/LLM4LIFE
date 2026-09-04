@@ -18,7 +18,8 @@ Change for novelty alone is not a goal. Production-grade also does not mean maxi
 - [`system.yaml`](system.yaml) — machine-readable architecture and governing policy.
 - [`config/domains.yaml`](config/domains.yaml) — detailed domain ownership.
 - [`docs/PEOPLE.md`](docs/PEOPLE.md) — People/Contacts/Relationships implementation contract.
-- [`docs/decisions/2026-09-03-people-subsystem-architecture.md`](docs/decisions/2026-09-03-people-subsystem-architecture.md) — newest People architecture decision.
+- [`docs/people/APPLE_GOOGLE_MIGRATION.md`](docs/people/APPLE_GOOGLE_MIGRATION.md) — current People provider-migration receipt/runbook.
+- [`docs/decisions/2026-09-03-people-subsystem-architecture.md`](docs/decisions/2026-09-03-people-subsystem-architecture.md) — People architecture decision.
 - [`docs/decisions/2026-09-02-production-architecture-v2.md`](docs/decisions/2026-09-02-production-architecture-v2.md) — adopted v2 base architecture.
 
 ## Current phase
@@ -35,7 +36,7 @@ Current major runtime facts:
 - InUnity remains the consolidated finance owner.
 - Product Tracker/Neon is the **production canonical** personal-care inventory owner.
 - Product Tracker Worker `v0.4.0`, Queue, Hyperdrive, durable reliability status/DLQ receipts and stable Notion event-idempotency hardening are live.
-- People / Relationships has advanced to **Phase 1 schema live**: the production Neon People schema exists, but no real contacts have been imported, merged, or cut over yet.
+- People / Relationships has advanced through **Phase 2 identity/provider migration**: production Neon has stable People identities and Google refs, and the Apple→Google provider migration is complete. Apple-device sync verification remains before formal Google mutable-field authority cutover.
 
 Always use `docs/STATUS.md` for verified runtime state rather than inferring live status from target architecture.
 
@@ -76,10 +77,11 @@ Cloudflare = shared event/runtime layer where workloads fit
 | Time commitments / execution schedule | **Google Calendar** |
 | Shared event/runtime infrastructure | **Cloudflare** where workload fits; runtime only, not data owner |
 | Personal-care inventory | **Product Tracker / Neon**; Notion projection/reference/rollback |
-| Stable person identity | **Neon**; schema live, real identity import pending |
-| Structured relationship machine state | **Neon**; schema live, real data import pending |
-| Address-book human client | **Google Contacts** after People dedup/cutover |
-| Apple-device contacts | **Apple Contacts** as synchronized client after migration |
+| Stable person identity | **Neon — production-live** |
+| Cross-system person mappings | **Neon `external_refs` — production-live** |
+| Structured relationship machine state | **Neon** |
+| Mutable address-book fields | **Google Contacts candidate**; provider migration complete, authority declaration pending Apple sync verification |
+| Apple-device contacts | **Apple Contacts** as target synchronized client; verification pending |
 | Knowledge, reasoning, learning | **Obsidian** |
 | Relationship narrative/context | **Obsidian** |
 | Engineering backlog | **Jira** |
@@ -91,7 +93,7 @@ Cloudflare = shared event/runtime layer where workloads fit
 
 ## Why PostgreSQL exists
 
-Neon/PostgreSQL is used for **machine-readable state LLM4LIFE or user-owned domain services need to operate reliably**, including stable IDs/references, actions, jobs/runs, events, idempotency, receipts, checkpoints, scheduling telemetry, maintenance state, structured shopping state where useful, Product Tracker, and the structured People layer.
+Neon/PostgreSQL is used for **machine-readable state LLM4LIFE or user-owned domain services need to operate reliably**, including stable IDs/references, actions, jobs/runs, events, idempotency, receipts, checkpoints, scheduling telemetry, maintenance state, Product Tracker, and the structured People layer.
 
 It is **not** a dumping ground for narrative knowledge, full conversations, health records, credentials, or provider-owned official records.
 
@@ -134,15 +136,11 @@ Notion projection / rollback UI
 
 Production has Notion inbound sync disabled. All canonical inventory mutations route through Product Tracker domain events.
 
-The system includes durable retry/reconciliation, DLQ observability and a stable `Product Tracker Event ID` on Notion Inventory Events so projection retries query-before-create instead of recreating a page after the known create-then-pointer failure window.
+The system includes durable retry/reconciliation, DLQ observability and a stable `Product Tracker Event ID` on Notion Inventory Events so projection retries query-before-create instead of recreating a page after a create-then-pointer failure window.
 
-A short post-cutover observation/staging-cleanup step remains operational closeout, not an ownership blocker.
+## People / Contacts / Relationships — Phase 2 live
 
-## People / Contacts / Relationships — Phase 1
-
-**Current phase: production People schema live; read-only inventory/reconciliation incomplete.**
-
-Live structured layer:
+The stable identity and provider migration are production-live.
 
 ```text
                      Neon People state
@@ -151,32 +149,33 @@ Live structured layer:
               /              |              \
              v               v               v
     Google Contacts      LLM4LIFE actions   source refs
-   address-book client      follow-ups
+ reconciled address book    follow-ups
           |                    |
           v                    v
    Apple Contacts        Google Tasks
+  sync verification
 
 Obsidian = narrative relationship memory
 Google Calendar = scheduled interactions
 ```
 
-Key runtime facts:
+Verified runtime facts:
 
 - `004_people.sql` is deployed to production Neon;
 - People uses generic `llm4life.external_refs`, not a second `person_external_refs` table;
-- existing external refs were preserved through migration;
-- no real People/contact rows have been imported yet;
-- same-name-only auto-merge is prohibited;
-- structured facts require provenance;
-- sensitive model inference is not silently persisted;
-- raw private conversations are not archived by default;
-- relationship follow-ups reuse the existing action system;
-- Obsidian remains the narrative/reflective layer;
-- Google/Apple field ownership has not been cut over.
+- initial Google identity import produced 716 active People and 720 Google person refs after conservative holds/dedup;
+- Apple→Google reconciliation identified 246 clean existing-contact matches and 181 Apple-only creates while holding ambiguous identities;
+- provider apply completed non-destructively;
+- Google now contains 934 saved contacts with all 753 original provider IDs preserved and exactly 181 Apple-only contacts added;
+- 169 of the newly-created contacts were classified person-like and imported to Neon; 12 obvious service/sample contacts remain provider-only;
+- production Neon now has **885 active People** and **889 Google person refs**, with **zero orphans**;
+- no phone/email/address/birthday/note payloads were copied into Neon external-ref metadata;
+- import and retry paths are idempotent, including uncertainty-safe recovery from transient Google `createContact` failures;
+- same-name-only auto-merge remains prohibited;
+- provider contact deletion remains unauthorized and unimplemented;
+- Google mutable-field authority has not yet been formally declared because Apple-device sync verification is still pending.
 
-Current evidence conditionally favors Google Contacts as the mutable address-book field owner after reconciliation, but complete Apple/iCloud inventory and explicit cutover approval are still required.
-
-See [`docs/PEOPLE.md`](docs/PEOPLE.md) and [`docs/people/PHASE_1_REPORT.md`](docs/people/PHASE_1_REPORT.md).
+See [`docs/PEOPLE.md`](docs/PEOPLE.md), [`docs/people/APPLE_GOOGLE_MIGRATION.md`](docs/people/APPLE_GOOGLE_MIGRATION.md), and [`config/people-phase2.yaml`](config/people-phase2.yaml).
 
 ## Obsidian
 
@@ -253,24 +252,26 @@ The runtime is replaceable. Important LLM4LIFE-owned jobs require durable identi
 6. Update `docs/STATUS.md` only when runtime reality changes.
 7. Update roadmap/decisions when the target changes.
 8. Preserve superseded decisions/inventories as historical context.
-9. For People, complete read-only inventory/dedup analysis before real source mutations.
+9. For People, ambiguous identities remain held rather than being guessed or auto-merged.
+10. Provider deletion/destructive cleanup requires a separate explicit gate.
 
 ## Repository map
 
 ```text
-README.md                           Human entry point
-AGENTS.md                           Agent operating instructions
-system.yaml                         Machine architecture/policy
-config/                             Domain/tool/automation/scheduling registries
-db/                                 PostgreSQL migrations/contracts
-docs/PEOPLE.md                      People subsystem implementation contract
-docs/people/PHASE_1_REPORT.md       People Phase 1 receipts and remaining gates
-docs/LONG_TERM_ROADMAP.md           North star + migration scoreboard
-docs/STATUS.md                      Verified live state
-docs/TOOL_REGISTRY.md               Human tool/runtime registry
-docs/decisions/                     Dated architecture decisions
+README.md                               Human entry point
+AGENTS.md                               Agent operating instructions
+system.yaml                             Machine architecture/policy
+config/                                 Domain/tool/automation/scheduling registries
+db/                                     PostgreSQL migrations/contracts
+docs/PEOPLE.md                          People subsystem implementation contract
+docs/people/PHASE_1_REPORT.md           Historical Phase 1 report
+docs/people/APPLE_GOOGLE_MIGRATION.md   Current provider migration receipt/runbook
+docs/LONG_TERM_ROADMAP.md               North star + migration scoreboard
+docs/STATUS.md                          Verified live state
+docs/TOOL_REGISTRY.md                   Human tool/runtime registry
+docs/decisions/                         Dated architecture decisions
 ```
 
 ## Security
 
-`LLM4LIFE` is public. Never commit real database URLs, passwords/tokens, private contact/relationship information, health records, financial identifiers, confidential work content, private messages, or other sensitive operational state. Use synthetic People fixtures in code/tests.
+`LLM4LIFE` is public. Never commit real database URLs, passwords/tokens, private contact/relationship information, provider person IDs, health records, financial identifiers, confidential work content, private messages, OAuth material, private migration plans or provider receipts. Use synthetic People fixtures in code/tests and aggregate-only production receipts in public docs.

@@ -1,5 +1,5 @@
 version: 1
-status: apple_google_plan_ready_local_provider_apply_pending
+status: apple_google_provider_apply_complete_neon_refs_live_sync_verification_pending
 updated: 2026-09-04
 
 approvals:
@@ -14,28 +14,31 @@ approvals:
 runtime:
   production_people_schema_live: true
   real_people_rows_imported: true
-  provider_contacts_mutated_by_phase_2: false
+  provider_contacts_mutated_by_phase_2: true
   google_stable_provider_refs_acquired: true
   google_canonical_import_live: true
   apple_stable_provider_refs_required_for_initial_import: false
   apple_google_reconciliation_complete: true
   apple_google_provider_write_plan_ready: true
-  apple_google_provider_writes_applied: false
+  apple_google_provider_writes_applied: true
   apple_google_one_command_cutover_ready: true
+  refreshed_google_snapshot_verified: true
+  newly_created_person_like_google_refs_imported_to_neon: true
+  google_contact_field_authority_cutover_complete: false
+  apple_sync_verification_complete: false
 
 production_receipt:
-  google_saved_contacts_enumerated: 753
-  clear_non_person_or_service_records_held_out: 33
-  google_person_external_refs_imported: 720
-  canonical_active_people: 716
-  clean_duplicate_clusters_collapsed: 3
-  source_refs_in_duplicate_clusters: 7
-  orphan_google_person_refs: 0
-  non_active_people_after_import: 0
+  initial_google_saved_contacts_enumerated: 753
+  initial_clear_non_person_or_service_records_held_out: 33
+  initial_google_person_external_refs_imported: 720
+  initial_canonical_active_people: 716
+  initial_clean_duplicate_clusters_collapsed: 3
+  initial_source_refs_in_duplicate_clusters: 7
+  initial_orphan_google_person_refs: 0
+  initial_non_active_people_after_import: 0
   private_contact_values_copied_to_neon: false
-  provider_contacts_created_updated_or_deleted_during_neon_import: false
-  pre_import_neon_snapshot_created: true
-  idempotent_rerun_verified: true
+  pre_initial_import_neon_snapshot_created: true
+  initial_idempotent_rerun_verified: true
 
 apple_google_reconciliation_receipt:
   apple_contacts: 451
@@ -49,6 +52,28 @@ apple_google_reconciliation_receipt:
   apple_photos_detected: 115
   real_contact_payload_committed_to_repo: false
   provider_writes_performed_during_planning: false
+
+apple_google_provider_apply_receipt:
+  provider_apply_completed: true
+  google_saved_contacts_after_apply: 934
+  unique_stable_provider_ids_after_apply: 934
+  original_google_provider_ids_preserved: 753
+  apple_only_google_contacts_created: 181
+  temporary_migration_markers_cleaned: true
+  provider_contact_deletion_performed: false
+  refreshed_snapshot_generated: true
+
+post_apply_neon_receipt:
+  newly_created_google_contacts_reviewed: 181
+  newly_created_person_like_refs_imported: 169
+  newly_created_service_or_sample_refs_kept_provider_only: 12
+  canonical_active_people: 885
+  google_person_external_refs: 889
+  orphan_google_person_refs: 0
+  non_active_people: 0
+  private_contact_value_keys_in_new_ref_metadata: 0
+  exact_new_ref_set_verified: true
+  idempotent_rerun_verified: true
 
 provider_strategy:
   stable_person_identity: neon
@@ -94,10 +119,7 @@ safety:
   cutover_requires_explicit_apply_flag: true
 
 next_gate:
-  - run_one_command_local_provider_cutover
-  - refresh_google_people_stable_id_snapshot
-  - acquire_google_people_refs_for_newly_created_apple_only_contacts
-  - import_new_person_like_google_refs_into_neon_idempotently
-  - verify_zero_orphans_and_provider_write_receipt
+  - verify_apple_devices_are_consuming_the_google_contact_state_without_material_field_loss
+  - declare_google_contacts_mutable_field_authority_after_sync_verification
   - review_held_identity_and_note_candidates_separately
-  - prepare_google_field_authority_cutover_after_sync_verification
+  - link_people_to_obsidian_narrative_without_copying_private_prose_to_neon
