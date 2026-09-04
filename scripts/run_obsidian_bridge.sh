@@ -11,7 +11,8 @@ if [[ -z "${OBSIDIAN_VAULT_SCOPE:-}" ]]; then
   echo "OBSIDIAN_VAULT_SCOPE is required (for example: primary-vault)." >&2
   exit 64
 fi
-if [[ ${#OBSIDIAN_BRIDGE_TOKEN} -lt 32 ]]; then
+TOKEN="${OBSIDIAN_BRIDGE_TOKEN:-}"
+if [[ ${#TOKEN} -lt 32 ]]; then
   echo "OBSIDIAN_BRIDGE_TOKEN must be at least 32 characters." >&2
   exit 64
 fi
