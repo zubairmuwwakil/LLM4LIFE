@@ -161,7 +161,6 @@ def import_plan(plan: dict[str, Any], *, database_url: str, apply: bool) -> dict
                 missing_entries = [entry for entry in refs if entry["external_id"] not in existing]
 
                 if not apply:
-                    conn.rollback()
                     return _receipt(
                         requested=len(refs),
                         active_people=len(active),
