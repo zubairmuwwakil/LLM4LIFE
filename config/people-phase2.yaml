@@ -1,5 +1,5 @@
 version: 1
-status: apple_google_plan_ready_local_provider_apply_pending
+status: apple_google_provider_cutover_complete_apple_sync_verification_pending
 updated: 2026-09-04
 
 approvals:
@@ -14,26 +14,26 @@ approvals:
 runtime:
   production_people_schema_live: true
   real_people_rows_imported: true
-  provider_contacts_mutated_by_phase_2: false
+  provider_contacts_mutated_by_phase_2: true
   google_stable_provider_refs_acquired: true
   google_canonical_import_live: true
   apple_stable_provider_refs_required_for_initial_import: false
   apple_google_reconciliation_complete: true
   apple_google_provider_write_plan_ready: true
-  apple_google_provider_writes_applied: false
+  apple_google_provider_writes_applied: true
   apple_google_one_command_cutover_ready: true
+  apple_google_provider_cutover_complete: true
+  apple_sync_verification_pending: true
+  google_mutable_field_authority_live: false
 
 production_receipt:
-  google_saved_contacts_enumerated: 753
-  clear_non_person_or_service_records_held_out: 33
-  google_person_external_refs_imported: 720
-  canonical_active_people: 716
+  google_saved_contacts_enumerated_initial: 753
+  clear_non_person_or_service_records_held_out_initial: 33
+  google_person_external_refs_imported_initial: 720
+  canonical_active_people_initial: 716
   clean_duplicate_clusters_collapsed: 3
   source_refs_in_duplicate_clusters: 7
-  orphan_google_person_refs: 0
-  non_active_people_after_import: 0
   private_contact_values_copied_to_neon: false
-  provider_contacts_created_updated_or_deleted_during_neon_import: false
   pre_import_neon_snapshot_created: true
   idempotent_rerun_verified: true
 
@@ -49,6 +49,27 @@ apple_google_reconciliation_receipt:
   apple_photos_detected: 115
   real_contact_payload_committed_to_repo: false
   provider_writes_performed_during_planning: false
+
+apple_google_production_cutover_receipt:
+  refreshed_google_saved_contacts: 934
+  stable_provider_ids: 934
+  original_google_provider_ids_retained: 753
+  new_google_provider_ids_created_from_apple: 181
+  new_person_like_google_refs_imported_to_neon: 169
+  new_non_person_demo_or_service_refs_held_provider_only: 12
+  canonical_active_people_after_cutover: 885
+  google_person_external_refs_after_cutover: 889
+  orphan_google_person_refs_after_cutover: 0
+  archived_google_person_refs_after_cutover: 0
+  google_person_ref_set_matches_reviewed_private_snapshot: true
+  newly_imported_external_ref_metadata_only: true
+  newly_imported_external_ref_metadata_keys:
+    - etag
+    - external_id_stability
+    - snapshot_generated_at
+    - source
+  private_phone_email_address_birthday_or_note_values_copied_to_neon: false
+  provider_contact_deletion_performed: false
 
 provider_strategy:
   stable_person_identity: neon
@@ -73,6 +94,7 @@ bootstrap:
     rationale: apple_only_records_can_be_created_in_google_and_receive_google_people_refs
     export_row_hashes_are_durable_refs: false
     migration_script: scripts/apple_google_phase2.py
+    resilient_apply_script: scripts/apple_google_phase2_resilient.py
     cutover_wrapper: scripts/run_apple_google_phase2.sh
     private_plan: .private/people/apple_google_plan.json
     private_apply_receipt: .private/people/apple_google_apply_receipt.json
@@ -92,12 +114,11 @@ safety:
   existing_non_default_contact_photos_overwritten: false
   cutover_refreshes_google_before_replanning: true
   cutover_requires_explicit_apply_flag: true
+  transient_create_failures_use_idempotent_recovery: true
 
 next_gate:
-  - run_one_command_local_provider_cutover
-  - refresh_google_people_stable_id_snapshot
-  - acquire_google_people_refs_for_newly_created_apple_only_contacts
-  - import_new_person_like_google_refs_into_neon_idempotently
-  - verify_zero_orphans_and_provider_write_receipt
-  - review_held_identity_and_note_candidates_separately
-  - prepare_google_field_authority_cutover_after_sync_verification
+  - verify_apple_contacts_sync_consumes_google_canonical_address_book
+  - declare_google_mutable_contact_field_authority_live_after_sync_verification
+  - review_held_identity_conflicts_and_name_only_weak_matches_separately
+  - classify_held_apple_notes_for_obsidian_vs_structured_fact_routing
+  - keep_provider_deletion_and_destructive_cleanup_out_of_scope_without_new_approval
