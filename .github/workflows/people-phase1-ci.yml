@@ -6,17 +6,21 @@ on:
       - "scripts/people_dedup.py"
       - "scripts/people_inventory.py"
       - "scripts/google_people_phase2.py"
+      - "scripts/apple_google_phase2.py"
       - "tests/test_people_dedup.py"
       - "tests/test_people_inventory.py"
       - "tests/test_people_inventory_grouped_vcard.py"
       - "tests/test_google_people_phase2.py"
+      - "tests/test_apple_google_phase2.py"
       - "requirements-people-phase2.txt"
       - "db/migrations/004_people.sql"
       - "db/tests/004_people_phase1.sql"
       - "config/people-phase1.yaml"
+      - "config/people-phase2.yaml"
       - "docs/people/PHASE_1_REPORT.md"
       - "docs/people/PRIVATE_INVENTORY_RUNBOOK.md"
       - "docs/people/PHASE_2_GOOGLE_BOOTSTRAP.md"
+      - "docs/people/APPLE_GOOGLE_MIGRATION.md"
       - ".gitignore"
       - ".github/workflows/people-phase1-ci.yml"
   pull_request:
@@ -24,17 +28,21 @@ on:
       - "scripts/people_dedup.py"
       - "scripts/people_inventory.py"
       - "scripts/google_people_phase2.py"
+      - "scripts/apple_google_phase2.py"
       - "tests/test_people_dedup.py"
       - "tests/test_people_inventory.py"
       - "tests/test_people_inventory_grouped_vcard.py"
       - "tests/test_google_people_phase2.py"
+      - "tests/test_apple_google_phase2.py"
       - "requirements-people-phase2.txt"
       - "db/migrations/004_people.sql"
       - "db/tests/004_people_phase1.sql"
       - "config/people-phase1.yaml"
+      - "config/people-phase2.yaml"
       - "docs/people/PHASE_1_REPORT.md"
       - "docs/people/PRIVATE_INVENTORY_RUNBOOK.md"
       - "docs/people/PHASE_2_GOOGLE_BOOTSTRAP.md"
+      - "docs/people/APPLE_GOOGLE_MIGRATION.md"
       - ".gitignore"
       - ".github/workflows/people-phase1-ci.yml"
 
@@ -51,6 +59,8 @@ jobs:
         with:
           python-version: "3.12"
       - name: Run People synthetic tests
-        run: python -m unittest -v tests/test_people_dedup.py tests/test_people_inventory.py tests/test_people_inventory_grouped_vcard.py tests/test_google_people_phase2.py
+        run: python -m unittest -v tests/test_people_dedup.py tests/test_people_inventory.py tests/test_people_inventory_grouped_vcard.py tests/test_google_people_phase2.py tests/test_apple_google_phase2.py
+      - name: Compile People migration helpers
+        run: python -m compileall -q scripts/people_dedup.py scripts/people_inventory.py scripts/google_people_phase2.py scripts/apple_google_phase2.py
       - name: Verify migration and SQL test artifacts exist
         run: test -s db/migrations/004_people.sql && test -s db/tests/004_people_phase1.sql
