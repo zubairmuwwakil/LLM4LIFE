@@ -1,0 +1,34 @@
+name: People Phase 4 CI
+
+on:
+  push:
+    paths:
+      - "scripts/people_obsidian_link.py"
+      - "tests/test_people_obsidian_link.py"
+      - "docs/people/OBSIDIAN_LINKAGE.md"
+      - "config/people-phase4.yaml"
+      - ".github/workflows/people-phase4-ci.yml"
+  pull_request:
+    paths:
+      - "scripts/people_obsidian_link.py"
+      - "tests/test_people_obsidian_link.py"
+      - "docs/people/OBSIDIAN_LINKAGE.md"
+      - "config/people-phase4.yaml"
+      - ".github/workflows/people-phase4-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  obsidian-linkage-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run Obsidian linkage synthetic tests
+        run: python -m unittest -v tests/test_people_obsidian_link.py
+      - name: Compile linkage helper
+        run: python -m compileall -q scripts/people_obsidian_link.py
