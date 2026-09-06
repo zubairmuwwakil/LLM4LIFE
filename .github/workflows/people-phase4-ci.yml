@@ -3,10 +3,12 @@ name: People Phase 4 CI
 on:
   push:
     paths:
+      - "db/migrations/005_person_facts_asserted_on.sql"
       - "scripts/people_obsidian_link.py"
       - "scripts/people_obsidian_discover.py"
       - "scripts/people_obsidian_candidates.py"
       - "scripts/people_diary_fact_review.py"
+      - "scripts/import_people_diary_plan.py"
       - "scripts/obsidian_local_bridge.py"
       - "scripts/import_people_obsidian_refs.py"
       - "scripts/repo_env.py"
@@ -16,6 +18,7 @@ on:
       - "tests/test_people_obsidian_link.py"
       - "tests/test_people_obsidian_candidates.py"
       - "tests/test_people_diary_fact_review.py"
+      - "tests/test_import_people_diary_plan.py"
       - "tests/test_obsidian_live_bridge.py"
       - "tests/test_repo_env.py"
       - "docs/people/OBSIDIAN_LINKAGE.md"
@@ -24,13 +27,16 @@ on:
       - "config/people-phase4.yaml"
       - "requirements-people-phase4.txt"
       - ".env.example"
+      - ".gitignore"
       - ".github/workflows/people-phase4-ci.yml"
   pull_request:
     paths:
+      - "db/migrations/005_person_facts_asserted_on.sql"
       - "scripts/people_obsidian_link.py"
       - "scripts/people_obsidian_discover.py"
       - "scripts/people_obsidian_candidates.py"
       - "scripts/people_diary_fact_review.py"
+      - "scripts/import_people_diary_plan.py"
       - "scripts/obsidian_local_bridge.py"
       - "scripts/import_people_obsidian_refs.py"
       - "scripts/repo_env.py"
@@ -40,6 +46,7 @@ on:
       - "tests/test_people_obsidian_link.py"
       - "tests/test_people_obsidian_candidates.py"
       - "tests/test_people_diary_fact_review.py"
+      - "tests/test_import_people_diary_plan.py"
       - "tests/test_obsidian_live_bridge.py"
       - "tests/test_repo_env.py"
       - "docs/people/OBSIDIAN_LINKAGE.md"
@@ -48,6 +55,7 @@ on:
       - "config/people-phase4.yaml"
       - "requirements-people-phase4.txt"
       - ".env.example"
+      - ".gitignore"
       - ".github/workflows/people-phase4-ci.yml"
 
 permissions:
@@ -68,6 +76,7 @@ jobs:
           tests/test_people_obsidian_link.py
           tests/test_people_obsidian_candidates.py
           tests/test_people_diary_fact_review.py
+          tests/test_import_people_diary_plan.py
           tests/test_obsidian_live_bridge.py
           tests/test_repo_env.py
       - name: Compile Phase 4 Python helpers
@@ -77,11 +86,14 @@ jobs:
           scripts/people_obsidian_discover.py
           scripts/people_obsidian_candidates.py
           scripts/people_diary_fact_review.py
+          scripts/import_people_diary_plan.py
           scripts/obsidian_local_bridge.py
           scripts/import_people_obsidian_refs.py
           scripts/repo_env.py
           scripts/init_local_env.py
           scripts/launch_obsidian_bridge.py
+      - name: Verify date-only fact provenance migration
+        run: grep -F 'ADD COLUMN IF NOT EXISTS asserted_on date' db/migrations/005_person_facts_asserted_on.sql
       - name: Validate local bridge wrapper syntax
         run: bash -n scripts/run_obsidian_bridge.sh
       - name: Verify localhost-only bind remains explicit
@@ -90,3 +102,5 @@ jobs:
         run: |
           grep -Fx '.private/' .gitignore
           grep -Fx '.env' .gitignore
+          grep -Fx '__pycache__/' .gitignore
+          grep -Fx '*.py[cod]' .gitignore
