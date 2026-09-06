@@ -4,10 +4,16 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from repo_env import load_repo_env  # noqa: E402
+
+load_repo_env()
 
 EXPECTED_SYSTEM = "obsidian"
 EXPECTED_INTERNAL_TYPE = "person"
@@ -226,7 +232,7 @@ def main() -> None:
     args = parser.parse_args()
 
     if not args.database_url:
-        raise SystemExit("Set DATABASE_URL/NEON_DATABASE_URL or pass --database-url")
+        raise SystemExit("Set DATABASE_URL/NEON_DATABASE_URL in .env or pass --database-url")
     plan = load_and_validate_plan(Path(args.plan))
     receipt = import_plan(plan, database_url=args.database_url, apply=args.apply)
     receipt_path = Path(args.receipt)
