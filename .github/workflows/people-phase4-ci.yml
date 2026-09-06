@@ -12,6 +12,7 @@ on:
       - "scripts/import_people_diary_plan.py"
       - "scripts/people_structured_memory_review.py"
       - "scripts/import_people_structured_memory.py"
+      - "scripts/run_people_structured_memory_review.sh"
       - "scripts/obsidian_local_bridge.py"
       - "scripts/import_people_obsidian_refs.py"
       - "scripts/repo_env.py"
@@ -48,6 +49,7 @@ on:
       - "scripts/import_people_diary_plan.py"
       - "scripts/people_structured_memory_review.py"
       - "scripts/import_people_structured_memory.py"
+      - "scripts/run_people_structured_memory_review.sh"
       - "scripts/obsidian_local_bridge.py"
       - "scripts/import_people_obsidian_refs.py"
       - "scripts/repo_env.py"
@@ -112,6 +114,10 @@ jobs:
           scripts/repo_env.py
           scripts/init_local_env.py
           scripts/launch_obsidian_bridge.py
+      - name: Validate local wrappers
+        run: |
+          bash -n scripts/run_obsidian_bridge.sh
+          bash -n scripts/run_people_structured_memory_review.sh
       - name: Verify date-only fact provenance migration
         run: grep -F 'ADD COLUMN IF NOT EXISTS asserted_on date' db/migrations/005_person_facts_asserted_on.sql
       - name: Verify People memory graph migration guards
@@ -121,8 +127,6 @@ jobs:
           grep -F 'CHECK (source_person_id <> target_person_id)' db/migrations/006_people_memory_graph.sql
           grep -F "CHECK (NOT (source_kind='model_suggestion' AND sensitivity_class='sensitive'))" db/migrations/006_people_memory_graph.sql
           grep -F 'make_date(2000, month::integer, day::integer)' db/migrations/006_people_memory_graph.sql
-      - name: Validate local bridge wrapper syntax
-        run: bash -n scripts/run_obsidian_bridge.sh
       - name: Verify localhost-only bind remains explicit
         run: grep -F 'ObsidianBridgeServer(("127.0.0.1", args.port), state)' scripts/obsidian_local_bridge.py
       - name: Verify private runtime paths remain ignored

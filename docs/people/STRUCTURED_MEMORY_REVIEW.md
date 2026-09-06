@@ -45,7 +45,23 @@ The reviewer can retain a private held candidate when a source explicitly names 
 
 The existing `llm4life.relationships` table remains the user-to-person relationship state and is not replaced by this graph.
 
-## Build and review
+## One-command safe workflow
+
+After pulling the latest repo and ensuring the Phase 4 Python requirements are installed, the preferred local flow is:
+
+```bash
+bash scripts/run_people_structured_memory_review.sh
+```
+
+This performs, in order:
+
+1. interactive candidate review;
+2. validation into an apply-disabled private plan;
+3. a production Neon dry-run.
+
+The wrapper never passes `--apply`, so it cannot write date or relationship rows to Neon.
+
+## Manual workflow
 
 First refresh the comprehensive identity review if necessary:
 
