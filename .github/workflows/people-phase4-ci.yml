@@ -10,6 +10,8 @@ on:
       - "scripts/people_obsidian_candidates.py"
       - "scripts/people_diary_fact_review.py"
       - "scripts/import_people_diary_plan.py"
+      - "scripts/people_structured_memory_review.py"
+      - "scripts/import_people_structured_memory.py"
       - "scripts/obsidian_local_bridge.py"
       - "scripts/import_people_obsidian_refs.py"
       - "scripts/repo_env.py"
@@ -20,6 +22,8 @@ on:
       - "tests/test_people_obsidian_candidates.py"
       - "tests/test_people_diary_fact_review.py"
       - "tests/test_import_people_diary_plan.py"
+      - "tests/test_people_structured_memory_review.py"
+      - "tests/test_import_people_structured_memory.py"
       - "tests/test_obsidian_live_bridge.py"
       - "tests/test_repo_env.py"
       - "docs/people/OBSIDIAN_LINKAGE.md"
@@ -27,6 +31,7 @@ on:
       - "docs/people/DIARY_FACT_REVIEW.md"
       - "docs/people/DIARY_NEON_IMPORT.md"
       - "docs/people/PEOPLE_MEMORY_MODEL.md"
+      - "docs/people/STRUCTURED_MEMORY_REVIEW.md"
       - "config/people-phase4.yaml"
       - "requirements-people-phase4.txt"
       - ".env.example"
@@ -41,6 +46,8 @@ on:
       - "scripts/people_obsidian_candidates.py"
       - "scripts/people_diary_fact_review.py"
       - "scripts/import_people_diary_plan.py"
+      - "scripts/people_structured_memory_review.py"
+      - "scripts/import_people_structured_memory.py"
       - "scripts/obsidian_local_bridge.py"
       - "scripts/import_people_obsidian_refs.py"
       - "scripts/repo_env.py"
@@ -51,6 +58,8 @@ on:
       - "tests/test_people_obsidian_candidates.py"
       - "tests/test_people_diary_fact_review.py"
       - "tests/test_import_people_diary_plan.py"
+      - "tests/test_people_structured_memory_review.py"
+      - "tests/test_import_people_structured_memory.py"
       - "tests/test_obsidian_live_bridge.py"
       - "tests/test_repo_env.py"
       - "docs/people/OBSIDIAN_LINKAGE.md"
@@ -58,6 +67,7 @@ on:
       - "docs/people/DIARY_FACT_REVIEW.md"
       - "docs/people/DIARY_NEON_IMPORT.md"
       - "docs/people/PEOPLE_MEMORY_MODEL.md"
+      - "docs/people/STRUCTURED_MEMORY_REVIEW.md"
       - "config/people-phase4.yaml"
       - "requirements-people-phase4.txt"
       - ".env.example"
@@ -83,6 +93,8 @@ jobs:
           tests/test_people_obsidian_candidates.py
           tests/test_people_diary_fact_review.py
           tests/test_import_people_diary_plan.py
+          tests/test_people_structured_memory_review.py
+          tests/test_import_people_structured_memory.py
           tests/test_obsidian_live_bridge.py
           tests/test_repo_env.py
       - name: Compile Phase 4 Python helpers
@@ -93,6 +105,8 @@ jobs:
           scripts/people_obsidian_candidates.py
           scripts/people_diary_fact_review.py
           scripts/import_people_diary_plan.py
+          scripts/people_structured_memory_review.py
+          scripts/import_people_structured_memory.py
           scripts/obsidian_local_bridge.py
           scripts/import_people_obsidian_refs.py
           scripts/repo_env.py
