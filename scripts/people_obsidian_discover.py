@@ -5,10 +5,14 @@ import argparse
 import json
 import os
 import re
+import sys
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from repo_env import load_repo_env  # noqa: E402
 
 PERSON_KEY = "llm4life_person_id"
 NOTE_KEY = "llm4life_note_id"
@@ -93,6 +97,7 @@ def discover(vault_root: Path, *, vault_scope: str) -> tuple[dict[str, Any], dic
 
 
 def main() -> None:
+    load_repo_env()
     parser = argparse.ArgumentParser(description="Discover only pre-existing explicit LLM4LIFE People links in an Obsidian vault")
     parser.add_argument("--vault-root", default=os.environ.get("OBSIDIAN_VAULT_PATH"))
     parser.add_argument("--vault-scope", default=os.environ.get("OBSIDIAN_VAULT_SCOPE"))
@@ -101,7 +106,7 @@ def main() -> None:
     args = parser.parse_args()
 
     if not args.vault_root or not args.vault_scope:
-        raise SystemExit("Set OBSIDIAN_VAULT_PATH and OBSIDIAN_VAULT_SCOPE or pass both flags")
+        raise SystemExit("Set OBSIDIAN_VAULT_PATH and OBSIDIAN_VAULT_SCOPE in .env or pass both flags")
     manifest, receipt = discover(Path(args.vault_root), vault_scope=args.vault_scope)
     manifest_path = Path(args.manifest)
     receipt_path = Path(args.receipt)

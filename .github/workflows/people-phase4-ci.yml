@@ -7,9 +7,13 @@ on:
       - "scripts/people_obsidian_discover.py"
       - "scripts/obsidian_local_bridge.py"
       - "scripts/import_people_obsidian_refs.py"
+      - "scripts/repo_env.py"
+      - "scripts/init_local_env.py"
+      - "scripts/launch_obsidian_bridge.py"
       - "scripts/run_obsidian_bridge.sh"
       - "tests/test_people_obsidian_link.py"
       - "tests/test_obsidian_live_bridge.py"
+      - "tests/test_repo_env.py"
       - "docs/people/OBSIDIAN_LINKAGE.md"
       - "config/people-phase4.yaml"
       - "requirements-people-phase4.txt"
@@ -21,9 +25,13 @@ on:
       - "scripts/people_obsidian_discover.py"
       - "scripts/obsidian_local_bridge.py"
       - "scripts/import_people_obsidian_refs.py"
+      - "scripts/repo_env.py"
+      - "scripts/init_local_env.py"
+      - "scripts/launch_obsidian_bridge.py"
       - "scripts/run_obsidian_bridge.sh"
       - "tests/test_people_obsidian_link.py"
       - "tests/test_obsidian_live_bridge.py"
+      - "tests/test_repo_env.py"
       - "docs/people/OBSIDIAN_LINKAGE.md"
       - "config/people-phase4.yaml"
       - "requirements-people-phase4.txt"
@@ -43,7 +51,11 @@ jobs:
         with:
           python-version: "3.12"
       - name: Run Obsidian Phase 4 synthetic tests
-        run: python -m unittest -v tests/test_people_obsidian_link.py tests/test_obsidian_live_bridge.py
+        run: >-
+          python -m unittest -v
+          tests/test_people_obsidian_link.py
+          tests/test_obsidian_live_bridge.py
+          tests/test_repo_env.py
       - name: Compile Phase 4 Python helpers
         run: >-
           python -m compileall -q
@@ -51,9 +63,14 @@ jobs:
           scripts/people_obsidian_discover.py
           scripts/obsidian_local_bridge.py
           scripts/import_people_obsidian_refs.py
+          scripts/repo_env.py
+          scripts/init_local_env.py
+          scripts/launch_obsidian_bridge.py
       - name: Validate local bridge wrapper syntax
         run: bash -n scripts/run_obsidian_bridge.sh
       - name: Verify localhost-only bind remains explicit
         run: grep -F 'ObsidianBridgeServer(("127.0.0.1", args.port), state)' scripts/obsidian_local_bridge.py
-      - name: Verify private runtime path remains ignored
-        run: grep -Fx '.private/' .gitignore
+      - name: Verify private runtime paths remain ignored
+        run: |
+          grep -Fx '.private/' .gitignore
+          grep -Fx '.env' .gitignore
