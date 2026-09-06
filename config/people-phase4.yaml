@@ -1,6 +1,6 @@
 version: 1
 status: obsidian_local_bridge_implemented_live_mapping_pending
-updated: 2026-09-04
+updated: 2026-09-06
 
 phase3_dependency:
   apple_sync_verification_complete: false
@@ -32,6 +32,10 @@ runtime:
   bridge_bind_scope: loopback_only
   bridge_bearer_auth_required: true
   bridge_optimistic_concurrency_required_for_writes: true
+  repo_local_env_autoload_implemented: true
+  repo_local_env_shell_execution: false
+  repo_local_env_existing_process_values_win: true
+  bridge_token_persistence_initializer_implemented: true
   live_vault_bridge_verified: false
   neon_external_ref_importer_implemented: true
   real_obsidian_person_mappings_imported_to_neon: false
@@ -48,6 +52,7 @@ safety:
   note_paths_may_enter_neon: false
   aggregate_receipts_only_for_public_documentation: true
   public_or_remote_bridge_exposure_automatic: false
+  secret_values_printed_by_env_initializer: false
 
 private_runtime:
   manifest: .private/people/obsidian_person_links.json
@@ -57,15 +62,19 @@ private_runtime:
   discovery_receipt: .private/people/obsidian_discovery_receipt.json
   neon_import_receipt: .private/people/obsidian_neon_import_receipt.json
   bridge_audit: .private/obsidian-bridge/audit.jsonl
+  local_env: .env
+  local_env_initializer: scripts/init_local_env.py
   vault_path_env: OBSIDIAN_VAULT_PATH
   vault_scope_env: OBSIDIAN_VAULT_SCOPE
   bridge_token_env: OBSIDIAN_BRIDGE_TOKEN
   linkage_script: scripts/people_obsidian_link.py
   discovery_script: scripts/people_obsidian_discover.py
   bridge_script: scripts/obsidian_local_bridge.py
+  bridge_launcher: scripts/launch_obsidian_bridge.py
   neon_import_script: scripts/import_people_obsidian_refs.py
 
 next_gate:
+  - persist_or_rotate_local_obsidian_bridge_token
   - run_localhost_bridge_against_live_obsidian_vault
   - create_or_discover_explicit_private_person_to_note_mapping_manifest
   - apply_managed_frontmatter_non_destructively
