@@ -1,5 +1,5 @@
-version: 1
-status: obsidian_candidate_review_ready_live_mapping_pending
+version: 2
+status: obsidian_comprehensive_candidate_review_ready_live_mapping_pending
 updated: 2026-09-06
 
 phase3_dependency:
@@ -12,6 +12,7 @@ ownership:
   stable_person_identity: neon
   cross_system_refs: llm4life.external_refs
   narrative_relationship_context: obsidian
+  diary_narrative_authority: obsidian
   mutable_contact_field_authority_candidate: google_contacts
 
 link_contract:
@@ -25,10 +26,23 @@ link_contract:
     - llm4life_person_id
     - llm4life_note_id
 
+source_model:
+  active_canonical_profiles: enabled
+  archived_canonical_profiles: enabled_by_default
+  archived_legacy_person_folders: enabled_by_default
+  diary_journal_evidence: enabled_by_default
+  imported_diary_source_marker: imported_diary_text
+  diary_notes_are_person_entities: false
+  diary_plain_name_mentions_require_review: true
+  diary_fact_extraction_requires_review: true
+  existing_private_manifest_reused: true
+
 runtime:
   linkage_planner_implemented: true
   explicit_link_discovery_implemented: true
   candidate_review_implemented: true
+  legacy_archived_person_discovery_implemented: true
+  diary_evidence_discovery_implemented: true
   candidate_review_auto_apply_allowed: false
   candidate_review_interactive_approval_required: true
   localhost_bridge_implemented: true
@@ -42,6 +56,7 @@ runtime:
   live_vault_bridge_verified: false
   neon_external_ref_importer_implemented: true
   real_obsidian_person_mappings_imported_to_neon: false
+  diary_facts_imported_to_neon: false
   narrative_copied_to_neon: false
 
 safety:
@@ -49,10 +64,14 @@ safety:
   fuzzy_name_auto_matching: false
   explicit_private_mapping_required: true
   conflicting_existing_person_link_overwrite: false
+  existing_approved_mapping_manifest_overwrite: false
+  diary_note_as_person_auto_creation: false
+  diary_fact_auto_write: false
   path_escape_allowed: false
   hidden_vault_paths_accessible: false
   destructive_obsidian_cleanup_authorized: false
   narrative_may_enter_public_repo: false
+  diary_prose_may_enter_public_receipt: false
   note_paths_may_enter_neon: false
   aggregate_receipts_only_for_public_documentation: true
   public_or_remote_bridge_exposure_automatic: false
@@ -81,8 +100,10 @@ private_runtime:
   neon_import_script: scripts/import_people_obsidian_refs.py
 
 next_gate:
-  - run_private_candidate_review_against_live_vault_and_google_snapshot
-  - interactively_approve_only_correct_identity_mappings
+  - run_comprehensive_private_candidate_review_against_live_vault_and_google_snapshot
+  - preserve_and_reuse_existing_approved_obsidian_mappings
+  - interactively_approve_only_correct_unresolved_person_identity_mappings
   - apply_managed_frontmatter_non_destructively
   - dry_run_and_then_import_validated_obsidian_external_refs_idempotently
+  - review_diary_person_evidence_before_any_structured_fact_or_interaction_import
   - keep_held_identity_conflicts_weak_matches_and_note_candidates_separate
