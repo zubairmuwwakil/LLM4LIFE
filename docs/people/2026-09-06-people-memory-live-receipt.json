@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "generated_on": "2026-09-06",
+  "people_memory_graph_production_live": true,
+  "person_fact_asserted_on_production_live": true,
+  "diary_seed": {
+    "standard_facts_imported": 9,
+    "standard_interactions_imported": 1,
+    "sensitive_proposals_imported": 0,
+    "idempotent_replay_verified": true,
+    "duplicate_fact_slots_after_replay": 0
+  },
+  "new_structured_memory_tables": {
+    "person_dates": {
+      "production_live": true,
+      "rows_seeded": 0
+    },
+    "person_relationship_edges": {
+      "production_live": true,
+      "rows_seeded": 0
+    }
+  },
+  "privacy": {
+    "contains_names": false,
+    "contains_person_ids": false,
+    "contains_note_paths": false,
+    "contains_diary_prose": false,
+    "contains_fact_values": false
+  }
+}
