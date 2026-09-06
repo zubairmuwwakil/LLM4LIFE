@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - "db/migrations/005_person_facts_asserted_on.sql"
+      - "db/migrations/006_people_memory_graph.sql"
       - "scripts/people_obsidian_link.py"
       - "scripts/people_obsidian_discover.py"
       - "scripts/people_obsidian_candidates.py"
@@ -25,6 +26,7 @@ on:
       - "docs/people/OBSIDIAN_CANDIDATE_REVIEW.md"
       - "docs/people/DIARY_FACT_REVIEW.md"
       - "docs/people/DIARY_NEON_IMPORT.md"
+      - "docs/people/PEOPLE_MEMORY_MODEL.md"
       - "config/people-phase4.yaml"
       - "requirements-people-phase4.txt"
       - ".env.example"
@@ -33,6 +35,7 @@ on:
   pull_request:
     paths:
       - "db/migrations/005_person_facts_asserted_on.sql"
+      - "db/migrations/006_people_memory_graph.sql"
       - "scripts/people_obsidian_link.py"
       - "scripts/people_obsidian_discover.py"
       - "scripts/people_obsidian_candidates.py"
@@ -54,6 +57,7 @@ on:
       - "docs/people/OBSIDIAN_CANDIDATE_REVIEW.md"
       - "docs/people/DIARY_FACT_REVIEW.md"
       - "docs/people/DIARY_NEON_IMPORT.md"
+      - "docs/people/PEOPLE_MEMORY_MODEL.md"
       - "config/people-phase4.yaml"
       - "requirements-people-phase4.txt"
       - ".env.example"
@@ -96,6 +100,13 @@ jobs:
           scripts/launch_obsidian_bridge.py
       - name: Verify date-only fact provenance migration
         run: grep -F 'ADD COLUMN IF NOT EXISTS asserted_on date' db/migrations/005_person_facts_asserted_on.sql
+      - name: Verify People memory graph migration guards
+        run: |
+          grep -F 'CREATE TABLE IF NOT EXISTS llm4life.person_dates' db/migrations/006_people_memory_graph.sql
+          grep -F 'CREATE TABLE IF NOT EXISTS llm4life.person_relationship_edges' db/migrations/006_people_memory_graph.sql
+          grep -F 'CHECK (source_person_id <> target_person_id)' db/migrations/006_people_memory_graph.sql
+          grep -F "CHECK (NOT (source_kind='model_suggestion' AND sensitivity_class='sensitive'))" db/migrations/006_people_memory_graph.sql
+          grep -F 'make_date(2000, month::integer, day::integer)' db/migrations/006_people_memory_graph.sql
       - name: Validate local bridge wrapper syntax
         run: bash -n scripts/run_obsidian_bridge.sh
       - name: Verify localhost-only bind remains explicit

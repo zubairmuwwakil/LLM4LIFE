@@ -1,5 +1,5 @@
-version: 4
-status: diary_neon_importer_ready_schema_and_data_apply_pending
+version: 5
+status: people_memory_graph_schema_ready_production_apply_pending
 updated: 2026-09-06
 
 phase3_dependency:
@@ -14,6 +14,18 @@ ownership:
   narrative_relationship_context: obsidian
   diary_narrative_authority: obsidian
   mutable_contact_field_authority_candidate: google_contacts
+
+memory_model:
+  durable_facts: llm4life.person_facts
+  important_dates: llm4life.person_dates
+  user_to_person_relationship: llm4life.relationships
+  person_to_person_graph: llm4life.person_relationship_edges
+  interactions: llm4life.interactions
+  interaction_people: llm4life.interaction_people
+  open_loops: llm4life.actions_and_action_people
+  rich_narrative: obsidian
+  unresolved_person_names_may_enter_relationship_graph: false
+  subjective_impressions_default_store: obsidian
 
 link_contract:
   version: obsidian_frontmatter_v1
@@ -53,7 +65,12 @@ runtime:
   diary_neon_importer_deterministic_ids: true
   diary_neon_importer_conflict_overwrite_allowed: false
   person_fact_asserted_on_migration_defined: true
-  person_fact_asserted_on_production_live: false
+  person_fact_asserted_on_production_live: true
+  people_memory_graph_migration_defined: true
+  people_memory_graph_temporary_branch_tested: true
+  people_memory_graph_production_live: false
+  person_dates_import_pipeline_implemented: false
+  person_relationship_edges_import_pipeline_implemented: false
   candidate_review_auto_apply_allowed: false
   candidate_review_interactive_approval_required: true
   localhost_bridge_implemented: true
@@ -83,6 +100,9 @@ safety:
   diary_fact_apply_requires_separate_authorization: true
   diary_import_conflicts_abort: true
   diary_source_note_path_may_enter_neon: false
+  unresolved_person_relationship_edge_allowed: false
+  person_relationship_self_edge_allowed: false
+  sensitive_model_suggestion_persistence_allowed: false
   path_escape_allowed: false
   hidden_vault_paths_accessible: false
   destructive_obsidian_cleanup_authorized: false
@@ -124,9 +144,10 @@ private_runtime:
   neon_import_script: scripts/import_people_obsidian_refs.py
 
 next_gate:
-  - merge_diary_neon_importer_after_ci
-  - explicitly_approve_and_apply_person_fact_asserted_on_schema_migration
-  - run_diary_neon_importer_dry_run_against_production
-  - require_separate_explicit_authorization_before_diary_fact_or_interaction_apply
+  - merge_people_memory_graph_schema_after_ci
+  - apply_already_tested_people_memory_graph_migration_to_production
+  - run_and_apply_already_authorized_standard_diary_fact_interaction_seed
+  - verify_idempotent_rerun_and_no_conflicts
+  - build_private_review_pipeline_for_person_dates_and_resolved_person_relationship_edges
   - keep_sensitive_proposals_on_separate_review_path
   - keep_held_identity_conflicts_weak_matches_and_note_candidates_separate
