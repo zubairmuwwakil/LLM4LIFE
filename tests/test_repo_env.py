@@ -1,6 +1,7 @@
 import importlib.util
 import os
 import stat
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -8,21 +9,20 @@ from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "scripts"
+sys.path.insert(0, str(SCRIPTS))
 
 
 def load(name, relative):
     spec = importlib.util.spec_from_file_location(name, SCRIPTS / relative)
     module = importlib.util.module_from_spec(spec)
     assert spec and spec.loader
-    with mock.patch.dict(os.environ, {"PYTHONPATH": str(SCRIPTS)}, clear=False):
-        spec.loader.exec_module(module)
+    spec.loader.exec_module(module)
     return module
 
 
-import sys
-sys.path.insert(0, str(SCRIPTS))
 REPO_ENV = load("repo_env_test", "repo_env.py")
 INIT_ENV = load("init_local_env_test", "init_local_env.py")
+LAUNCH = load("launch_obsidian_bridge_test", "launch_obsidian_bridge.py")
 
 
 class RepoEnvTests(unittest.TestCase):
@@ -97,6 +97,17 @@ class InitLocalEnvTests(unittest.TestCase):
             values = REPO_ENV.read_env_file(path)
             self.assertNotEqual(values["OBSIDIAN_BRIDGE_TOKEN"], token)
             self.assertEqual(len(values["OBSIDIAN_BRIDGE_TOKEN"]), 64)
+
+
+class BridgeLauncherTests(unittest.TestCase):
+    def test_explicit_port_flag_wins(self):
+        with mock.patch.dict(os.environ, {"OBSIDIAN_BRIDGE_PORT": "8765"}, clear=True):
+            self.assertEqual(LAUNCH._requested_port(["--port", "9000"]), 9000)
+            self.assertEqual(LAUNCH._requested_port(["--port=9001"]), 9001)
+
+    def test_env_port_is_default(self):
+        with mock.patch.dict(os.environ, {"OBSIDIAN_BRIDGE_PORT": "8877"}, clear=True):
+            self.assertEqual(LAUNCH._requested_port([]), 8877)
 
 
 if __name__ == "__main__":
