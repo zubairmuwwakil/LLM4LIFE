@@ -6,6 +6,7 @@ on:
       - "scripts/people_obsidian_link.py"
       - "scripts/people_obsidian_discover.py"
       - "scripts/people_obsidian_candidates.py"
+      - "scripts/people_diary_fact_review.py"
       - "scripts/obsidian_local_bridge.py"
       - "scripts/import_people_obsidian_refs.py"
       - "scripts/repo_env.py"
@@ -14,9 +15,12 @@ on:
       - "scripts/run_obsidian_bridge.sh"
       - "tests/test_people_obsidian_link.py"
       - "tests/test_people_obsidian_candidates.py"
+      - "tests/test_people_diary_fact_review.py"
       - "tests/test_obsidian_live_bridge.py"
       - "tests/test_repo_env.py"
       - "docs/people/OBSIDIAN_LINKAGE.md"
+      - "docs/people/OBSIDIAN_CANDIDATE_REVIEW.md"
+      - "docs/people/DIARY_FACT_REVIEW.md"
       - "config/people-phase4.yaml"
       - "requirements-people-phase4.txt"
       - ".env.example"
@@ -26,6 +30,7 @@ on:
       - "scripts/people_obsidian_link.py"
       - "scripts/people_obsidian_discover.py"
       - "scripts/people_obsidian_candidates.py"
+      - "scripts/people_diary_fact_review.py"
       - "scripts/obsidian_local_bridge.py"
       - "scripts/import_people_obsidian_refs.py"
       - "scripts/repo_env.py"
@@ -34,9 +39,12 @@ on:
       - "scripts/run_obsidian_bridge.sh"
       - "tests/test_people_obsidian_link.py"
       - "tests/test_people_obsidian_candidates.py"
+      - "tests/test_people_diary_fact_review.py"
       - "tests/test_obsidian_live_bridge.py"
       - "tests/test_repo_env.py"
       - "docs/people/OBSIDIAN_LINKAGE.md"
+      - "docs/people/OBSIDIAN_CANDIDATE_REVIEW.md"
+      - "docs/people/DIARY_FACT_REVIEW.md"
       - "config/people-phase4.yaml"
       - "requirements-people-phase4.txt"
       - ".env.example"
@@ -59,6 +67,7 @@ jobs:
           python -m unittest -v
           tests/test_people_obsidian_link.py
           tests/test_people_obsidian_candidates.py
+          tests/test_people_diary_fact_review.py
           tests/test_obsidian_live_bridge.py
           tests/test_repo_env.py
       - name: Compile Phase 4 Python helpers
@@ -67,6 +76,7 @@ jobs:
           scripts/people_obsidian_link.py
           scripts/people_obsidian_discover.py
           scripts/people_obsidian_candidates.py
+          scripts/people_diary_fact_review.py
           scripts/obsidian_local_bridge.py
           scripts/import_people_obsidian_refs.py
           scripts/repo_env.py
