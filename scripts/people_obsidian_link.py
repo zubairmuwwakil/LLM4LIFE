@@ -5,11 +5,17 @@ import argparse
 import json
 import os
 import re
+import sys
 import tempfile
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from repo_env import load_repo_env  # noqa: E402
+
+load_repo_env()
 
 PERSON_KEY = "llm4life_person_id"
 NOTE_KEY = "llm4life_note_id"
@@ -244,7 +250,7 @@ def main() -> None:
     args = parser.parse_args()
 
     if not args.vault_root:
-        raise SystemExit("Set OBSIDIAN_VAULT_PATH or pass --vault-root")
+        raise SystemExit("Set OBSIDIAN_VAULT_PATH in .env or pass --vault-root")
 
     plan, receipt = build_link_plan(
         vault_root=Path(args.vault_root),
