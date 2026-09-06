@@ -1,5 +1,5 @@
-version: 3
-status: obsidian_comprehensive_candidate_and_diary_review_ready_live_mapping_pending
+version: 4
+status: diary_neon_importer_ready_schema_and_data_apply_pending
 updated: 2026-09-06
 
 phase3_dependency:
@@ -46,6 +46,14 @@ runtime:
   diary_fact_review_batch_builder_implemented: true
   diary_fact_plan_validator_implemented: true
   diary_fact_plan_apply_allowed: false
+  diary_neon_importer_implemented: true
+  diary_neon_importer_dry_run_default: true
+  diary_neon_importer_requires_user_authorized_flag_for_apply: true
+  diary_neon_importer_sensitive_proposals_allowed: false
+  diary_neon_importer_deterministic_ids: true
+  diary_neon_importer_conflict_overwrite_allowed: false
+  person_fact_asserted_on_migration_defined: true
+  person_fact_asserted_on_production_live: false
   candidate_review_auto_apply_allowed: false
   candidate_review_interactive_approval_required: true
   localhost_bridge_implemented: true
@@ -73,6 +81,8 @@ safety:
   sensitive_diary_fact_auto_persist: false
   diary_fact_requires_explicit_source_statement: true
   diary_fact_apply_requires_separate_authorization: true
+  diary_import_conflicts_abort: true
+  diary_source_note_path_may_enter_neon: false
   path_escape_allowed: false
   hidden_vault_paths_accessible: false
   destructive_obsidian_cleanup_authorized: false
@@ -93,6 +103,7 @@ private_runtime:
   diary_fact_reviewed: .private/people/diary_fact_reviewed.json
   diary_fact_plan: .private/people/diary_fact_plan.json
   diary_fact_plan_receipt: .private/people/diary_fact_plan_receipt.json
+  diary_neon_import_receipt: .private/people/diary_neon_import_receipt.json
   external_refs_plan: .private/people/obsidian_external_refs_plan.json
   linkage_receipt: .private/people/obsidian_link_receipt.json
   discovery_receipt: .private/people/obsidian_discovery_receipt.json
@@ -107,18 +118,15 @@ private_runtime:
   discovery_script: scripts/people_obsidian_discover.py
   candidate_review_script: scripts/people_obsidian_candidates.py
   diary_fact_review_script: scripts/people_diary_fact_review.py
+  diary_neon_import_script: scripts/import_people_diary_plan.py
   bridge_script: scripts/obsidian_local_bridge.py
   bridge_launcher: scripts/launch_obsidian_bridge.py
   neon_import_script: scripts/import_people_obsidian_refs.py
 
 next_gate:
-  - run_comprehensive_private_candidate_review_against_live_vault_and_google_snapshot
-  - preserve_and_reuse_existing_approved_obsidian_mappings
-  - interactively_approve_only_correct_unresolved_person_identity_mappings
-  - apply_managed_frontmatter_non_destructively
-  - dry_run_and_then_import_validated_obsidian_external_refs_idempotently
-  - build_private_diary_fact_review_batches_for_resolved_people_only
-  - review_only_explicit_diary_facts_and_interactions_with_sensitivity_classification
-  - validate_reviewed_diary_plan_without_writing_to_neon
-  - require_separate_authorization_before_any_diary_fact_or_interaction_import
+  - merge_diary_neon_importer_after_ci
+  - explicitly_approve_and_apply_person_fact_asserted_on_schema_migration
+  - run_diary_neon_importer_dry_run_against_production
+  - require_separate_explicit_authorization_before_diary_fact_or_interaction_apply
+  - keep_sensitive_proposals_on_separate_review_path
   - keep_held_identity_conflicts_weak_matches_and_note_candidates_separate
