@@ -28,9 +28,20 @@ def _port_in_use(port: int) -> bool:
         return sock.connect_ex(("127.0.0.1", port)) == 0
 
 
+def _requested_port(argv: list[str]) -> int:
+    for idx, arg in enumerate(argv):
+        if arg.startswith("--port="):
+            return int(arg.split("=", 1)[1])
+        if arg == "--port":
+            if idx + 1 >= len(argv):
+                raise SystemExit("--port requires a value")
+            return int(argv[idx + 1])
+    return int(os.environ.get("OBSIDIAN_BRIDGE_PORT", "8765"))
+
+
 def main() -> None:
     load_repo_env()
-    port = int(os.environ.get("OBSIDIAN_BRIDGE_PORT", "8765"))
+    port = _requested_port(sys.argv[1:])
     if _port_in_use(port):
         health = _health(port)
         if health and health.get("bridge") == "obsidian_local_v1":
