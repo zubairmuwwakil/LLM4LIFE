@@ -11,6 +11,10 @@ token*.json
 # Private local reconciliation/export payloads
 .private/
 
+# Python generated/runtime files
+__pycache__/
+*.py[cod]
+
 # JavaScript / Worker local state
 node_modules/
 .wrangler/
