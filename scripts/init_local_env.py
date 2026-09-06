@@ -9,7 +9,25 @@ from pathlib import Path
 
 from repo_env import DEFAULT_ENV_PATH, read_env_file
 
-MANAGED_KEYS = (
+KNOWN_KEYS = (
+    "PRIMARY_PERSONAL_EMAIL",
+    "SECONDARY_PERSONAL_EMAIL",
+    "AI_AGENT_EMAIL",
+    "DATABASE_URL",
+    "GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET",
+    "GOOGLE_REFRESH_TOKEN",
+    "SYNC_ADMIN_TOKEN",
+    "OBSIDIAN_VAULT_PATH",
+    "OBSIDIAN_VAULT_SCOPE",
+    "OBSIDIAN_BRIDGE_TOKEN",
+    "OBSIDIAN_BRIDGE_PORT",
+    "OBSIDIAN_ALLOWED_PREFIXES",
+    "OBSIDIAN_BRIDGE_ALLOW_WHOLE_VAULT",
+    "OBSIDIAN_BRIDGE_AUDIT_PATH",
+)
+
+OBSIDIAN_KEYS = (
     "OBSIDIAN_VAULT_PATH",
     "OBSIDIAN_VAULT_SCOPE",
     "OBSIDIAN_BRIDGE_TOKEN",
@@ -52,20 +70,23 @@ def _upsert_env_file(path: Path, updates: dict[str, str]) -> None:
             output.append(f"{key}={_quote(remaining.pop(key))}")
         else:
             output.append(line)
+
     if remaining:
         if output and output[-1] != "":
             output.append("")
-        output.append("# Obsidian bridge")
-        for key in MANAGED_KEYS:
+        output.append("# Persisted local values")
+        for key in KNOWN_KEYS:
             if key in remaining:
                 output.append(f"{key}={_quote(remaining.pop(key))}")
         for key, value in remaining.items():
             output.append(f"{key}={_quote(value)}")
+
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(output).rstrip() + "\n", encoding="utf-8")
     os.chmod(path, 0o600)
 
 
-def initialize(*, path: Path, capture_current: bool, rotate_bridge_token: bool) -> dict[str, bool]:
+def initialize(*, path: Path, capture_current: bool, rotate_bridge_token: bool) -> dict[str, int | bool]:
     existing = read_env_file(path)
     updates: dict[str, str] = {}
 
@@ -73,42 +94,50 @@ def initialize(*, path: Path, capture_current: bool, rotate_bridge_token: bool) 
         if not existing.get(key):
             updates[key] = value
 
+    captured = 0
     if capture_current:
-        for key in MANAGED_KEYS:
+        for key in KNOWN_KEYS:
             current = os.environ.get(key)
             if current and not existing.get(key):
                 updates[key] = current
+                captured += 1
 
     token_present = bool(existing.get("OBSIDIAN_BRIDGE_TOKEN"))
+    token_rotated = False
     if rotate_bridge_token or not token_present:
         updates["OBSIDIAN_BRIDGE_TOKEN"] = secrets.token_hex(32)
         token_present = True
+        token_rotated = True
 
     _upsert_env_file(path, updates)
     final = read_env_file(path)
+    known_present = sum(1 for key in KNOWN_KEYS if final.get(key))
     return {
         "env_file_exists": path.is_file(),
         "permissions_owner_only": (path.stat().st_mode & 0o077) == 0,
+        "known_values_present": known_present,
+        "current_values_captured": captured,
         "vault_path_present": bool(final.get("OBSIDIAN_VAULT_PATH")),
         "vault_scope_present": bool(final.get("OBSIDIAN_VAULT_SCOPE")),
         "bridge_token_present": bool(final.get("OBSIDIAN_BRIDGE_TOKEN")),
+        "bridge_token_generated_or_rotated": token_rotated,
     }
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Create/update the private repo .env and persist Obsidian runtime settings safely."
+        description="Create/update the private repo .env without printing secret values."
     )
     parser.add_argument("--env-file", default=str(DEFAULT_ENV_PATH))
     parser.add_argument(
         "--capture-current",
         action="store_true",
-        help="Persist currently exported OBSIDIAN_* values that are missing from .env.",
+        help="Persist currently exported known LLM4LIFE values that are missing from .env.",
     )
     parser.add_argument(
         "--rotate-bridge-token",
         action="store_true",
-        help="Generate a new bridge token and replace the saved one without printing it.",
+        help="Generate a new Obsidian bridge token and replace the saved one without printing it.",
     )
     args = parser.parse_args()
 
@@ -119,7 +148,11 @@ def main() -> None:
     )
     print("LLM4LIFE local .env initialized (secret values not printed).")
     for key, value in status.items():
-        print(f"{key}: {'yes' if value else 'no'}")
+        if isinstance(value, bool):
+            rendered = "yes" if value else "no"
+        else:
+            rendered = str(value)
+        print(f"{key}: {rendered}")
     if not status["vault_path_present"]:
         print("Next: add OBSIDIAN_VAULT_PATH to .env (or rerun with --capture-current while it is exported).")
 
