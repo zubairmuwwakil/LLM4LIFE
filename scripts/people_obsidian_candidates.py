@@ -82,9 +82,6 @@ def _frontmatter(text: str) -> tuple[dict[str, list[str]], str | None]:
             values.setdefault(key, []).extend(_split_inline_list(raw))
             idx += 1
             continue
-        # Support simple YAML list form:
-        # aliases:
-        #   - Foo
         idx += 1
         while idx < len(lines):
             list_match = re.match(r"^\s*-\s+(.*?)\s*$", lines[idx])
@@ -206,6 +203,17 @@ def _resolve_person_ids(database_url: str | None, *, scope: str, external_ids: l
             return {row[0]: row[1] for row in cur.fetchall()}
 
 
+def _middle_name_compatible(note_name: str, contact_name: str) -> bool:
+    note_tokens = note_name.split()
+    contact_tokens = contact_name.split()
+    if len(note_tokens) < 2 or len(contact_tokens) < 2:
+        return False
+    if note_tokens[0] != contact_tokens[0] or note_tokens[-1] != contact_tokens[-1]:
+        return False
+    short, long = (note_tokens, contact_tokens) if len(note_tokens) <= len(contact_tokens) else (contact_tokens, note_tokens)
+    return set(short).issubset(set(long))
+
+
 def _candidate_for_profile(profile: NoteProfile, contacts: list[dict[str, Any]], person_map: dict[str, str]) -> list[dict[str, Any]]:
     note_emails = {_norm_email(value) for value in profile.emails if _norm_email(value)}
     note_phones = {_norm_phone(value) for value in profile.phones if _norm_phone(value)}
@@ -225,6 +233,7 @@ def _candidate_for_profile(profile: NoteProfile, contacts: list[dict[str, Any]],
         email_overlap = sorted(note_emails & contact_emails)
         phone_overlap = sorted(note_phones & contact_phones)
         exact_name = bool(contact_name and contact_name in note_names)
+        middle_compatible = any(_middle_name_compatible(name, contact_name) for name in note_names if name and contact_name)
 
         mode = "none"
         score = 0.0
@@ -240,6 +249,10 @@ def _candidate_for_profile(profile: NoteProfile, contacts: list[dict[str, Any]],
             mode = "exact_name"
             score = 0.95
             evidence.append("exact_normalized_name")
+        elif middle_compatible:
+            mode = "token_name"
+            score = 0.92
+            evidence.append("same_first_last_middle_name_difference")
         else:
             best_ratio = max((SequenceMatcher(None, name, contact_name).ratio() for name in note_names), default=0.0)
             if best_ratio >= 0.88:
@@ -264,7 +277,6 @@ def _candidate_for_profile(profile: NoteProfile, contacts: list[dict[str, Any]],
         )
 
     scored.sort(key=lambda item: (-item[0], item[1]["google_display_name"].lower(), item[1]["google_external_id"]))
-    # Keep review surface small. Strong/exact matches should normally dominate; fuzzy gets top alternatives only.
     return [item[1] for item in scored[:3]]
 
 
@@ -282,7 +294,13 @@ def build_review(
     person_map = _resolve_person_ids(database_url, scope=scope, external_ids=external_ids)
 
     review_entries: list[dict[str, Any]] = []
-    mode_counts = {"strong_identifier": 0, "exact_name": 0, "fuzzy_name": 0, "unresolved": 0}
+    mode_counts = {
+        "strong_identifier": 0,
+        "exact_name": 0,
+        "token_name": 0,
+        "fuzzy_name": 0,
+        "unresolved": 0,
+    }
     for profile in profiles:
         candidates = _candidate_for_profile(profile, contacts, person_map)
         best_mode = candidates[0]["match_mode"] if candidates else "unresolved"
