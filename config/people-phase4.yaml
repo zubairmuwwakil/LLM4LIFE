@@ -1,5 +1,5 @@
-version: 5
-status: people_memory_graph_schema_ready_production_apply_pending
+version: 6
+status: people_memory_graph_live_diary_seed_imported_next_structured_memory_review
 updated: 2026-09-06
 
 phase3_dependency:
@@ -68,7 +68,7 @@ runtime:
   person_fact_asserted_on_production_live: true
   people_memory_graph_migration_defined: true
   people_memory_graph_temporary_branch_tested: true
-  people_memory_graph_production_live: false
+  people_memory_graph_production_live: true
   person_dates_import_pipeline_implemented: false
   person_relationship_edges_import_pipeline_implemented: false
   candidate_review_auto_apply_allowed: false
@@ -84,7 +84,15 @@ runtime:
   live_vault_bridge_verified: false
   neon_external_ref_importer_implemented: true
   real_obsidian_person_mappings_imported_to_neon: false
-  diary_facts_imported_to_neon: false
+  diary_facts_imported_to_neon: true
+  diary_interactions_imported_to_neon: true
+  diary_seed_standard_facts_imported: 9
+  diary_seed_standard_interactions_imported: 1
+  diary_seed_sensitive_proposals_imported: 0
+  diary_seed_idempotent_replay_verified: true
+  diary_seed_duplicate_fact_slots_after_replay: 0
+  person_dates_rows_seeded: 0
+  person_relationship_edges_rows_seeded: 0
   narrative_copied_to_neon: false
 
 safety:
@@ -144,10 +152,10 @@ private_runtime:
   neon_import_script: scripts/import_people_obsidian_refs.py
 
 next_gate:
-  - merge_people_memory_graph_schema_after_ci
-  - apply_already_tested_people_memory_graph_migration_to_production
-  - run_and_apply_already_authorized_standard_diary_fact_interaction_seed
-  - verify_idempotent_rerun_and_no_conflicts
-  - build_private_review_pipeline_for_person_dates_and_resolved_person_relationship_edges
+  - build_private_review_pipeline_for_person_dates
+  - build_private_review_pipeline_for_resolved_person_relationship_edges
+  - extract_dates_and_relationship_candidates_from_profiles_calendar_imports_archived_people_and_diary_evidence
+  - keep_unresolved_names_out_of_structured_graph_until_identity_review
+  - continue_incremental_diary_fact_interaction_batches_for_resolved_people
   - keep_sensitive_proposals_on_separate_review_path
   - keep_held_identity_conflicts_weak_matches_and_note_candidates_separate
