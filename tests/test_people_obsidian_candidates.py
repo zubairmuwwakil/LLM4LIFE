@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -9,13 +10,14 @@ SCRIPTS = ROOT / "scripts"
 
 
 def load_module():
-    import sys
     sys.path.insert(0, str(SCRIPTS))
+    name = "people_obsidian_candidates_test"
     spec = importlib.util.spec_from_file_location(
-        "people_obsidian_candidates_test", SCRIPTS / "people_obsidian_candidates.py"
+        name, SCRIPTS / "people_obsidian_candidates.py"
     )
     module = importlib.util.module_from_spec(spec)
     assert spec and spec.loader
+    sys.modules[name] = module
     spec.loader.exec_module(module)
     return module
 
