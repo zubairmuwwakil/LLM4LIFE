@@ -1,0 +1,52 @@
+name: Task Engine Worker
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: task-engine-production-worker
+  cancel-in-progress: false
+
+jobs:
+  trigger-worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Trigger deterministic Task Engine worker
+        env:
+          WORKER_BASE_URL: ${{ secrets.TASK_ENGINE_WORKER_URL }}
+          CRON_SECRET: ${{ secrets.TASK_ENGINE_CRON_SECRET }}
+        run: |
+          if [ -z "$WORKER_BASE_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "::notice::Task Engine worker scheduler is not armed; required repository secrets are missing."
+            exit 0
+          fi
+
+          base_url="${WORKER_BASE_URL%/}"
+          response_file="$(mktemp)"
+          http_code="$(curl \
+            --silent \
+            --show-error \
+            --location \
+            --retry 2 \
+            --retry-delay 2 \
+            --retry-all-errors \
+            --connect-timeout 10 \
+            --max-time 60 \
+            --output "$response_file" \
+            --write-out '%{http_code}' \
+            --header "Authorization: Bearer $CRON_SECRET" \
+            "$base_url/api/cron/worker")"
+
+          cat "$response_file"
+          echo
+
+          if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+            echo "::error::Task Engine worker returned HTTP $http_code"
+            exit 1
+          fi
