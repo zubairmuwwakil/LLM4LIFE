@@ -52,7 +52,19 @@ class CommandService:
             data.command_type == OrchestrationCommandType.RESCHEDULE
             and task.execution_policy == ExecutionPolicy.FIXED.value
         ):
-            raise ConflictError("Fixed tasks cannot be rescheduled by the orchestration control plane")
+            raise ConflictError(
+                "Fixed tasks cannot be rescheduled by the orchestration control plane"
+            )
+
+        recurring = bool(data.metadata.get("template_id") and data.metadata.get("occurrence_key"))
+        if recurring and data.command_type in {
+            OrchestrationCommandType.RESCHEDULE,
+            OrchestrationCommandType.DEFER,
+        }:
+            raise ConflictError(
+                f"Recurring occurrence {data.command_type.value} is not a safe generic command; "
+                "use the occurrence-specific planning/recovery protocol"
+            )
 
         active = self.session.scalar(
             select(OrchestrationCommand).where(
@@ -62,7 +74,8 @@ class CommandService:
         )
         if active is not None:
             raise ConflictError(
-                f"Task already has accepted command {active.command_key}; resolve or fail it before issuing another"
+                f"Task already has accepted command {active.command_key}; "
+                "resolve or fail it before issuing another"
             )
 
         command = OrchestrationCommand(
