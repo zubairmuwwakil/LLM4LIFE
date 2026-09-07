@@ -4,11 +4,13 @@ on:
   pull_request:
     paths:
       - "services/task-engine/**"
+      - "db/migrations/007_replace_calendar_execution_binding.sql"
       - ".github/workflows/task-engine-ci.yml"
   push:
     branches: [main]
     paths:
       - "services/task-engine/**"
+      - "db/migrations/007_replace_calendar_execution_binding.sql"
       - ".github/workflows/task-engine-ci.yml"
 
 jobs:
@@ -23,5 +25,9 @@ jobs:
         with:
           python-version: "3.12"
       - run: uv sync --dev
+      # Block undefined names and bug-prone runtime constructs. Legacy formatting,
+      # FastAPI Depends defaults (B008), and UP034 style-only parentheses remain
+      # non-blocking technical debt; behavioral tests still cover the full test suite.
+      - run: uv run ruff check task_engine migrations --select F,B,UP --ignore B008,UP034
       - run: uv run pytest -q
       - run: uv run python -m compileall -q task_engine migrations tests

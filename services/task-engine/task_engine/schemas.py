@@ -1,8 +1,16 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from task_engine.enums import AttemptResult, ExecutionPolicy, TaskCategory, TaskStatus
+from task_engine.enums import (
+    AttemptResult,
+    CommandEffectStatus,
+    ExecutionPolicy,
+    OrchestrationCommandStatus,
+    OrchestrationCommandType,
+    TaskCategory,
+    TaskStatus,
+)
 
 
 class TaskBase(BaseModel):
@@ -144,6 +152,129 @@ class PlanningRecommendation(BaseModel):
     requires_review: bool
     reason: str
     score: ScoreBreakdown | None = None
+
+
+class OrchestrationCommandSubmit(BaseModel):
+    """A single AI decision handed to deterministic workers exactly once."""
+
+    command_key: str = Field(min_length=1, max_length=255)
+    command_type: OrchestrationCommandType
+    expected_task_version: int | None = Field(default=None, ge=1)
+    requested_by: str = Field(default="chatgpt", min_length=1, max_length=100)
+    reason: str | None = Field(default=None, max_length=2000)
+    desired_start: datetime | None = None
+    desired_end: datetime | None = None
+    follow_up_at: datetime | None = None
+    follow_up_date: date | None = None
+    metadata: dict[str, object] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def validate_command(self) -> "OrchestrationCommandSubmit":
+        needs_window = self.command_type in {
+            OrchestrationCommandType.RESCHEDULE,
+            OrchestrationCommandType.STATUS_CHECK,
+        }
+        if needs_window and (self.desired_start is None or self.desired_end is None):
+            raise ValueError(f"{self.command_type.value} requires desired_start and desired_end")
+        if self.desired_start is not None or self.desired_end is not None:
+            if self.desired_start is None or self.desired_end is None:
+                raise ValueError("desired_start and desired_end must be provided together")
+            if self.desired_end <= self.desired_start:
+                raise ValueError("desired_end must be after desired_start")
+        if self.command_type == OrchestrationCommandType.WAIT:
+            if self.follow_up_at is None and self.follow_up_date is None:
+                raise ValueError("wait requires follow_up_at or follow_up_date")
+            if self.follow_up_at is not None and self.follow_up_date is not None:
+                raise ValueError("wait accepts one follow-up granularity, not both")
+        elif self.follow_up_at is not None or self.follow_up_date is not None:
+            raise ValueError("follow_up_at/follow_up_date are only valid for wait")
+        return self
+
+
+class OrchestrationCommandComplete(BaseModel):
+    success: bool
+    result: dict[str, object] = Field(default_factory=dict)
+    error: str | None = Field(default=None, max_length=4000)
+
+    @model_validator(mode="after")
+    def validate_completion(self) -> "OrchestrationCommandComplete":
+        if self.success and self.error is not None:
+            raise ValueError("successful command completion cannot include error")
+        if not self.success and not self.error:
+            raise ValueError("failed command completion requires error")
+        return self
+
+
+class OrchestrationCommandRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    task_id: str
+    command_key: str
+    command_type: OrchestrationCommandType
+    status: OrchestrationCommandStatus
+    expected_task_version: int | None
+    requested_by: str
+    payload: dict[str, object]
+    result_payload: dict[str, object] | None
+    failure_reason: str | None
+    created_at: datetime
+    completed_at: datetime | None
+
+
+class CommandEffectRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    command_id: str
+    effect_key: str
+    ordinal: int
+    target: str
+    operation: str
+    status: CommandEffectStatus
+    request_payload: dict[str, object]
+    result_payload: dict[str, object] | None
+    attempt_count: int
+    next_attempt_at: datetime | None
+    lease_owner: str | None
+    lease_until: datetime | None
+    last_error: str | None
+    created_at: datetime
+    updated_at: datetime
+    completed_at: datetime | None
+
+
+class WorkerRunRequest(BaseModel):
+    worker_id: str | None = Field(default=None, min_length=1, max_length=128)
+    max_commands: int = Field(default=20, ge=1, le=100)
+
+
+class WorkerRunResult(BaseModel):
+    worker_id: str
+    commands_seen: int
+    effects_applied: int
+    effects_retried: int
+    commands_completed: int
+    commands_failed: int
+
+
+class WorkerHeartbeatRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    worker_name: str
+    worker_id: str | None
+    last_started_at: datetime
+    last_succeeded_at: datetime | None
+    last_failed_at: datetime | None
+    last_duration_ms: int | None
+    last_commands_seen: int
+    last_effects_applied: int
+    last_effects_retried: int
+    last_commands_completed: int
+    last_commands_failed: int
+    last_error_class: str | None
+    last_error_message: str | None
+    updated_at: datetime
 
 
 class OutboxEventRead(BaseModel):

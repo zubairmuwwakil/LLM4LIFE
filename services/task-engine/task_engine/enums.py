@@ -7,6 +7,7 @@ class TaskStatus(StrEnum):
     COMPLETED = "completed"
     NEEDS_RESCHEDULE = "needs_reschedule"
     NEEDS_REVIEW = "needs_review"
+    WAITING = "waiting"
     CANCELLED = "cancelled"
 
 
@@ -39,3 +40,28 @@ class FollowupStatus(StrEnum):
 class OutboxStatus(StrEnum):
     PENDING = "pending"
     PUBLISHED = "published"
+
+
+class OrchestrationCommandType(StrEnum):
+    """Narrow decisions an AI/orchestrator may hand to the deterministic control plane."""
+
+    COMPLETE = "complete"
+    RESCHEDULE = "reschedule"
+    WAIT = "wait"
+    CANCEL = "cancel"
+    DEFER = "defer"
+    STATUS_CHECK = "status_check"
+
+
+class OrchestrationCommandStatus(StrEnum):
+    ACCEPTED = "accepted"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class CommandEffectStatus(StrEnum):
+    PENDING = "pending"
+    RUNNING = "running"
+    RETRYABLE = "retryable"
+    COMPLETED = "completed"
+    FAILED = "failed"

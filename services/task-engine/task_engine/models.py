@@ -8,7 +8,15 @@ from sqlalchemy import DateTime, ForeignKey, Integer, JSON, String, Text, Unique
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from task_engine.database import Base
-from task_engine.enums import ExecutionPolicy, FollowupStatus, OutboxStatus, TaskCategory, TaskStatus
+from task_engine.enums import (
+    CommandEffectStatus,
+    ExecutionPolicy,
+    FollowupStatus,
+    OrchestrationCommandStatus,
+    OutboxStatus,
+    TaskCategory,
+    TaskStatus,
+)
 
 
 def utcnow() -> datetime:
@@ -46,6 +54,9 @@ class Task(Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     attempts: Mapped[list[TaskAttempt]] = relationship(back_populates="task", cascade="all, delete-orphan")
     calendar_bindings: Mapped[list[CalendarBinding]] = relationship(back_populates="task", cascade="all, delete-orphan")
+    orchestration_commands: Mapped[list[OrchestrationCommand]] = relationship(
+        back_populates="task", cascade="all, delete-orphan"
+    )
 
 
 class TaskAttempt(Base):
@@ -82,6 +93,65 @@ class CalendarBinding(Base):
     task: Mapped[Task] = relationship(back_populates="calendar_bindings")
 
 
+class OrchestrationCommand(Base):
+    """Durable handoff from an AI decision-maker to deterministic side-effect workers."""
+
+    __tablename__ = "orchestration_commands"
+    __table_args__ = (UniqueConstraint("command_key", name="uq_orchestration_command_key"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    task_id: Mapped[str] = mapped_column(ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+    command_key: Mapped[str] = mapped_column(String(255), nullable=False)
+    command_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(32), default=OrchestrationCommandStatus.ACCEPTED.value, nullable=False
+    )
+    expected_task_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    requested_by: Mapped[str] = mapped_column(String(100), nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    result_payload: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    failure_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    task: Mapped[Task] = relationship(back_populates="orchestration_commands")
+    effects: Mapped[list[CommandEffect]] = relationship(
+        back_populates="command", cascade="all, delete-orphan", order_by="CommandEffect.ordinal"
+    )
+
+
+class CommandEffect(Base):
+    """One checkpointed side effect in an orchestration command saga."""
+
+    __tablename__ = "command_effects"
+    __table_args__ = (
+        UniqueConstraint("effect_key", name="uq_command_effect_key"),
+        UniqueConstraint("command_id", "ordinal", name="uq_command_effect_ordinal"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    command_id: Mapped[str] = mapped_column(
+        ForeignKey("orchestration_commands.id", ondelete="CASCADE"), nullable=False
+    )
+    effect_key: Mapped[str] = mapped_column(String(255), nullable=False)
+    ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
+    target: Mapped[str] = mapped_column(String(32), nullable=False)
+    operation: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(32), default=CommandEffectStatus.PENDING.value, nullable=False
+    )
+    request_payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    result_payload: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    attempt_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    next_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    lease_owner: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    lease_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    command: Mapped[OrchestrationCommand] = relationship(back_populates="effects")
+
+
 class OutboxEvent(Base):
     __tablename__ = "outbox_events"
     __table_args__ = (UniqueConstraint("idempotency_key", name="uq_outbox_idempotency_key"),)
@@ -95,3 +165,24 @@ class OutboxEvent(Base):
     status: Mapped[str] = mapped_column(String(32), default=OutboxStatus.PENDING.value, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class WorkerHeartbeat(Base):
+    """Latest durable liveness/status sample for a deterministic worker."""
+
+    __tablename__ = "worker_heartbeats"
+
+    worker_name: Mapped[str] = mapped_column(String(64), primary_key=True)
+    worker_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    last_started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    last_succeeded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_failed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    last_commands_seen: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    last_effects_applied: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    last_effects_retried: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    last_commands_completed: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    last_commands_failed: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    last_error_class: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    last_error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
