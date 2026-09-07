@@ -1,6 +1,6 @@
-version: 7
-status: people_memory_graph_live_structured_memory_review_ready
-updated: 2026-09-06
+version: 8
+status: people_memory_graph_live_dates_seeded_profile_relationship_review_ready
+updated: 2026-09-07
 
 phase3_dependency:
   apple_sync_verification_complete: false
@@ -47,6 +47,8 @@ source_model:
   structured_memory_profile_sources: enabled
   structured_memory_calendar_import_sources: enabled
   structured_memory_daily_diary_sources: enabled
+  profile_family_friend_sections: enabled_high_precision
+  profile_parenthesized_relationship_lines: enabled_with_explicit_relation_word
   diary_notes_are_person_entities: false
   diary_plain_name_mentions_require_review: true
   diary_fact_extraction_requires_review: true
@@ -74,6 +76,12 @@ runtime:
   structured_memory_plan_apply_allowed: false
   person_dates_import_pipeline_implemented: true
   person_relationship_edges_import_pipeline_implemented: true
+  profile_relationship_section_review_implemented: true
+  profile_relationship_section_exact_wikilink_resolution: true
+  profile_relationship_section_local_wikilink_resolution: true
+  profile_relationship_section_unique_approved_alias_resolution: true
+  profile_relationship_section_unresolved_target_hold: true
+  relationship_only_review_runner_implemented: true
   structured_memory_neon_importer_dry_run_default: true
   structured_memory_neon_importer_requires_user_authorized_flag_for_apply: true
   structured_memory_neon_importer_sensitive_proposals_allowed: false
@@ -104,11 +112,16 @@ runtime:
   diary_seed_sensitive_proposals_imported: 0
   diary_seed_idempotent_replay_verified: true
   diary_seed_duplicate_fact_slots_after_replay: 0
-  person_dates_rows_seeded: 0
+  person_dates_rows_seeded: 2
   person_relationship_edges_rows_seeded: 0
-  structured_memory_real_review_run_complete: false
-  structured_memory_real_plan_validated: false
-  structured_memory_real_import_applied: false
+  structured_memory_real_review_run_complete: true
+  structured_memory_real_plan_validated: true
+  structured_memory_real_import_applied: true
+  structured_memory_date_seed_idempotent_replay_verified: true
+  structured_memory_sensitive_rows_imported: 0
+  profile_relationship_real_review_run_complete: false
+  profile_relationship_real_plan_validated: false
+  profile_relationship_real_import_applied: false
   narrative_copied_to_neon: false
 
 safety:
@@ -130,6 +143,9 @@ safety:
   structured_memory_import_conflicts_abort: true
   structured_memory_raw_evidence_may_enter_neon: false
   unresolved_person_relationship_edge_allowed: false
+  unresolved_profile_relationship_names_private_only: true
+  profile_relationship_exact_wikilink_may_resolve_identity: true
+  profile_relationship_plain_name_requires_existing_unique_approved_alias: true
   person_relationship_self_edge_allowed: false
   sensitive_model_suggestion_persistence_allowed: false
   sensitive_structured_memory_routine_import_allowed: false
@@ -156,6 +172,7 @@ private_runtime:
   diary_neon_import_receipt: .private/people/diary_neon_import_receipt.json
   structured_memory_review: .private/people/structured_memory_review.json
   structured_memory_review_receipt: .private/people/structured_memory_review_receipt.json
+  profile_relationship_review_receipt: .private/people/profile_relationship_review_receipt.json
   structured_memory_plan: .private/people/structured_memory_plan.json
   structured_memory_plan_receipt: .private/people/structured_memory_plan_receipt.json
   structured_memory_neon_import_receipt: .private/people/structured_memory_neon_import_receipt.json
@@ -175,17 +192,21 @@ private_runtime:
   diary_fact_review_script: scripts/people_diary_fact_review.py
   diary_neon_import_script: scripts/import_people_diary_plan.py
   structured_memory_review_script: scripts/people_structured_memory_review.py
+  profile_relationship_review_script: scripts/people_profile_relationship_review.py
+  relationship_review_runner: scripts/run_people_relationship_review.sh
   structured_memory_neon_import_script: scripts/import_people_structured_memory.py
   bridge_script: scripts/obsidian_local_bridge.py
   bridge_launcher: scripts/launch_obsidian_bridge.py
   neon_import_script: scripts/import_people_obsidian_refs.py
 
 next_gate:
-  - run_structured_memory_review_against_live_vault
-  - interactively_approve_only_correct_standard_date_and_resolved_relationship_candidates
-  - validate_structured_memory_plan_without_neon_writes
-  - run_structured_memory_neon_importer_dry_run_against_production
-  - require_separate_explicit_authorization_before_structured_memory_apply
+  - run_relationship_only_review_against_live_vault
+  - inspect_resolved_and_held_profile_relationship_candidate_counts
+  - interactively_approve_only_correct_resolved_standard_edges
+  - validate_relationship_plan_without_neon_writes
+  - run_relationship_neon_importer_dry_run_against_production
+  - require_separate_explicit_authorization_before_relationship_edge_apply
+  - improve_identity_mapping_for_high_value_held_relationship_targets
   - keep_sensitive_candidates_on_separate_review_path
   - keep_unresolved_names_out_of_person_relationship_graph
   - continue_incremental_diary_fact_interaction_batches_for_resolved_people
