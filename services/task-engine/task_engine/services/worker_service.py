@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -14,7 +15,13 @@ from task_engine.enums import (
     OrchestrationCommandStatus,
     TaskStatus,
 )
-from task_engine.models import CalendarBinding, CommandEffect, OrchestrationCommand, Task
+from task_engine.models import (
+    CalendarBinding,
+    CommandEffect,
+    OrchestrationCommand,
+    Task,
+    WorkerHeartbeat,
+)
 from task_engine.schemas import OrchestrationCommandComplete, WorkerRunResult
 from task_engine.services.command_service import CommandService
 from task_engine.worker.adapters import (
@@ -43,6 +50,8 @@ class CommandWorker:
     step is never intentionally re-run after its checkpoint is durable.
     """
 
+    worker_name = "command_worker"
+
     def __init__(
         self,
         session: Session,
@@ -55,6 +64,9 @@ class CommandWorker:
 
     def run(self, *, worker_id: str | None = None, max_commands: int = 20) -> WorkerRunResult:
         worker_id = worker_id or f"task-engine:{uuid.uuid4()}"
+        started_at = datetime.now(UTC)
+        started_perf = time.perf_counter()
+        self._heartbeat_started(worker_id, started_at)
         stats = {
             "commands_seen": 0,
             "effects_applied": 0,
@@ -62,22 +74,129 @@ class CommandWorker:
             "commands_completed": 0,
             "commands_failed": 0,
         }
-        command_ids = list(
-            self.session.scalars(
-                select(OrchestrationCommand.id)
-                .where(OrchestrationCommand.status == OrchestrationCommandStatus.ACCEPTED.value)
-                .order_by(OrchestrationCommand.created_at.asc())
-                .limit(max_commands)
+        try:
+            command_ids = list(
+                self.session.scalars(
+                    select(OrchestrationCommand.id)
+                    .where(OrchestrationCommand.status == OrchestrationCommandStatus.ACCEPTED.value)
+                    .order_by(OrchestrationCommand.created_at.asc())
+                    .limit(max_commands)
+                )
             )
-        )
-        for command_id in command_ids:
-            stats["commands_seen"] += 1
-            outcome = self._run_command(command_id, worker_id)
-            stats["effects_applied"] += outcome["effects_applied"]
-            stats["effects_retried"] += outcome["effects_retried"]
-            stats["commands_completed"] += int(outcome["completed"])
-            stats["commands_failed"] += int(outcome["failed"])
-        return WorkerRunResult(worker_id=worker_id, **stats)
+            for command_id in command_ids:
+                stats["commands_seen"] += 1
+                outcome = self._run_command(command_id, worker_id)
+                stats["effects_applied"] += outcome["effects_applied"]
+                stats["effects_retried"] += outcome["effects_retried"]
+                stats["commands_completed"] += int(outcome["completed"])
+                stats["commands_failed"] += int(outcome["failed"])
+            result = WorkerRunResult(worker_id=worker_id, **stats)
+            self._heartbeat_succeeded(
+                worker_id,
+                duration_ms=self._duration_ms(started_perf),
+                result=result,
+            )
+            return result
+        except Exception as exc:
+            self._heartbeat_failed(
+                worker_id,
+                duration_ms=self._duration_ms(started_perf),
+                stats=stats,
+                exc=exc,
+            )
+            raise
+
+    def heartbeat(self) -> WorkerHeartbeat | None:
+        return self.session.get(WorkerHeartbeat, self.worker_name)
+
+    @staticmethod
+    def _duration_ms(started_perf: float) -> int:
+        return max(0, round((time.perf_counter() - started_perf) * 1000))
+
+    def _heartbeat_started(self, worker_id: str, started_at: datetime) -> None:
+        heartbeat = self.session.get(WorkerHeartbeat, self.worker_name)
+        if heartbeat is None:
+            heartbeat = WorkerHeartbeat(
+                worker_name=self.worker_name,
+                worker_id=worker_id,
+                last_started_at=started_at,
+                last_commands_seen=0,
+                last_effects_applied=0,
+                last_effects_retried=0,
+                last_commands_completed=0,
+                last_commands_failed=0,
+                updated_at=started_at,
+            )
+            self.session.add(heartbeat)
+        else:
+            heartbeat.worker_id = worker_id
+            heartbeat.last_started_at = started_at
+            heartbeat.updated_at = started_at
+        self.session.commit()
+
+    def _heartbeat_succeeded(
+        self,
+        worker_id: str,
+        *,
+        duration_ms: int,
+        result: WorkerRunResult,
+    ) -> None:
+        now = datetime.now(UTC)
+        heartbeat = self.session.get(WorkerHeartbeat, self.worker_name)
+        if heartbeat is None:
+            raise RuntimeError("Worker heartbeat disappeared during run")
+        heartbeat.worker_id = worker_id
+        heartbeat.last_succeeded_at = now
+        heartbeat.last_duration_ms = duration_ms
+        heartbeat.last_commands_seen = result.commands_seen
+        heartbeat.last_effects_applied = result.effects_applied
+        heartbeat.last_effects_retried = result.effects_retried
+        heartbeat.last_commands_completed = result.commands_completed
+        heartbeat.last_commands_failed = result.commands_failed
+        heartbeat.last_error_class = None
+        heartbeat.last_error_message = None
+        heartbeat.updated_at = now
+        self.session.commit()
+
+    def _heartbeat_failed(
+        self,
+        worker_id: str,
+        *,
+        duration_ms: int,
+        stats: dict[str, int],
+        exc: Exception,
+    ) -> None:
+        now = datetime.now(UTC)
+        try:
+            self.session.rollback()
+            heartbeat = self.session.get(WorkerHeartbeat, self.worker_name)
+            if heartbeat is None:
+                heartbeat = WorkerHeartbeat(
+                    worker_name=self.worker_name,
+                    worker_id=worker_id,
+                    last_started_at=now,
+                    last_commands_seen=0,
+                    last_effects_applied=0,
+                    last_effects_retried=0,
+                    last_commands_completed=0,
+                    last_commands_failed=0,
+                    updated_at=now,
+                )
+                self.session.add(heartbeat)
+            heartbeat.worker_id = worker_id
+            heartbeat.last_failed_at = now
+            heartbeat.last_duration_ms = duration_ms
+            heartbeat.last_commands_seen = stats["commands_seen"]
+            heartbeat.last_effects_applied = stats["effects_applied"]
+            heartbeat.last_effects_retried = stats["effects_retried"]
+            heartbeat.last_commands_completed = stats["commands_completed"]
+            heartbeat.last_commands_failed = stats["commands_failed"]
+            heartbeat.last_error_class = type(exc).__name__[:255]
+            heartbeat.last_error_message = str(exc)[:4000]
+            heartbeat.updated_at = now
+            self.session.commit()
+        except Exception:
+            self.session.rollback()
 
     def effects_for_command(self, command_id: str) -> list[CommandEffect]:
         return list(
@@ -163,7 +282,7 @@ class CommandWorker:
                 self._fail_command(command, str(exc))
                 result["failed"] = True
                 return result
-            except Exception as exc:  # defensive classification: unknown failures retry first
+            except Exception as exc:
                 retrying = self._retry_effect(
                     effect.id, worker_id, f"unclassified {type(exc).__name__}: {exc}"
                 )
