@@ -210,6 +210,7 @@ class CommandWorker:
                 attempt_count=CommandEffect.attempt_count + 1,
                 updated_at=now,
             )
+            .execution_options(synchronize_session=False)
         )
         outcome = self.session.execute(stmt)
         self.session.commit()
