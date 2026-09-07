@@ -165,3 +165,24 @@ class OutboxEvent(Base):
     status: Mapped[str] = mapped_column(String(32), default=OutboxStatus.PENDING.value, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class WorkerHeartbeat(Base):
+    """Latest durable liveness/status sample for a deterministic worker."""
+
+    __tablename__ = "worker_heartbeats"
+
+    worker_name: Mapped[str] = mapped_column(String(64), primary_key=True)
+    worker_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    last_started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    last_succeeded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_failed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    last_commands_seen: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    last_effects_applied: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    last_effects_retried: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    last_commands_completed: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    last_commands_failed: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    last_error_class: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    last_error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
