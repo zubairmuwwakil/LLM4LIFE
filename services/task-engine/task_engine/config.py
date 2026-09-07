@@ -36,9 +36,20 @@ class Settings(BaseSettings):
     # Deterministic command worker. Keep canonical and provider credentials separate
     # from the Task Engine coordination database so permissions can remain narrow.
     canonical_database_url: str | None = None
-    google_client_id: str | None = None
-    google_client_secret: str | None = None
-    google_refresh_token: str | None = None
+    # Prefer Task Engine-specific names, while accepting the existing shared Google
+    # OAuth names during migration. Specific values win when both are present.
+    google_client_id: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("TASK_ENGINE_GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_ID"),
+    )
+    google_client_secret: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("TASK_ENGINE_GOOGLE_CLIENT_SECRET", "GOOGLE_CLIENT_SECRET"),
+    )
+    google_refresh_token: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("TASK_ENGINE_GOOGLE_REFRESH_TOKEN", "GOOGLE_REFRESH_TOKEN"),
+    )
     google_calendar_api_base: str = "https://www.googleapis.com/calendar/v3"
     google_oauth_token_url: str = "https://oauth2.googleapis.com/token"
     worker_lease_seconds: int = Field(default=120, ge=30, le=900)
