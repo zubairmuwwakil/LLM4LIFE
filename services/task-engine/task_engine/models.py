@@ -9,6 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from task_engine.database import Base
 from task_engine.enums import (
+    CommandEffectStatus,
     ExecutionPolicy,
     FollowupStatus,
     OrchestrationCommandStatus,
@@ -113,6 +114,42 @@ class OrchestrationCommand(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     task: Mapped[Task] = relationship(back_populates="orchestration_commands")
+    effects: Mapped[list[CommandEffect]] = relationship(
+        back_populates="command", cascade="all, delete-orphan", order_by="CommandEffect.ordinal"
+    )
+
+
+class CommandEffect(Base):
+    """One checkpointed side effect in an orchestration command saga."""
+
+    __tablename__ = "command_effects"
+    __table_args__ = (
+        UniqueConstraint("effect_key", name="uq_command_effect_key"),
+        UniqueConstraint("command_id", "ordinal", name="uq_command_effect_ordinal"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    command_id: Mapped[str] = mapped_column(
+        ForeignKey("orchestration_commands.id", ondelete="CASCADE"), nullable=False
+    )
+    effect_key: Mapped[str] = mapped_column(String(255), nullable=False)
+    ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
+    target: Mapped[str] = mapped_column(String(32), nullable=False)
+    operation: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(32), default=CommandEffectStatus.PENDING.value, nullable=False
+    )
+    request_payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    result_payload: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    attempt_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    next_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    lease_owner: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    lease_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    command: Mapped[OrchestrationCommand] = relationship(back_populates="effects")
 
 
 class OutboxEvent(Base):
