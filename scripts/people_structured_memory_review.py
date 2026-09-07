@@ -35,22 +35,39 @@ MONTHS = {
 MONTH_TOKEN = '|'.join(sorted(MONTHS, key=len, reverse=True))
 MONTH_DAY_RE = re.compile(rf'\b(?P<month>{MONTH_TOKEN})\.?\s+(?P<day>[0-3]?\d)(?:st|nd|rd|th)?\b', re.I)
 DAY_MONTH_RE = re.compile(rf'\b(?P<day>[0-3]?\d)(?:st|nd|rd|th)?\s+(?P<month>{MONTH_TOKEN})\.?\b', re.I)
+MONTH_DAY_YEAR_RE = re.compile(
+    rf'\b(?P<month>{MONTH_TOKEN})\.?\s+(?P<day>[0-3]?\d)(?:st|nd|rd|th)?(?:,)?\s+(?P<year>\d{{4}})\b', re.I
+)
+DAY_MONTH_YEAR_RE = re.compile(
+    rf'\b(?P<day>[0-3]?\d)(?:st|nd|rd|th)?\s+(?P<month>{MONTH_TOKEN})\.?(?:,)?\s+(?P<year>\d{{4}})\b', re.I
+)
 ISO_DATE_RE = re.compile(r'\b(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2})\b')
 TIMELINE_RE = re.compile(r'^\s*-?\s*\*\*(?P<date>\d{4}-\d{2}-\d{2})\*\*\s*[—-]\s*(?P<body>.+)$')
 BOLD_SUBJECT_RE = re.compile(r'^\s*-?\s*\*\*(?P<name>[^*]+)\*\*\s*[—:-]\s*(?P<body>.+)$')
 WIKILINK_RE = re.compile(r'\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|([^\]]+))?\]\]')
 VALID_UUID_RE = re.compile(r'^[0-9a-fA-F-]{36}$')
 
+# Sensitive/death language must win over generic words elsewhere on the same line.
 DATE_KEYWORDS = (
+    ('passed away', 'memorial', 'sensitive'),
+    ('passing', 'memorial', 'sensitive'),
+    ('died', 'memorial', 'sensitive'),
+    ('death', 'memorial', 'sensitive'),
+    ('memorial', 'memorial', 'sensitive'),
+    ('remembrance', 'memorial', 'sensitive'),
     ('friendship anniversary', 'friendship_anniversary', 'standard'),
     ('relationship anniversary', 'relationship_anniversary', 'standard'),
     ('birthday', 'birthday', 'standard'),
     ('anniversary', 'anniversary', 'standard'),
-    ('memorial', 'memorial', 'sensitive'),
-    ('remembrance', 'memorial', 'sensitive'),
-    ('passed away', 'memorial', 'sensitive'),
-    ('passing', 'memorial', 'sensitive'),
 )
+SINGLETON_REVIEW_DATE_TYPES = {'birthday', 'friendship_anniversary', 'relationship_anniversary'}
+RELATED_PERSON_DEATH_RE = re.compile(
+    r"(?P<owner>[A-Z][A-Za-z0-9 .()\[\]|'’_-]{1,60}?)['’]s\s+"
+    r"(?P<relation>mom|mother|dad|father|sister|brother|wife|husband|partner|daughter|son|grandma|grandmother|grandpa|grandfather|aunt|uncle)['’]s\s+"
+    r"(?:passing|death)\b",
+    re.I,
+)
+
 RELATION_WORDS = {
     'mother': 'parent', 'mom': 'parent', 'father': 'parent', 'dad': 'parent',
     'sister': 'sibling', 'brother': 'sibling', 'daughter': 'child', 'son': 'child',
@@ -167,26 +184,52 @@ def _owner_for_path(rel: str, ownership: list[tuple[str, str]]) -> str | None:
     return None
 
 
-def _month_day(text: str) -> tuple[int, int] | None:
-    match = MONTH_DAY_RE.search(text) or DAY_MONTH_RE.search(text)
-    if not match:
-        return None
-    month = MONTHS[match.group('month').lower().rstrip('.')]
-    day = int(match.group('day'))
-    try:
-        dt.date(2000, month, day)
-    except ValueError:
-        return None
-    return month, day
-
-
 def _keyword(text: str) -> tuple[str, str, str] | None:
     lowered = text.lower()
-    return next((entry for entry in DATE_KEYWORDS if entry[0] in lowered), None)
+    for phrase, date_type, sensitivity in DATE_KEYWORDS:
+        if re.search(rf'(?<!\w){re.escape(phrase)}(?!\w)', lowered):
+            return phrase, date_type, sensitivity
+    return None
+
+
+def _validated_date(year: int | None, month: int, day: int) -> tuple[int | None, int, int] | None:
+    try:
+        dt.date(year or 2000, month, day)
+    except ValueError:
+        return None
+    return year, month, day
+
+
+def _date_from_line(line: str, keyword: str) -> tuple[int | None, int, int] | None:
+    # A recurring calendar timeline timestamp is an occurrence, not an origin year.
+    timeline = TIMELINE_RE.match(line)
+    body = timeline.group('body') if timeline else line
+
+    for regex in (MONTH_DAY_YEAR_RE, DAY_MONTH_YEAR_RE):
+        match = regex.search(body)
+        if match:
+            month = MONTHS[match.group('month').lower().rstrip('.')]
+            return _validated_date(int(match.group('year')), month, int(match.group('day')))
+
+    for regex in (MONTH_DAY_RE, DAY_MONTH_RE):
+        match = regex.search(body)
+        if match:
+            month = MONTHS[match.group('month').lower().rstrip('.')]
+            return _validated_date(None, month, int(match.group('day')))
+
+    if timeline:
+        match = ISO_DATE_RE.search(timeline.group('date'))
+        if match:
+            return _validated_date(None, int(match.group('month')), int(match.group('day')))
+
+    if keyword in {'memorial', 'remembrance', 'passed away', 'passing', 'died', 'death'}:
+        match = ISO_DATE_RE.search(line)
+        if match:
+            return _validated_date(int(match.group('year')), int(match.group('month')), int(match.group('day')))
+    return None
 
 
 def _subject_from_line(line: str, keyword: str) -> str | None:
-    # Timeline lines are bold dates, not bold person names. Strip the date first.
     timeline = TIMELINE_RE.match(line)
     if timeline:
         body = timeline.group('body')
@@ -195,29 +238,13 @@ def _subject_from_line(line: str, keyword: str) -> str | None:
         if bold:
             return bold.group('name').strip()
         body = line
-    idx = body.lower().find(keyword)
-    if idx <= 0:
+    match = re.search(rf'(?<!\w){re.escape(keyword)}(?!\w)', body, re.I)
+    if not match or match.start() <= 0:
         return None
-    prefix = body[:idx].strip(' -*—:()\t')
+    prefix = body[:match.start()].strip(' -*—:()\t')
     prefix = re.sub(r'^(?:the|a|an)\s+', '', prefix, flags=re.I)
-    prefix = re.sub(r'\s+(?:is|has|had|for)$', '', prefix, flags=re.I)
+    prefix = re.sub(r'\s+(?:is|has|had|for|date)$', '', prefix, flags=re.I)
     return prefix if 0 < len(prefix.split()) <= 6 else None
-
-
-def _date_from_line(line: str, keyword: str) -> tuple[int | None, int, int] | None:
-    md = _month_day(line)
-    if md:
-        return None, md[0], md[1]
-    timeline = TIMELINE_RE.match(line)
-    if timeline:
-        match = ISO_DATE_RE.search(timeline.group('date'))
-        if match:
-            return None, int(match.group('month')), int(match.group('day'))
-    if keyword in {'memorial', 'remembrance', 'passed away', 'passing'}:
-        match = ISO_DATE_RE.search(line)
-        if match:
-            return int(match.group('year')), int(match.group('month')), int(match.group('day'))
-    return None
 
 
 def _extract_name_token(raw: str) -> str:
@@ -275,16 +302,63 @@ def _relationship_candidate(source_id: str, target_id: str | None, relationship_
     }
 
 
+def _date_semantic_key(candidate: dict[str, Any]) -> tuple[Any, ...]:
+    date_type = str(candidate.get('date_type') or '')
+    base = (
+        candidate.get('person_id'), date_type, candidate.get('label'),
+        int(candidate.get('month') or 0), int(candidate.get('day') or 0),
+        str(candidate.get('recurrence') or 'annual'), str(candidate.get('sensitivity_class') or 'standard'),
+    )
+    if date_type in SINGLETON_REVIEW_DATE_TYPES:
+        return base
+    return base + (candidate.get('year'),)
+
+
+def _edge_semantic_key(candidate: dict[str, Any]) -> tuple[Any, ...]:
+    return (
+        candidate.get('source_person_id'), candidate.get('target_person_id'),
+        candidate.get('relationship_type'), candidate.get('status'),
+        candidate.get('started_on'), candidate.get('ended_on'),
+        candidate.get('sensitivity_class'), candidate.get('resolution'),
+        candidate.get('unresolved_target_name'),
+    )
+
+
+def _merge_date_candidate(existing: dict[str, Any], incoming: dict[str, Any]) -> None:
+    evidence = existing.setdefault('supporting_evidence', [])
+    if not evidence:
+        evidence.append({
+            'source_note': existing.get('source_note'),
+            'source_line_number': existing.get('source_line_number'),
+            'source_sha256': existing.get('source_sha256'),
+            'evidence_line': existing.get('evidence_line'),
+        })
+    evidence.append({
+        'source_note': incoming.get('source_note'),
+        'source_line_number': incoming.get('source_line_number'),
+        'source_sha256': incoming.get('source_sha256'),
+        'evidence_line': incoming.get('evidence_line'),
+    })
+    existing['supporting_evidence_count'] = len(evidence)
+    # Prefer a source that explicitly establishes the origin year.
+    if existing.get('year') is None and incoming.get('year') is not None:
+        for key in ('year', 'source_note', 'source_line_number', 'source_sha256', 'evidence_line', 'resolution'):
+            existing[key] = incoming.get(key)
+
+
 def build_review(*, vault_root: Path, candidate_review_path: Path, manifest_path: Path, roots: tuple[Path, ...]) -> tuple[dict[str, Any], dict[str, Any]]:
     candidate_review = _load_json(candidate_review_path)
     if int(candidate_review.get('schema_version') or 0) < 2:
         raise ValueError('candidate review schema_version >= 2 is required')
     source_people, aliases, ownership = _identity_index(candidate_review, _manifest_map(manifest_path))
-    date_candidates: list[dict[str, Any]] = []
-    relationship_candidates: list[dict[str, Any]] = []
-    held_unresolved_relationships = files_scanned = lines_scanned = 0
-    seen_dates: set[tuple[Any, ...]] = set()
-    seen_edges: set[tuple[Any, ...]] = set()
+
+    date_by_key: dict[tuple[Any, ...], dict[str, Any]] = {}
+    edge_by_key: dict[tuple[Any, ...], dict[str, Any]] = {}
+    files_scanned = lines_scanned = 0
+    held_unresolved_relationships = 0
+    held_unresolved_dates = 0
+    collapsed_duplicate_date_evidence = 0
+    collapsed_duplicate_edge_evidence = 0
     vault = vault_root.resolve()
 
     for path in _source_files(vault_root, roots):
@@ -293,6 +367,7 @@ def build_review(*, vault_root: Path, candidate_review_path: Path, manifest_path
         owner_id = source_people.get(rel) or _owner_for_path(rel, ownership)
         text = path.read_text(encoding='utf-8', errors='replace')
         source_sha = _sha256(text)
+
         for line_number, raw_line in enumerate(text.splitlines(), start=1):
             line = raw_line.strip()
             if not line:
@@ -305,20 +380,44 @@ def build_review(*, vault_root: Path, candidate_review_path: Path, manifest_path
                 parsed = _date_from_line(line, raw_keyword)
                 if parsed:
                     year, month, day = parsed
-                    subject = _subject_from_line(line, raw_keyword)
-                    person_id = _resolve_alias(subject, aliases) if subject else owner_id
-                    resolution = 'unique_alias' if subject and person_id else ('source_owner' if person_id else 'unresolved')
-                    identity = (person_id, date_type, year, month, day, rel, line_number)
-                    if person_id and identity not in seen_dates:
-                        seen_dates.add(identity)
-                        date_candidates.append({
-                            'candidate_type': 'person_date', 'person_id': person_id, 'date_type': date_type,
-                            'label': None, 'year': year, 'month': month, 'day': day,
-                            'recurrence': 'annual', 'sensitivity_class': sensitivity,
-                            'evidence_basis': 'explicit_source_statement', 'resolution': resolution,
-                            'source_note': rel, 'source_line_number': line_number,
-                            'source_sha256': source_sha, 'evidence_line': line, 'approved': False,
-                        })
+                    related_death = RELATED_PERSON_DEATH_RE.search(line) if sensitivity == 'sensitive' else None
+                    subject = None if related_death else _subject_from_line(line, raw_keyword)
+                    person_id = None if related_death else (_resolve_alias(subject, aliases) if subject else owner_id)
+                    if person_id:
+                        resolution = 'unique_alias' if subject else 'source_owner'
+                    elif related_death:
+                        resolution = 'unresolved_related_person'
+                        held_unresolved_dates += 1
+                    else:
+                        resolution = 'unresolved'
+                        held_unresolved_dates += 1
+
+                    candidate = {
+                        'candidate_type': 'person_date',
+                        'person_id': person_id,
+                        'date_type': date_type,
+                        'label': None,
+                        'year': year,
+                        'month': month,
+                        'day': day,
+                        'recurrence': 'annual',
+                        'sensitivity_class': sensitivity,
+                        'evidence_basis': 'explicit_source_statement',
+                        'resolution': resolution,
+                        'source_note': rel,
+                        'source_line_number': line_number,
+                        'source_sha256': source_sha,
+                        'evidence_line': line,
+                        'supporting_evidence_count': 1,
+                        'approved': False,
+                    }
+                    semantic = _date_semantic_key(candidate)
+                    existing = date_by_key.get(semantic)
+                    if existing:
+                        _merge_date_candidate(existing, candidate)
+                        collapsed_duplicate_date_evidence += 1
+                    else:
+                        date_by_key[semantic] = candidate
 
             structured = STRUCTURED_REL_RE.match(line)
             if structured and owner_id:
@@ -327,13 +426,18 @@ def build_review(*, vault_root: Path, candidate_review_path: Path, manifest_path
                 target_id = _resolve_alias(target_name, aliases)
                 if target_id and target_id != owner_id:
                     source_id, target_id, canonical = _relationship_direction(owner_id, target_id, raw_relation)
-                    identity = (source_id, target_id, canonical, rel, line_number)
-                    if identity not in seen_edges:
-                        seen_edges.add(identity)
-                        relationship_candidates.append(_relationship_candidate(source_id, target_id, canonical, rel, line_number, source_sha, line))
+                    candidate = _relationship_candidate(source_id, target_id, canonical, rel, line_number, source_sha, line)
                 elif not target_id:
                     held_unresolved_relationships += 1
-                    relationship_candidates.append(_relationship_candidate(owner_id, None, RELATION_WORDS[raw_relation], rel, line_number, source_sha, line, unresolved_name=target_name))
+                    candidate = _relationship_candidate(owner_id, None, RELATION_WORDS[raw_relation], rel, line_number, source_sha, line, unresolved_name=target_name)
+                else:
+                    candidate = None
+                if candidate:
+                    semantic = _edge_semantic_key(candidate)
+                    if semantic in edge_by_key:
+                        collapsed_duplicate_edge_evidence += 1
+                    else:
+                        edge_by_key[semantic] = candidate
 
             for pattern in (SUBJECT_IS_POSSESSIVE_RE, POSSESSIVE_IS_SUBJECT_RE):
                 match = pattern.search(line)
@@ -345,11 +449,15 @@ def build_review(*, vault_root: Path, candidate_review_path: Path, manifest_path
                     held_unresolved_relationships += 1
                     continue
                 canonical = RELATION_WORDS[match.group('rel').lower()]
-                identity = (subject_id, named_owner_id, canonical, rel, line_number)
-                if identity not in seen_edges:
-                    seen_edges.add(identity)
-                    relationship_candidates.append(_relationship_candidate(subject_id, named_owner_id, canonical, rel, line_number, source_sha, line))
+                candidate = _relationship_candidate(subject_id, named_owner_id, canonical, rel, line_number, source_sha, line)
+                semantic = _edge_semantic_key(candidate)
+                if semantic in edge_by_key:
+                    collapsed_duplicate_edge_evidence += 1
+                else:
+                    edge_by_key[semantic] = candidate
 
+    date_candidates = list(date_by_key.values())
+    relationship_candidates = list(edge_by_key.values())
     review = {
         'schema_version': 1,
         'private_artifact': True,
@@ -363,6 +471,7 @@ def build_review(*, vault_root: Path, candidate_review_path: Path, manifest_path
             'name_only_auto_persistence_allowed': False,
             'sensitive_auto_persistence_allowed': False,
             'human_approval_required': True,
+            'duplicate_supporting_evidence_collapsed': True,
         },
     }
     receipt = {
@@ -374,9 +483,12 @@ def build_review(*, vault_root: Path, candidate_review_path: Path, manifest_path
         'date_candidates_found': len(date_candidates),
         'standard_date_candidates': sum(c['sensitivity_class'] == 'standard' for c in date_candidates),
         'sensitive_date_candidates': sum(c['sensitivity_class'] == 'sensitive' for c in date_candidates),
+        'held_unresolved_date_candidates': held_unresolved_dates,
+        'collapsed_duplicate_date_evidence': collapsed_duplicate_date_evidence,
         'relationship_candidates_found': len(relationship_candidates),
         'resolved_relationship_candidates': sum(c.get('resolution') == 'two_resolved_people' for c in relationship_candidates),
         'held_unresolved_relationship_candidates': held_unresolved_relationships,
+        'collapsed_duplicate_relationship_evidence': collapsed_duplicate_edge_evidence,
         'neon_writes': 0,
         'obsidian_writes': 0,
         'privacy': {
@@ -394,51 +506,101 @@ def _interactive(review: dict[str, Any]) -> None:
     print('\nStructured People memory review. No database or Obsidian writes occur here.\n')
     for section in ('date_candidates', 'relationship_candidates'):
         for candidate in review.get(section) or []:
-            if candidate.get('resolution') in {'unresolved', 'unresolved_target'}:
+            if candidate.get('resolution') in {'unresolved', 'unresolved_target', 'unresolved_related_person'}:
+                if candidate.get('sensitivity_class') == 'sensitive':
+                    print(f"HOLD sensitive unresolved: {candidate['evidence_line']}")
                 continue
             if candidate.get('sensitivity_class') == 'sensitive':
                 print(f"HOLD sensitive: {candidate['evidence_line']}")
                 continue
             print(f"\n{candidate['candidate_type']}: {candidate['evidence_line']}")
             if candidate['candidate_type'] == 'person_date':
-                print(f"  -> {candidate['date_type']} {candidate['month']:02d}-{candidate['day']:02d}")
+                year = f" year={candidate['year']}" if candidate.get('year') is not None else ''
+                support = int(candidate.get('supporting_evidence_count') or 1)
+                support_text = f"; {support} supporting source lines" if support > 1 else ''
+                print(f"  -> {candidate['date_type']} {candidate['month']:02d}-{candidate['day']:02d}{year}{support_text}")
             else:
                 print(f"  -> relationship: {candidate['relationship_type']}")
             candidate['approved'] = input('Approve this structured memory? [y/N]: ').strip().lower() in {'y', 'yes'}
+
+
+def _validated_date_proposal(item: dict[str, Any]) -> dict[str, Any] | None:
+    person_id = str(item.get('person_id') or '')
+    if not _valid_uuid(person_id):
+        return None
+    month, day = int(item.get('month') or 0), int(item.get('day') or 0)
+    year = item.get('year')
+    if year is not None:
+        year = int(year)
+    dt.date(year or 2000, month, day)
+    sensitivity_class = str(item.get('sensitivity_class') or 'standard')
+    if sensitivity_class not in {'standard', 'sensitive'}:
+        raise ValueError('invalid date sensitivity_class')
+    if item.get('evidence_basis') != 'explicit_source_statement':
+        raise ValueError('approved dates require explicit_source_statement')
+    date_type = str(item.get('date_type') or '').strip()
+    if not date_type:
+        raise ValueError('approved date requires date_type')
+    return {
+        'proposal_type': 'person_date',
+        'person_id': person_id,
+        'date_type': date_type,
+        'label': item.get('label'),
+        'year': year,
+        'month': month,
+        'day': day,
+        'recurrence': str(item.get('recurrence') or 'annual'),
+        'source_kind': 'user_edited_import',
+        'source_system_id': 'obsidian',
+        'confidence': 1.0,
+        'sensitivity_class': sensitivity_class,
+        'source_sha256': str(item.get('source_sha256') or ''),
+    }
+
+
+def _plan_date_key(proposal: dict[str, Any]) -> tuple[Any, ...]:
+    date_type = proposal['date_type']
+    base = (
+        proposal['person_id'], date_type, proposal.get('label'),
+        proposal['month'], proposal['day'], proposal['recurrence'], proposal['sensitivity_class'],
+    )
+    if date_type in SINGLETON_REVIEW_DATE_TYPES:
+        return base
+    return base + (proposal.get('year'),)
+
+
+def _plan_edge_key(proposal: dict[str, Any]) -> tuple[Any, ...]:
+    return (
+        proposal['source_person_id'], proposal['target_person_id'], proposal['relationship_type'],
+        proposal['status'], proposal.get('started_on'), proposal.get('ended_on'), proposal['sensitivity_class'],
+    )
 
 
 def validate_reviewed(reviewed_path: Path) -> tuple[dict[str, Any], dict[str, Any]]:
     reviewed = _load_json(reviewed_path)
     if int(reviewed.get('schema_version') or 0) != 1 or reviewed.get('private_artifact') is not True:
         raise ValueError('structured memory review schema_version 1 private artifact required')
-    proposals: list[dict[str, Any]] = []
-    approved_dates = approved_edges = sensitive = held = 0
+
+    date_proposals: dict[tuple[Any, ...], dict[str, Any]] = {}
+    edge_proposals: dict[tuple[Any, ...], dict[str, Any]] = {}
+    sensitive = held = deduped_dates = deduped_edges = 0
 
     for item in reviewed.get('date_candidates') or []:
         if not bool(item.get('approved')):
             continue
-        person_id = str(item.get('person_id') or '')
-        if not _valid_uuid(person_id):
+        proposal = _validated_date_proposal(item)
+        if proposal is None:
             held += 1
             continue
-        month, day = int(item.get('month') or 0), int(item.get('day') or 0)
-        dt.date(2000, month, day)
-        sensitivity_class = str(item.get('sensitivity_class') or 'standard')
-        if sensitivity_class not in {'standard', 'sensitive'}:
-            raise ValueError('invalid date sensitivity_class')
-        if item.get('evidence_basis') != 'explicit_source_statement':
-            raise ValueError('approved dates require explicit_source_statement')
-        sensitive += int(sensitivity_class == 'sensitive')
-        proposals.append({
-            'proposal_type': 'person_date', 'person_id': person_id,
-            'date_type': str(item.get('date_type') or '').strip(), 'label': item.get('label'),
-            'year': item.get('year'), 'month': month, 'day': day,
-            'recurrence': str(item.get('recurrence') or 'annual'),
-            'source_kind': 'user_edited_import', 'source_system_id': 'obsidian',
-            'confidence': 1.0, 'sensitivity_class': sensitivity_class,
-            'source_sha256': str(item.get('source_sha256') or ''),
-        })
-        approved_dates += 1
+        sensitive += int(proposal['sensitivity_class'] == 'sensitive')
+        semantic = _plan_date_key(proposal)
+        existing = date_proposals.get(semantic)
+        if existing:
+            deduped_dates += 1
+            if existing.get('year') is None and proposal.get('year') is not None:
+                date_proposals[semantic] = proposal
+        else:
+            date_proposals[semantic] = proposal
 
     for item in reviewed.get('relationship_candidates') or []:
         if not bool(item.get('approved')):
@@ -454,18 +616,27 @@ def validate_reviewed(reviewed_path: Path) -> tuple[dict[str, Any], dict[str, An
         if sensitivity_class not in {'standard', 'sensitive'}:
             raise ValueError('invalid edge sensitivity_class')
         sensitive += int(sensitivity_class == 'sensitive')
-        proposals.append({
+        proposal = {
             'proposal_type': 'person_relationship_edge',
-            'source_person_id': source_id, 'target_person_id': target_id,
+            'source_person_id': source_id,
+            'target_person_id': target_id,
             'relationship_type': str(item.get('relationship_type') or '').strip(),
             'status': str(item.get('status') or 'active'),
-            'started_on': item.get('started_on'), 'ended_on': item.get('ended_on'),
-            'source_kind': 'user_edited_import', 'source_system_id': 'obsidian',
-            'confidence': 1.0, 'sensitivity_class': sensitivity_class,
+            'started_on': item.get('started_on'),
+            'ended_on': item.get('ended_on'),
+            'source_kind': 'user_edited_import',
+            'source_system_id': 'obsidian',
+            'confidence': 1.0,
+            'sensitivity_class': sensitivity_class,
             'source_sha256': str(item.get('source_sha256') or ''),
-        })
-        approved_edges += 1
+        }
+        semantic = _plan_edge_key(proposal)
+        if semantic in edge_proposals:
+            deduped_edges += 1
+        else:
+            edge_proposals[semantic] = proposal
 
+    proposals = list(date_proposals.values()) + list(edge_proposals.values())
     plan = {
         'schema_version': 1,
         'private_artifact': True,
@@ -480,10 +651,12 @@ def validate_reviewed(reviewed_path: Path) -> tuple[dict[str, Any], dict[str, An
     }
     receipt = {
         'schema_version': 1,
-        'approved_person_dates': approved_dates,
-        'approved_relationship_edges': approved_edges,
+        'approved_person_dates': len(date_proposals),
+        'approved_relationship_edges': len(edge_proposals),
         'approved_sensitive_proposals': sensitive,
         'held_or_unresolved_approved_items': held,
+        'deduplicated_approved_person_dates': deduped_dates,
+        'deduplicated_approved_relationship_edges': deduped_edges,
         'apply_allowed': False,
         'neon_writes': 0,
         'privacy': {
