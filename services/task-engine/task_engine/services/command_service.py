@@ -54,6 +54,17 @@ class CommandService:
         ):
             raise ConflictError("Fixed tasks cannot be rescheduled by the orchestration control plane")
 
+        active = self.session.scalar(
+            select(OrchestrationCommand).where(
+                OrchestrationCommand.task_id == task.id,
+                OrchestrationCommand.status == OrchestrationCommandStatus.ACCEPTED.value,
+            )
+        )
+        if active is not None:
+            raise ConflictError(
+                f"Task already has accepted command {active.command_key}; resolve or fail it before issuing another"
+            )
+
         command = OrchestrationCommand(
             task_id=task.id,
             command_key=data.command_key,
@@ -67,7 +78,9 @@ class CommandService:
             self.session.flush()
         except IntegrityError as exc:
             self.session.rollback()
-            raise ConflictError("Orchestration command key already exists") from exc
+            raise ConflictError(
+                "Orchestration command conflicts with an existing command or active task decision"
+            ) from exc
 
         self._emit_requested(task, command)
         self.session.commit()
