@@ -32,6 +32,7 @@ from task_engine.services.task_service import ConflictError, NotFoundError, Task
 from task_engine.services.worker_service import CommandWorker
 from task_engine.worker.calendar_adapter import GoogleCalendarAdapter
 from task_engine.worker.canonical_adapter import CanonicalNeonAdapter
+from task_engine.worker.runtime import ProductionCommandWorker
 
 router = APIRouter(prefix="/v1", dependencies=[Depends(require_api_token)])
 
@@ -46,7 +47,7 @@ def command_service(session: Session = Depends(get_session)) -> CommandService:
 
 def worker_service(session: Session = Depends(get_session)) -> CommandWorker:
     settings = get_settings()
-    return CommandWorker(
+    return ProductionCommandWorker(
         session,
         settings,
         {
