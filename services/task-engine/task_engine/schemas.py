@@ -1,9 +1,10 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from task_engine.enums import (
     AttemptResult,
+    CommandEffectStatus,
     ExecutionPolicy,
     OrchestrationCommandStatus,
     OrchestrationCommandType,
@@ -163,6 +164,8 @@ class OrchestrationCommandSubmit(BaseModel):
     reason: str | None = Field(default=None, max_length=2000)
     desired_start: datetime | None = None
     desired_end: datetime | None = None
+    follow_up_at: datetime | None = None
+    follow_up_date: date | None = None
     metadata: dict[str, object] = Field(default_factory=dict)
 
     @model_validator(mode="after")
@@ -178,6 +181,13 @@ class OrchestrationCommandSubmit(BaseModel):
                 raise ValueError("desired_start and desired_end must be provided together")
             if self.desired_end <= self.desired_start:
                 raise ValueError("desired_end must be after desired_start")
+        if self.command_type == OrchestrationCommandType.WAIT:
+            if self.follow_up_at is None and self.follow_up_date is None:
+                raise ValueError("wait requires follow_up_at or follow_up_date")
+            if self.follow_up_at is not None and self.follow_up_date is not None:
+                raise ValueError("wait accepts one follow-up granularity, not both")
+        elif self.follow_up_at is not None or self.follow_up_date is not None:
+            raise ValueError("follow_up_at/follow_up_date are only valid for wait")
         return self
 
 
@@ -210,6 +220,42 @@ class OrchestrationCommandRead(BaseModel):
     failure_reason: str | None
     created_at: datetime
     completed_at: datetime | None
+
+
+class CommandEffectRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    command_id: str
+    effect_key: str
+    ordinal: int
+    target: str
+    operation: str
+    status: CommandEffectStatus
+    request_payload: dict[str, object]
+    result_payload: dict[str, object] | None
+    attempt_count: int
+    next_attempt_at: datetime | None
+    lease_owner: str | None
+    lease_until: datetime | None
+    last_error: str | None
+    created_at: datetime
+    updated_at: datetime
+    completed_at: datetime | None
+
+
+class WorkerRunRequest(BaseModel):
+    worker_id: str | None = Field(default=None, min_length=1, max_length=128)
+    max_commands: int = Field(default=20, ge=1, le=100)
+
+
+class WorkerRunResult(BaseModel):
+    worker_id: str
+    commands_seen: int
+    effects_applied: int
+    effects_retried: int
+    commands_completed: int
+    commands_failed: int
 
 
 class OutboxEventRead(BaseModel):
