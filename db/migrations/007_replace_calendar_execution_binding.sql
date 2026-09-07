@@ -22,9 +22,6 @@ BEGIN
         RAISE EXCEPTION 'account_scope is required' USING ERRCODE = '22023';
     END IF;
 
-    -- Archive every other active execution binding for this action in the same
-    -- transaction that establishes the replacement. Historical/status/recovery
-    -- refs are intentionally untouched.
     UPDATE llm4life.external_refs er
        SET archived_at = now(), updated_at = now()
      WHERE er.internal_type = 'action'
@@ -76,5 +73,36 @@ $$;
 
 COMMENT ON FUNCTION llm4life.replace_calendar_execution_binding(uuid, text, text, jsonb)
 IS 'Guarded Task Engine API: atomically archive prior active execution bindings and establish exactly one replacement Google Calendar execution binding.';
+
+CREATE OR REPLACE FUNCTION llm4life.archive_action_execution_bindings(
+    p_action_id uuid
+)
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'pg_catalog', 'llm4life'
+AS $$
+DECLARE
+    v_count integer;
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM llm4life.actions a WHERE a.id = p_action_id) THEN
+        RAISE EXCEPTION 'action % does not exist', p_action_id USING ERRCODE = 'P0002';
+    END IF;
+
+    UPDATE llm4life.external_refs er
+       SET archived_at = now(), updated_at = now()
+     WHERE er.internal_type = 'action'
+       AND er.internal_id = p_action_id
+       AND er.system_id = 'google_calendar'
+       AND er.ref_kind = 'execution_binding'
+       AND er.archived_at IS NULL;
+
+    GET DIAGNOSTICS v_count = ROW_COUNT;
+    RETURN v_count;
+END;
+$$;
+
+COMMENT ON FUNCTION llm4life.archive_action_execution_bindings(uuid)
+IS 'Guarded Task Engine API: archive all active Google Calendar execution bindings for one action without exposing raw external_refs rows.';
 
 COMMIT;
