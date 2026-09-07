@@ -258,6 +258,25 @@ class WorkerRunResult(BaseModel):
     commands_failed: int
 
 
+class WorkerHeartbeatRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    worker_name: str
+    worker_id: str | None
+    last_started_at: datetime
+    last_succeeded_at: datetime | None
+    last_failed_at: datetime | None
+    last_duration_ms: int | None
+    last_commands_seen: int
+    last_effects_applied: int
+    last_effects_retried: int
+    last_commands_completed: int
+    last_commands_failed: int
+    last_error_class: str | None
+    last_error_message: str | None
+    updated_at: datetime
+
+
 class OutboxEventRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
