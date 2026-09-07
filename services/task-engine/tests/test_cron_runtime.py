@@ -54,3 +54,18 @@ def test_cron_authorization_is_unavailable_when_secret_is_not_configured() -> No
         _authorize_cron("Bearer anything", production_settings(cron_secret=None))
 
     assert exc_info.value.status_code == 503
+
+
+def test_existing_google_environment_names_are_supported(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("TASK_ENGINE_GOOGLE_CLIENT_ID", raising=False)
+    monkeypatch.delenv("TASK_ENGINE_GOOGLE_CLIENT_SECRET", raising=False)
+    monkeypatch.delenv("TASK_ENGINE_GOOGLE_REFRESH_TOKEN", raising=False)
+    monkeypatch.setenv("GOOGLE_CLIENT_ID", "shared-client")
+    monkeypatch.setenv("GOOGLE_CLIENT_SECRET", "shared-secret")
+    monkeypatch.setenv("GOOGLE_REFRESH_TOKEN", "shared-refresh")
+
+    settings = Settings(_env_file=None)
+
+    assert settings.google_client_id == "shared-client"
+    assert settings.google_client_secret == "shared-secret"
+    assert settings.google_refresh_token == "shared-refresh"
