@@ -21,6 +21,19 @@ class Settings(BaseSettings):
     high_stakes_threshold: int = Field(default=70, ge=0, le=100)
     api_token: str | None = None
 
+    # Deterministic command worker. Keep canonical and provider credentials separate
+    # from the Task Engine coordination database so permissions can remain narrow.
+    canonical_database_url: str | None = None
+    google_client_id: str | None = None
+    google_client_secret: str | None = None
+    google_refresh_token: str | None = None
+    google_calendar_api_base: str = "https://www.googleapis.com/calendar/v3"
+    google_oauth_token_url: str = "https://oauth2.googleapis.com/token"
+    worker_lease_seconds: int = Field(default=120, ge=30, le=900)
+    worker_max_attempts: int = Field(default=8, ge=1, le=30)
+    worker_retry_base_seconds: int = Field(default=15, ge=1, le=3600)
+    worker_retry_max_seconds: int = Field(default=1800, ge=30, le=86400)
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
