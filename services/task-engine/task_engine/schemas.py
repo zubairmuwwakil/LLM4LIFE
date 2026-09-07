@@ -2,7 +2,14 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from task_engine.enums import AttemptResult, ExecutionPolicy, TaskCategory, TaskStatus
+from task_engine.enums import (
+    AttemptResult,
+    ExecutionPolicy,
+    OrchestrationCommandStatus,
+    OrchestrationCommandType,
+    TaskCategory,
+    TaskStatus,
+)
 
 
 class TaskBase(BaseModel):
@@ -144,6 +151,65 @@ class PlanningRecommendation(BaseModel):
     requires_review: bool
     reason: str
     score: ScoreBreakdown | None = None
+
+
+class OrchestrationCommandSubmit(BaseModel):
+    """A single AI decision handed to deterministic workers exactly once."""
+
+    command_key: str = Field(min_length=1, max_length=255)
+    command_type: OrchestrationCommandType
+    expected_task_version: int | None = Field(default=None, ge=1)
+    requested_by: str = Field(default="chatgpt", min_length=1, max_length=100)
+    reason: str | None = Field(default=None, max_length=2000)
+    desired_start: datetime | None = None
+    desired_end: datetime | None = None
+    metadata: dict[str, object] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def validate_command(self) -> "OrchestrationCommandSubmit":
+        needs_window = self.command_type in {
+            OrchestrationCommandType.RESCHEDULE,
+            OrchestrationCommandType.STATUS_CHECK,
+        }
+        if needs_window and (self.desired_start is None or self.desired_end is None):
+            raise ValueError(f"{self.command_type.value} requires desired_start and desired_end")
+        if self.desired_start is not None or self.desired_end is not None:
+            if self.desired_start is None or self.desired_end is None:
+                raise ValueError("desired_start and desired_end must be provided together")
+            if self.desired_end <= self.desired_start:
+                raise ValueError("desired_end must be after desired_start")
+        return self
+
+
+class OrchestrationCommandComplete(BaseModel):
+    success: bool
+    result: dict[str, object] = Field(default_factory=dict)
+    error: str | None = Field(default=None, max_length=4000)
+
+    @model_validator(mode="after")
+    def validate_completion(self) -> "OrchestrationCommandComplete":
+        if self.success and self.error is not None:
+            raise ValueError("successful command completion cannot include error")
+        if not self.success and not self.error:
+            raise ValueError("failed command completion requires error")
+        return self
+
+
+class OrchestrationCommandRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    task_id: str
+    command_key: str
+    command_type: OrchestrationCommandType
+    status: OrchestrationCommandStatus
+    expected_task_version: int | None
+    requested_by: str
+    payload: dict[str, object]
+    result_payload: dict[str, object] | None
+    failure_reason: str | None
+    created_at: datetime
+    completed_at: datetime | None
 
 
 class OutboxEventRead(BaseModel):
