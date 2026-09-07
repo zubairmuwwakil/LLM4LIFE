@@ -9,6 +9,7 @@ class Settings(BaseSettings):
         env_prefix="TASK_ENGINE_",
         env_file=".env",
         extra="ignore",
+        populate_by_name=True,
     )
 
     database_url: str = "sqlite:///./task-engine.db"
