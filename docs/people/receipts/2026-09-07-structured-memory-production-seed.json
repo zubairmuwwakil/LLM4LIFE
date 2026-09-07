@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-07",
+  "people_phase": 4,
+  "structured_memory": {
+    "reviewed_standard_dates_applied": 2,
+    "reviewed_relationship_edges_applied": 0,
+    "sensitive_records_applied": 0,
+    "missing_active_people": 0,
+    "conflicts": 0,
+    "idempotent_replay_verified": true,
+    "person_dates_total_after_apply": 2
+  },
+  "privacy": {
+    "contains_names": false,
+    "contains_person_ids": false,
+    "contains_dates": false,
+    "contains_obsidian_paths": false,
+    "contains_raw_evidence": false
+  }
+}
