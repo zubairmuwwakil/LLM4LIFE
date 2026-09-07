@@ -9,6 +9,7 @@ from task_engine.database import get_session
 from task_engine.schemas import (
     CalendarBindingCreate,
     CalendarBindingRead,
+    CommandEffectRead,
     FollowupDue,
     FollowupResolution,
     FollowupResolve,
@@ -22,10 +23,14 @@ from task_engine.schemas import (
     TaskRead,
     TaskSync,
     TaskUpdate,
+    WorkerRunRequest,
+    WorkerRunResult,
 )
 from task_engine.services.command_service import CommandService
 from task_engine.services.planner import Planner
 from task_engine.services.task_service import ConflictError, NotFoundError, TaskService
+from task_engine.services.worker_service import CommandWorker
+from task_engine.worker.adapters import CanonicalNeonAdapter, GoogleCalendarAdapter
 
 router = APIRouter(prefix="/v1", dependencies=[Depends(require_api_token)])
 
@@ -36,6 +41,18 @@ def service(session: Session = Depends(get_session)) -> TaskService:
 
 def command_service(session: Session = Depends(get_session)) -> CommandService:
     return CommandService(session)
+
+
+def worker_service(session: Session = Depends(get_session)) -> CommandWorker:
+    settings = get_settings()
+    return CommandWorker(
+        session,
+        settings,
+        {
+            "canonical": CanonicalNeonAdapter(settings),
+            "calendar": GoogleCalendarAdapter(settings),
+        },
+    )
 
 
 def translate_error(exc: Exception) -> HTTPException:
@@ -130,6 +147,14 @@ def get_orchestration_command(
         raise translate_error(exc) from exc
 
 
+@router.get("/commands/{command_id}/effects", response_model=list[CommandEffectRead])
+def get_orchestration_command_effects(
+    command_id: str,
+    svc: CommandWorker = Depends(worker_service),
+) -> list[CommandEffectRead]:
+    return [CommandEffectRead.model_validate(effect) for effect in svc.effects_for_command(command_id)]
+
+
 @router.post("/commands/{command_id}/complete", response_model=OrchestrationCommandRead)
 def complete_orchestration_command(
     command_id: str,
@@ -140,6 +165,14 @@ def complete_orchestration_command(
         return OrchestrationCommandRead.model_validate(svc.complete(command_id, data))
     except (NotFoundError, ConflictError) as exc:
         raise translate_error(exc) from exc
+
+
+@router.post("/worker/commands/run", response_model=WorkerRunResult)
+def run_command_worker(
+    data: WorkerRunRequest,
+    svc: CommandWorker = Depends(worker_service),
+) -> WorkerRunResult:
+    return svc.run(worker_id=data.worker_id, max_commands=data.max_commands)
 
 
 @router.get("/followups/due", response_model=list[FollowupDue])
