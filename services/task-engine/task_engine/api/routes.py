@@ -23,6 +23,7 @@ from task_engine.schemas import (
     TaskRead,
     TaskSync,
     TaskUpdate,
+    WorkerHeartbeatRead,
     WorkerRunRequest,
     WorkerRunResult,
 )
@@ -175,6 +176,16 @@ def run_command_worker(
     svc: CommandWorker = Depends(worker_service),
 ) -> WorkerRunResult:
     return svc.run(worker_id=data.worker_id, max_commands=data.max_commands)
+
+
+@router.get("/worker/heartbeat", response_model=WorkerHeartbeatRead)
+def get_worker_heartbeat(
+    svc: CommandWorker = Depends(worker_service),
+) -> WorkerHeartbeatRead:
+    heartbeat = svc.heartbeat()
+    if heartbeat is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Worker has not run yet")
+    return WorkerHeartbeatRead.model_validate(heartbeat)
 
 
 @router.get("/followups/due", response_model=list[FollowupDue])
