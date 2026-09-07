@@ -25,6 +25,9 @@ jobs:
         with:
           python-version: "3.12"
       - run: uv sync --dev
-      - run: uv run ruff check task_engine tests migrations
+      # Block correctness/bug-prone lint without making this rollout depend on
+      # unrelated legacy formatting cleanup. FastAPI Depends defaults intentionally
+      # trigger B008 and are excluded.
+      - run: uv run ruff check task_engine tests migrations --select F,B,UP --ignore B008
       - run: uv run pytest -q
       - run: uv run python -m compileall -q task_engine migrations tests
