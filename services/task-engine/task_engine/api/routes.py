@@ -12,6 +12,9 @@ from task_engine.schemas import (
     FollowupDue,
     FollowupResolution,
     FollowupResolve,
+    OrchestrationCommandComplete,
+    OrchestrationCommandRead,
+    OrchestrationCommandSubmit,
     OutboxEventRead,
     PlanningRecommendation,
     PlanningRequest,
@@ -20,6 +23,7 @@ from task_engine.schemas import (
     TaskSync,
     TaskUpdate,
 )
+from task_engine.services.command_service import CommandService
 from task_engine.services.planner import Planner
 from task_engine.services.task_service import ConflictError, NotFoundError, TaskService
 
@@ -28,6 +32,10 @@ router = APIRouter(prefix="/v1", dependencies=[Depends(require_api_token)])
 
 def service(session: Session = Depends(get_session)) -> TaskService:
     return TaskService(session, get_settings())
+
+
+def command_service(session: Session = Depends(get_session)) -> CommandService:
+    return CommandService(session)
 
 
 def translate_error(exc: Exception) -> HTTPException:
@@ -91,6 +99,45 @@ def bind_calendar(
 ) -> CalendarBindingRead:
     try:
         return CalendarBindingRead.model_validate(svc.bind_calendar(task_id, data))
+    except (NotFoundError, ConflictError) as exc:
+        raise translate_error(exc) from exc
+
+
+@router.post(
+    "/tasks/{task_id}/commands",
+    response_model=OrchestrationCommandRead,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def submit_orchestration_command(
+    task_id: str,
+    data: OrchestrationCommandSubmit,
+    svc: CommandService = Depends(command_service),
+) -> OrchestrationCommandRead:
+    try:
+        return OrchestrationCommandRead.model_validate(svc.submit(task_id, data))
+    except (NotFoundError, ConflictError) as exc:
+        raise translate_error(exc) from exc
+
+
+@router.get("/commands/{command_id}", response_model=OrchestrationCommandRead)
+def get_orchestration_command(
+    command_id: str,
+    svc: CommandService = Depends(command_service),
+) -> OrchestrationCommandRead:
+    try:
+        return OrchestrationCommandRead.model_validate(svc.get(command_id))
+    except NotFoundError as exc:
+        raise translate_error(exc) from exc
+
+
+@router.post("/commands/{command_id}/complete", response_model=OrchestrationCommandRead)
+def complete_orchestration_command(
+    command_id: str,
+    data: OrchestrationCommandComplete,
+    svc: CommandService = Depends(command_service),
+) -> OrchestrationCommandRead:
+    try:
+        return OrchestrationCommandRead.model_validate(svc.complete(command_id, data))
     except (NotFoundError, ConflictError) as exc:
         raise translate_error(exc) from exc
 
