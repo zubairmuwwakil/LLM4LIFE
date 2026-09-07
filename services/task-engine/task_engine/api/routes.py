@@ -30,7 +30,8 @@ from task_engine.services.command_service import CommandService
 from task_engine.services.planner import Planner
 from task_engine.services.task_service import ConflictError, NotFoundError, TaskService
 from task_engine.services.worker_service import CommandWorker
-from task_engine.worker.adapters import CanonicalNeonAdapter, GoogleCalendarAdapter
+from task_engine.worker.adapters import GoogleCalendarAdapter
+from task_engine.worker.canonical_adapter import CanonicalNeonAdapter
 
 router = APIRouter(prefix="/v1", dependencies=[Depends(require_api_token)])
 
