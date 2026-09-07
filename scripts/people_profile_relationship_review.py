@@ -64,12 +64,19 @@ def _resolve_target(
     raw: str,
     aliases: dict[str, list[str]],
     source_people: dict[str, str],
+    *,
+    source_note: str,
 ) -> tuple[str, str | None, str]:
     link_target, display = _wikilink_parts(raw)
     if link_target:
         exact_candidates = [link_target]
         if not link_target.lower().endswith('.md'):
             exact_candidates.append(link_target + '.md')
+        if '/' not in link_target:
+            local = (Path(source_note).parent / link_target).as_posix()
+            exact_candidates.append(local)
+            if not local.lower().endswith('.md'):
+                exact_candidates.append(local + '.md')
         for candidate in exact_candidates:
             person_id = source_people.get(candidate)
             if person_id:
@@ -179,7 +186,12 @@ def enrich_review(
 
             section_entries += 1
             target_raw = parsed.group('target').strip()
-            target_name, target_id, resolution = _resolve_target(target_raw, aliases, source_people)
+            target_name, target_id, resolution = _resolve_target(
+                target_raw,
+                aliases,
+                source_people,
+                source_note=rel,
+            )
 
             if not target_id:
                 held_unresolved += 1
@@ -195,6 +207,7 @@ def enrich_review(
                 )
                 candidate['resolution'] = 'unresolved_target'
                 candidate['profile_section_resolution'] = resolution
+                candidate['profile_raw_relation'] = raw_relation
             elif target_id == owner_id:
                 self_edges_held += 1
                 continue
@@ -210,6 +223,7 @@ def enrich_review(
                     line,
                 )
                 candidate['profile_section_resolution'] = resolution
+                candidate['profile_raw_relation'] = raw_relation
                 resolved += 1
                 if resolution == 'exact_wikilink':
                     exact_wikilink_resolutions += 1
